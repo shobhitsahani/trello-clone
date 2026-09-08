@@ -399,6 +399,12 @@ export const api = {
   },
 
   orgs: {
+    create: (name: string) =>
+      request<{ org: { id: string; name: string; slug: string }; tenant: ActiveTenant; accessToken: string }>(`/orgs`, {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      }),
+
     listMembers: (orgId: string) =>
       request<{ members: Member[] }>(`/orgs/${orgId}/members`),
 

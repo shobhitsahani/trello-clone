@@ -13,6 +13,7 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string, orgName: string) => Promise<void>;
   logout: () => Promise<void>;
   switchOrg: (orgId: string) => Promise<void>;
+  createOrg: (name: string) => Promise<ActiveTenant>;
   refreshUser: () => Promise<void>;
 }
 
@@ -97,6 +98,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setMemberships((prev) => prev.map((m) => (m.tenant_id === orgId ? { ...m, status: "active" as const } : m)));
   };
 
+  const createOrg = async (name: string) => {
+    const data = await api.orgs.create(name);
+    const refreshToken = localStorage.getItem("tf_refresh_token")!;
+    setAuthTokens({ accessToken: data.accessToken, refreshToken }, data.tenant.tenant_id);
+    setMemberships((prev) => {
+      if (prev.some((m) => m.tenant_id === data.tenant.tenant_id)) return prev;
+      return [...prev, data.tenant];
+    });
+    setActiveTenantId(data.tenant.tenant_id);
+    return data.tenant;
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -109,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         logout,
         switchOrg,
+        createOrg,
         refreshUser,
       }}
     >

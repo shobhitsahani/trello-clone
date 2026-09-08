@@ -10,8 +10,9 @@ import { inTenant, withTenant } from "../lib/request.js";
 import { requireRole, Rbac, type Role } from "../lib/rbac.js";
 import { hashPassword, hashSecret } from "../lib/password.js";
 import { randomToken, uuidv7 } from "../lib/ids.js";
-import { badRequest, forbidden, notFound, quotaExceeded } from "../lib/errors.js";
+import { badRequest, forbidden, notFound, quotaExceeded, unauthorized } from "../lib/errors.js";
 import { audit } from "../lib/audit.js";
+import { signAccessToken } from "../lib/tokens.js";
 import { db } from "../db/client.js";
 import { invites, memberships, projects, tasks, tenants, users } from "../db/schema.js";
 import { lookupInvite } from "../lib/auth.js";
@@ -21,6 +22,50 @@ export const orgRoutes = new Hono();
 
 const ROLE_VALUES: Role[] = ["owner", "admin", "member", "viewer"];
 const isRole = (v: unknown): v is Role => typeof v === "string" && (ROLE_VALUES as string[]).includes(v);
+
+// POST /v1/orgs — authenticated user creates a new organization (becomes owner).
+// This is the in-app equivalent of signup's auto-provisioning, for users who
+// already have a session and want an additional workspace.
+orgRoutes.post("/orgs", async (c) => {
+  const p = c.get("principal");
+  if (!p || p.tokenType !== "user" || !p.userId) throw forbidden("Only user sessions can create organizations.");
+  const raw = await c.req.json().catch(() => null);
+  const parsed = z
+    .object({ name: z.string().min(2).max(80).optional(), orgName: z.string().min(2).max(80).optional() })
+    .safeParse(raw);
+  const orgName = parsed.success ? (parsed.data.name ?? parsed.data.orgName) : undefined;
+  if (!parsed.success || !orgName) throw badRequest("Organization name (2-80 characters) is required.");
+
+  const userRows = await db.select().from(users).where(eq(users.id, p.userId)).limit(1);
+  if (!userRows[0]) throw unauthorized("Account not found.");
+
+  const tenantId = uuidv7();
+  const slugBase = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "org";
+  let slug = `${slugBase}-${tenantId.slice(-4)}${tenantId.slice(19, 23)}`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      await db.insert(tenants).values({ id: tenantId, name: orgName, slug, plan: "free" });
+      break;
+    } catch (err) {
+      if (attempt === 2 || !(err as { code?: string }).code?.startsWith("23")) throw err;
+      slug = `${slugBase}-${randomToken(4).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || uuidv7().slice(-4)}`;
+    }
+  }
+  await withTenant(tenantId, async (tx) => {
+    await tx.insert(memberships).values({ tenantId, userId: p.userId, role: "owner", status: "active" });
+    await audit(tx, { tenantId, actorId: p.userId, action: "org.created", entityType: "tenant", entityId: tenantId, after: { name: orgName } });
+  });
+
+  const accessToken = await signAccessToken({ sub: p.userId, tid: tenantId, role: "owner" });
+  return c.json(
+    {
+      org: { id: tenantId, name: orgName, slug },
+      tenant: { tenant_id: tenantId, tenant_name: orgName, tenant_slug: slug, plan: "free", role: "owner", status: "active" },
+      accessToken,
+    },
+    201,
+  );
+});
 
 function assertCanRoleScale(actor: Role | undefined, target: Role): void {
   if (target === "owner") requireRole(actor, Rbac.owner); // only owners mint owners

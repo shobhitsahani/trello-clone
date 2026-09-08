@@ -4,11 +4,11 @@
    Wired to the real API — projects/teams/members/activity from the
    tenant-scoped backend, user from the auth session. */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTenant } from "./store";
-import { useToast, Dropdown, MenuItem } from "./overlay";
+import { useToast, Dropdown, MenuItem, Modal } from "./overlay";
 import { Avatar, Kbd } from "./ui";
 import { useAuth } from "../lib/auth";
 import { api, getCurrentTenantId } from "../lib/api";
@@ -129,9 +129,12 @@ function OrgGlyph({ name, hue, size = 28 }: { name: string; hue: number; size?: 
 
 export function ContextBar() {
   const pathname = usePathname();
-  const { org, orgs, setOrg } = useTenant();
+  const { org, orgs, setOrg, createOrg, creatingOrg } = useTenant();
   const { user } = useAuth();
+  const toast = useToast();
   const orgId = getCurrentTenantId();
+  const [showNewOrg, setShowNewOrg] = useState(false);
+  const [newOrgName, setNewOrgName] = useState("");
 
   const projectsQ = useSWR<{ projects: ApiProject[] }>(
     orgId ? `ctx-projects-${orgId}` : null,
@@ -159,6 +162,19 @@ export function ContextBar() {
     () => ({ name: user?.name ?? "You", email: user?.email ?? "", role: org?.role ?? "member" }),
     [user, org],
   );
+
+  const handleCreateOrg = async () => {
+    const name = newOrgName.trim();
+    if (!name || creatingOrg) return;
+    try {
+      const created = await createOrg(name);
+      setShowNewOrg(false);
+      setNewOrgName("");
+      toast({ title: "Organization created", msg: `${created?.name ?? name} is ready — switched to the new workspace.` });
+    } catch (err) {
+      toast({ title: "Create failed", msg: err instanceof Error ? err.message : "Try again.", kind: "err" });
+    }
+  };
 
   return (
     <aside className="st-side" aria-label="Workspace navigation">
@@ -194,9 +210,56 @@ export function ContextBar() {
                   </MenuItem>
                 ))}
                 {orgs.length === 0 ? <div className="menu-label">No memberships</div> : null}
+                <div style={{ borderTop: "1px solid var(--slate-200)", marginTop: 4, paddingTop: 4 }}>
+                  <MenuItem
+                    onSelect={() => {
+                      close();
+                      setNewOrgName("");
+                      setShowNewOrg(true);
+                    }}
+                  >
+                    <IconPlus size={14} />
+                    <span className="grow" style={{ fontWeight: 600 }}>New organization</span>
+                  </MenuItem>
+                </div>
               </>
             )}
           </Dropdown>
+          <Modal
+            open={showNewOrg}
+            onClose={() => setShowNewOrg(false)}
+            title="New organization"
+            sub="Create a new workspace. You'll become its owner and switch to it immediately."
+            footer={
+              <>
+                <button className="btn btn-ghost" onClick={() => setShowNewOrg(false)}>Cancel</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => void handleCreateOrg()}
+                  disabled={!newOrgName.trim() || creatingOrg}
+                >
+                  <IconPlus size={14} /> {creatingOrg ? "Creating…" : "Create organization"}
+                </button>
+              </>
+            }
+          >
+            <div className="form-field">
+              <label htmlFor="new-org-name">Organization name</label>
+              <input
+                id="new-org-name"
+                type="text"
+                value={newOrgName}
+                onChange={(e) => setNewOrgName(e.target.value)}
+                placeholder="Acme Inc"
+                autoFocus
+                maxLength={80}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleCreateOrg();
+                }}
+              />
+              <p className="field-hint">2–80 characters. You can invite teammates after.</p>
+            </div>
+          </Modal>
         </div>
 
         <div>

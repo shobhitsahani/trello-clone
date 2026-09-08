@@ -37,6 +37,8 @@ type TenantCtx = {
   org: Org | null;
   orgs: Org[];
   setOrg: (id: string) => Promise<void>;
+  createOrg: (name: string) => Promise<Org | null>;
+  creatingOrg: boolean;
   notifications: Notification[];
   unread: number;
   markRead: (id: string) => void;
@@ -65,9 +67,10 @@ type PaginatedNotifications = {
 };
 
 export function TenantProvider({ children }: { children: ReactNode }) {
-  const { memberships, activeTenantId, isAuthenticated, refreshUser, switchOrg } = useAuth();
+  const { memberships, activeTenantId, isAuthenticated, refreshUser, switchOrg, createOrg: createOrgAuth } = useAuth();
   const router = useRouter();
   const [switching, setSwitching] = useState(false);
+  const [creatingOrg, setCreatingOrg] = useState(false);
 
   // Remember last-used org locally; the backend session (activeTenantId) wins.
   const [preferredOrgId, setPreferredOrgId] = useState<string | null>(null);
@@ -172,8 +175,39 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     [isAuthenticated, switching, refreshUser, router, switchOrg],
   );
 
+  const createOrg = useCallback(
+    async (name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed || !isAuthenticated || creatingOrg) return null;
+      setCreatingOrg(true);
+      try {
+        const tenant = await createOrgAuth(trimmed);
+        setPreferredOrgId(tenant.tenant_id);
+        try {
+          window.localStorage.setItem(LS_KEY, JSON.stringify(tenant.tenant_id));
+        } catch {
+          // storage unavailable — session-only choice
+        }
+        await refreshUser();
+        router.refresh();
+        return {
+          id: tenant.tenant_id,
+          name: tenant.tenant_name,
+          slug: tenant.tenant_slug,
+          hue: hueFrom(tenant.tenant_slug || tenant.tenant_id),
+          plan: tenant.plan,
+          role: tenant.role,
+          createdAt: "",
+        } satisfies Org;
+      } finally {
+        setCreatingOrg(false);
+      }
+    },
+    [isAuthenticated, creatingOrg, createOrgAuth, refreshUser, router],
+  );
+
   return (
-    <Ctx.Provider value={{ org, orgs, setOrg, notifications, unread, markRead, markAllRead, mutateNotifications }}>
+    <Ctx.Provider value={{ org, orgs, setOrg, createOrg, creatingOrg, notifications, unread, markRead, markAllRead, mutateNotifications }}>
       {children}
     </Ctx.Provider>
   );
