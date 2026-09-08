@@ -13,6 +13,7 @@ interface WSMessage {
 interface UseRealtimeOptions {
   onNotification?: (notification: WSMessage) => void;
   onActivity?: (activity: WSMessage) => void;
+  onChat?: (event: WSMessage) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Event) => void;
@@ -69,6 +70,11 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
           case "activity":
             // Real-time activity event
             options.onActivity?.(msg);
+            break;
+          case "chat.created":
+          case "chat.deleted":
+            // Real-time team-chat event (POST /v1/chat/messages fan-out)
+            options.onChat?.(msg);
             break;
           case "error":
             console.warn("[realtime] Server error:", msg.error);

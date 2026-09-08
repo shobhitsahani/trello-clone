@@ -72,6 +72,7 @@ model Tenant {
   projects      Project[]
   tasks         Task[]
   comments      Comment[]
+  chatMessages  ChatMessage[]
   attachments   Attachment[]
   activity      Activity[]
   notifications Notification[]
@@ -204,6 +205,21 @@ model Comment {
   @@id([tenantId, id])
   @@index([tenantId, taskId, createdAt], map: "comments_task_idx")
   @@map("comments")
+}
+
+model ChatMessage {
+  tenantId  String    @map("tenant_id") @db.Uuid
+  id        String    @default(uuid()) @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@index([tenantId, createdAt(sort: Desc)], map: "chat_messages_tenant_created_idx")
+  @@map("chat_messages")
 }
 
 model Attachment {

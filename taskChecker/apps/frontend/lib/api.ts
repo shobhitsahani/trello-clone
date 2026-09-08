@@ -72,6 +72,14 @@ export interface Comment {
   deletedAt: string | null;
 }
 
+export interface ChatMessage {
+  id: string;
+  tenantId?: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+}
+
 export interface Attachment {
   id: string;
   tenantId: string;
@@ -485,6 +493,21 @@ export const api = {
 
     delete: (commentId: string) =>
       request<{ ok: boolean }>(`/comments/${commentId}`, { method: "DELETE" }),
+  },
+
+  chat: {
+    list: (params?: { limit?: number; cursor?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.limit) searchParams.set("limit", String(params.limit));
+      if (params?.cursor) searchParams.set("cursor", params.cursor);
+      return request<PaginatedResponse<ChatMessage>>(`/chat/messages?${searchParams}`);
+    },
+
+    send: (body: string) =>
+      request<{ message: ChatMessage }>(`/chat/messages`, { method: "POST", body: JSON.stringify({ body }) }),
+
+    remove: (messageId: string) =>
+      request<{ ok: boolean }>(`/chat/messages/${messageId}`, { method: "DELETE" }),
   },
 
   attachments: {

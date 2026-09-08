@@ -257,4 +257,55 @@ it("enforces API-key scopes (read-only key cannot mutate)", async () => {
     expect(del.status).toBe(200);
     expect((await api.request(`/v1/tasks/${first.task.id}`, api.auth(a.accessToken))).status).toBe(404);
   });
+
+  it("sends, lists, and isolates team chat messages per tenant", async () => {
+    const a = await signup(`chat-a-${tag}`, `Chat A ${tag}`);
+    const b = await signup(`chat-b-${tag}`, `Chat B ${tag}`);
+
+    const sent = await authed<{ message: { id: string; body: string } }>(
+      await api.request("/v1/chat/messages", {
+        method: "POST",
+        ...api.json({ body: `hello from A ${tag}` }),
+        ...api.auth(a.accessToken),
+      }),
+    );
+    expect(sent.message.body).toBe(`hello from A ${tag}`);
+
+    // empty/oversized bodies are rejected, never stored
+    expect(
+      (await api.request("/v1/chat/messages", {
+        method: "POST",
+        ...api.json({ body: "   " }),
+        ...api.auth(a.accessToken),
+      })).status,
+    ).toBe(400);
+
+    // A sees its message; B (other tenant) sees nothing
+    const listA = await authed<{ data: { id: string }[] }>(
+      await api.request("/v1/chat/messages?limit=50", api.auth(a.accessToken)),
+    );
+    expect(listA.data.map((m) => m.id)).toContain(sent.message.id);
+    const listB = await authed<{ data: { id: string }[] }>(
+      await api.request("/v1/chat/messages?limit=50", api.auth(b.accessToken)),
+    );
+    expect(listB.data.map((m) => m.id)).not.toContain(sent.message.id);
+
+    // B cannot delete A's message; A can delete its own
+    expect(
+      (await api.request(`/v1/chat/messages/${sent.message.id}`, {
+        method: "DELETE",
+        ...api.auth(b.accessToken),
+      })).status,
+    ).toBe(404);
+    expect(
+      (await api.request(`/v1/chat/messages/${sent.message.id}`, {
+        method: "DELETE",
+        ...api.auth(a.accessToken),
+      })).status,
+    ).toBe(200);
+    const after = await authed<{ data: { id: string }[] }>(
+      await api.request("/v1/chat/messages?limit=50", api.auth(a.accessToken)),
+    );
+    expect(after.data.map((m) => m.id)).not.toContain(sent.message.id);
+  });
 });

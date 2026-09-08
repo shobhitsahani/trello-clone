@@ -4,15 +4,16 @@
    Wired to the real API — projects/teams/members/activity from the
    tenant-scoped backend, user from the auth session. */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTenant } from "./store";
 import { useToast, Dropdown, MenuItem, Modal } from "./overlay";
 import { Avatar, Kbd } from "./ui";
 import { useAuth } from "../lib/auth";
-import { api, getCurrentTenantId } from "../lib/api";
+import { api, getCurrentTenantId, type ChatMessage, type PaginatedResponse } from "../lib/api";
 import { useSWR } from "../lib/swr";
+import { useRealtime } from "../lib/realtime";
 import { cx, hueFrom, timeAgo } from "../lib/utils";
 import {
   IconBell,
@@ -651,13 +652,15 @@ function loadChatWidth(): number {
 export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const orgId = getCurrentTenantId();
   const { org } = useTenant();
+  const { user } = useAuth();
+  const toast = useToast();
   const [width, setWidth] = useState<number>(loadChatWidth);
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<{ startX: number; startW: number } | null>(null);
 
-  const activityQ = useSWR<{ data: Array<{ id: string; actorId: string | null; action: string; entityType: string; entityId: string; createdAt: string }> }>(
-    orgId ? `chat-activity-${orgId}` : null,
-    () => api.activity.list({ limit: 8 }).then((p) => ({ data: p.data })),
+  const chatQ = useSWR<PaginatedResponse<ChatMessage>>(
+    orgId ? `chat-messages-${orgId}` : null,
+    () => api.chat.list({ limit: 50 }),
     { refreshInterval: 15_000 },
   );
   const membersQ = useSWR<{ members: Array<{ userId: string; name: string | null; email: string | null }> }>(
@@ -674,7 +677,85 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
     return map;
   }, [membersQ.data]);
 
-  const items = (activityQ.data?.data ?? []).slice(0, 6);
+  const items = useMemo(() => [...(chatQ.data?.data ?? [])].reverse(), [chatQ.data]);
+
+  // Realtime: a teammate's POST /v1/chat/messages fans out as `chat.created`
+  // on our org WS channel — revalidate the list instead of polling for it.
+  // The mutate fn identity changes per render, so it goes through a ref to
+  // keep the WS subscription (and its reconnect backoff) stable.
+  const mutateRef = useRef(chatQ.mutate);
+  useEffect(() => {
+    mutateRef.current = chatQ.mutate;
+  });
+  const realtimeOpts = useMemo(() => ({ onChat: () => void mutateRef.current() }), []);
+  const { isConnected } = useRealtime(realtimeOpts);
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [items.length, open]);
+
+  const handleSend = useCallback(
+    async (body: string) => {
+      if (!user) {
+        toast({ title: "Not signed in", msg: "Sign in to send messages.", kind: "err" });
+        throw new Error("Not signed in");
+      }
+      const text = body.trim();
+      if (!text) return;
+      const optimistic: ChatMessage = {
+        id: `local-${Date.now()}`,
+        authorId: user.id,
+        body: text,
+        createdAt: new Date().toISOString(),
+      };
+      await chatQ.mutate(
+        (current) => ({
+          data: [optimistic, ...(current?.data ?? [])],
+          nextCursor: current?.nextCursor ?? null,
+          hasMore: current?.hasMore ?? false,
+        }),
+        { revalidate: false },
+      );
+      try {
+        await api.chat.send(text);
+        await chatQ.mutate();
+      } catch (err) {
+        await chatQ.mutate(
+          (current) =>
+            current
+              ? { ...current, data: current.data.filter((m) => m.id !== optimistic.id) }
+              : { data: [], nextCursor: null, hasMore: false },
+          { revalidate: false },
+        );
+        toast({ title: "Send failed", msg: err instanceof Error ? err.message : "Try again.", kind: "err" });
+        throw err;
+      }
+    },
+    [chatQ, toast, user],
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      const prev = chatQ.data;
+      await chatQ.mutate(
+        (current) =>
+          current
+            ? { ...current, data: current.data.filter((m) => m.id !== id) }
+            : { data: [], nextCursor: null, hasMore: false },
+        { revalidate: false },
+      );
+      try {
+        await api.chat.remove(id);
+        await chatQ.mutate();
+      } catch (err) {
+        if (prev) await chatQ.mutate(prev, { revalidate: false });
+        toast({ title: "Delete failed", msg: err instanceof Error ? err.message : "Try again.", kind: "err" });
+      }
+    },
+    [chatQ, toast],
+  );
 
   // Persist width; cheap + survives remounts / page changes.
   useEffect(() => {
@@ -770,7 +851,7 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
         onDoubleClick={() => setWidth(CHAT_DEFAULT_W)}
         onKeyDown={onResizeKey}
       />
-      <div className="st-chat-scroll">
+      <div className="st-chat-scroll" ref={scrollRef}>
         <div className="st-chat-head">
           <span className="st-chat-title">
             <span className="pulse-dot" />
@@ -778,8 +859,8 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
           </span>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span className="st-live-pill" style={{ fontFamily: "var(--stack-mono)", fontSize: 11 }}>
-              <span className="pulse-dot" style={{ width: 6, height: 6 }} />
-              Live · team
+              <span className="pulse-dot" style={{ width: 6, height: 6, opacity: isConnected ? 1 : 0.3 }} />
+              {isConnected ? "Live · team" : "Offline"}
             </span>
             <button className="st-col-add" onClick={onToggle} title="Collapse chat" aria-label="Collapse chat">
               <IconChevronRight size={16} />
@@ -790,34 +871,26 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
           Direct and channel discussion for {org?.name ?? "this project"} tasks and handoffs.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {items.length === 0 ? (
-            <>
-              <ChatBubble who="Priya" mention="@Aiko" time="10:02" tint={160} brand>
-                Can you take over <span className="st-task-ref">SIG-118</span>? Reassigned to your queue for review.
-              </ChatBubble>
-              <ChatBubble who="Cass" mention="@Team" time="09:55" tint={270}>
-                Added notes on <span className="st-task-ref">SIG-104</span> rate limit 429 contract. Feedback welcome.
-              </ChatBubble>
-              <ChatBubble who="Aiko" mention="@Priya" time="09:40" tint={200} brand>
-                Got it! Fleet-read key is active. Testing response times now.
-              </ChatBubble>
-              <ChatBubble who="Ben" mention="@Priya" time="09:22" tint={210}>
-                <span className="st-task-ref">SIG-097</span> verified and merged to Done. Telemetry looks clean.
-              </ChatBubble>
-            </>
+          {chatQ.isLoading ? (
+            <div className="loading">Loading…</div>
+          ) : items.length === 0 ? (
+            <div className="st-empty">No messages yet — say hello.</div>
           ) : (
-            items.map((e) => {
-              const actor = e.actorId ? names.get(e.actorId) ?? "Someone" : "System";
+            items.map((m) => {
+              const name =
+                names.get(m.authorId) ?? (m.authorId === user?.id ? (user?.name ?? "You") : "Someone");
+              const own = m.authorId === user?.id;
               return (
                 <ChatBubble
-                  key={e.id}
-                  who={actor.split(" ")[0] ?? actor}
-                  mention={e.entityType}
-                  time={timeAgo(e.createdAt)}
-                  tint={hueFrom(e.actorId ?? e.id)}
-                  brand
+                  key={m.id}
+                  who={name.split(" ")[0] || "Someone"}
+                  mention={own ? "You" : "@Team"}
+                  time={timeAgo(m.createdAt)}
+                  tint={hueFrom(m.authorId)}
+                  brand={own}
+                  onDelete={own && !m.id.startsWith("local-") ? () => void handleDelete(m.id) : undefined}
                 >
-                  {e.action} {e.entityType} <span className="st-task-ref">{e.entityId.slice(0, 8)}</span>
+                  {m.body}
                 </ChatBubble>
               );
             })
@@ -825,7 +898,7 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
         </div>
       </div>
       <div className="st-chat-foot">
-        <ChatInput />
+        <ChatInput onSend={handleSend} />
       </div>
     </aside>
   );
@@ -837,6 +910,7 @@ function ChatBubble({
   time,
   tint,
   brand,
+  onDelete,
   children,
 }: {
   who: string;
@@ -844,6 +918,7 @@ function ChatBubble({
   time: string;
   tint: number;
   brand?: boolean;
+  onDelete?: () => void;
   children: React.ReactNode;
 }) {
   return (
@@ -861,19 +936,59 @@ function ChatBubble({
         <div className={cx("st-bubble", brand ? "st-bubble-brand" : "st-bubble-slate")}>
           <p>{children}</p>
         </div>
+        {onDelete ? (
+          <div className="comment-actions">
+            <button className="btn btn-ghost btn-xs" onClick={onDelete}>
+              Delete
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
-function ChatInput() {
+function ChatInput({ onSend }: { onSend: (body: string) => Promise<void> }) {
+  const [value, setValue] = useState("");
+  const [sending, setSending] = useState(false);
+  const canSend = value.trim().length > 0 && !sending;
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const text = value.trim();
+    if (!text || sending) return;
+    setSending(true);
+    try {
+      await onSend(text);
+      setValue("");
+    } catch {
+      // onSend already toasted + rolled back; keep the text for retry.
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
-    <div className="st-chat-input">
-      <input type="text" placeholder="Send a message…" aria-label="Send a message" />
-      <button className="st-send" title="Send message" type="button">
+    <form className="st-chat-input" onSubmit={(e) => void submit(e)}>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Send a message…"
+        aria-label="Send a message"
+        maxLength={2000}
+        disabled={sending}
+      />
+      <button
+        className="st-send"
+        title="Send message"
+        type="submit"
+        disabled={!canSend}
+        style={!canSend ? { opacity: 0.45 } : undefined}
+      >
         <IconSend size={14} />
       </button>
-    </div>
+    </form>
   );
 }
 
