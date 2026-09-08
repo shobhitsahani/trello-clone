@@ -1,0 +1,270 @@
+/** Organization module: invitations (RBAC + hashed tokens + expiry) and member
+ * management (role changes, deactivation). All query paths run inside
+ * `withTenant`, so RLS scopes every row to the caller's org; admin surfaces
+ * additionally require admin+ (owner for minting owners). */
+import { Hono } from "hono";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
+import { z } from "zod";
+import type { Tx } from "../lib/tenant.js";
+import { inTenant, withTenant } from "../lib/request.js";
+import { requireRole, Rbac, type Role } from "../lib/rbac.js";
+import { hashPassword, hashSecret } from "../lib/password.js";
+import { randomToken, uuidv7 } from "../lib/ids.js";
+import { badRequest, forbidden, notFound, quotaExceeded } from "../lib/errors.js";
+import { audit } from "../lib/audit.js";
+import { db } from "../db/client.js";
+import { invites, memberships, projects, tasks, tenants, users } from "../db/schema.js";
+import { lookupInvite } from "../lib/auth.js";
+import { tierLimits } from "../lib/usage.js";
+
+export const orgRoutes = new Hono();
+
+const ROLE_VALUES: Role[] = ["owner", "admin", "member", "viewer"];
+const isRole = (v: unknown): v is Role => typeof v === "string" && (ROLE_VALUES as string[]).includes(v);
+
+function assertCanRoleScale(actor: Role | undefined, target: Role): void {
+  if (target === "owner") requireRole(actor, Rbac.owner); // only owners mint owners
+  else requireRole(actor, Rbac.admin); // admins+ can assign the rest
+}
+
+// POST /v1/orgs/{orgId}/invites — admin+: invite by email with a role.
+orgRoutes.post("/orgs/:orgId/invites", async (c) => {
+  const p = c.get("principal");
+  const orgId = c.req.param("orgId");
+  if (orgId !== p.tenantId) throw forbidden("Organization mismatch.");
+  const parsed = z
+    .object({ email: z.string().email(), role: z.enum(["owner", "admin", "member", "viewer"]) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) {
+    throw badRequest(`role must be one of ${ROLE_VALUES.join(", ")}`);
+  }
+
+  return inTenant(c, async (tx) => {
+    assertCanRoleScale(p.role, parsed.data.role);
+    // Usage limit: seat cap per subscription tier (active members + pending invites).
+    const tenant = await tx.query.tenants.findFirst({ where: (t, { eq: e }) => e(t.id, orgId) });
+    const plan = tenant?.plan ?? "free";
+    const seats = tierLimits(plan).seats;
+    const activeSeatsRows = await tx
+      .select({ n: count() })
+      .from(memberships)
+      .where(and(eq(memberships.tenantId, orgId), inArray(memberships.status, ["active", "invited"])));
+    const pendingInvitesRows = await tx
+      .select({ n: count() })
+      .from(invites)
+      .where(and(eq(invites.tenantId, orgId), isNull(invites.acceptedAt)));
+    const usedSeats = (activeSeatsRows[0]?.n ?? 0) + (pendingInvitesRows[0]?.n ?? 0);
+    if (usedSeats >= seats) {
+      throw quotaExceeded(`Seat limit (${seats}) reached for the ${plan} plan. Deactivate inactive members or upgrade.`);
+    }
+    const emailLower = parsed.data.email.toLowerCase();
+    const token = randomToken(32);
+    const invite = await tx
+      .insert(invites)
+      .values({
+        tenantId: orgId,
+        id: uuidv7(),
+        email: emailLower,
+        role: parsed.data.role,
+        tokenHash: hashSecret(token),
+        expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+        invitedById: p.userId,
+      })
+      .onConflictDoNothing()
+      .returning();
+    if (!invite[0]) throw badRequest("An invite for this email already exists.");
+    await audit(tx, {
+      tenantId: orgId,
+      actorId: p.userId,
+      action: "invite.created",
+      entityType: "invite",
+      entityId: invite[0].id,
+      after: { email: emailLower, role: parsed.data.role },
+    });
+    return c.json({ invite: { id: invite[0].id, email: emailLower, role: parsed.data.role }, invitationUrl: `/v1/invites/${token}` }, 201);
+  });
+});
+
+// POST /v1/invites/{token} — public: token resolved by the SECURITY DEFINER
+// lookup (no tenant context exists yet), then enrollment runs in the tenant.
+orgRoutes.post("/invites/:token", async (c) => {
+  const invite = await lookupInvite(hashSecret(c.req.param("token")));
+  if (!invite) throw notFound("Invalid or expired invitation token.");
+  if (invite.expires_at.getTime() < Date.now()) throw badRequest("Invitation has expired.");
+  if (invite.accepted_at) throw badRequest("Invitation already accepted.");
+
+  const parsed = z
+    .object({ name: z.string().min(1).max(80), password: z.string().min(8) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) throw badRequest("name and password (8+ characters) are required.");
+
+  const emailLower = invite.email.toLowerCase();
+  const existing = await db.select().from(users).where(eq(users.email, emailLower)).limit(1);
+  let userId = existing[0]?.id;
+  if (!userId) {
+    userId = uuidv7();
+    await db.insert(users).values({ id: userId, email: emailLower, name: parsed.data.name, passwordHash: hashPassword(parsed.data.password) });
+  }
+
+  await withTenant(invite.tenant_id, async (tx) => {
+    await tx.update(invites).set({ acceptedAt: new Date() }).where(eq(invites.id, invite.id));
+    await tx
+      .insert(memberships)
+      .values({ tenantId: invite.tenant_id, userId: userId!, role: invite.role, status: "active", acceptedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [memberships.tenantId, memberships.userId],
+        set: { status: "active", acceptedAt: new Date() },
+      });
+    await audit(tx, { tenantId: invite.tenant_id, actorId: userId!, action: "invite.accepted", entityType: "membership", entityId: userId! });
+  });
+  return c.json({ ok: true, tenantId: invite.tenant_id });
+});
+
+// GET /v1/orgs/{orgId}/members — member+: list members with roles.
+orgRoutes.get("/orgs/:orgId/members", async (c) => {
+  const p = c.get("principal");
+  if (c.req.param("orgId") !== p.tenantId) throw forbidden("Organization mismatch.");
+  return inTenant(c, async (tx) => {
+    const rows = await tx
+      .select({ userId: memberships.userId, role: memberships.role, status: memberships.status, acceptedAt: memberships.acceptedAt })
+      .from(memberships)
+      .where(eq(memberships.tenantId, p.tenantId))
+      .orderBy(memberships.role);
+    const enriched = await Promise.all(
+      rows.map(async (r) => {
+        const u = await tx.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, r.userId)).limit(1);
+        return { userId: r.userId, name: u[0]?.name ?? null, email: u[0]?.email ?? null, role: r.role, status: r.status };
+      }),
+    );
+    return c.json({ members: enriched });
+  });
+});
+
+// PATCH /v1/orgs/{orgId}/members/{userId} { role } — change a member's role.
+orgRoutes.patch("/orgs/:orgId/members/:userId", async (c) => {
+  const p = c.get("principal");
+  const orgId = c.req.param("orgId");
+  const targetUserId = c.req.param("userId");
+  if (orgId !== p.tenantId) throw forbidden("Organization mismatch.");
+  const parsed = z.object({ role: z.enum(["owner", "admin", "member", "viewer"]) }).safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) throw badRequest(`role must be one of ${ROLE_VALUES.join(", ")}`);
+
+  return inTenant(c, async (tx) => {
+    assertCanRoleScale(p.role, parsed.data.role);
+    const before = await loadMember(tx, orgId, targetUserId);
+    if (!before) throw notFound("Member not found.");
+    await tx
+      .update(memberships)
+      .set({ role: parsed.data.role })
+      .where(and(eq(memberships.tenantId, orgId), eq(memberships.userId, targetUserId)));
+    await audit(tx, {
+      tenantId: orgId,
+      actorId: p.userId,
+      action: "member.role_changed",
+      entityType: "membership",
+      entityId: targetUserId,
+      before: { role: before.role },
+      after: { role: parsed.data.role },
+    });
+    return c.json({ userId: targetUserId, role: parsed.data.role });
+  });
+});
+
+// DELETE /v1/orgs/{orgId}/members/{userId} — soft-deactivate a member.
+orgRoutes.delete("/orgs/:orgId/members/:userId", async (c) => {
+  const p = c.get("principal");
+  const orgId = c.req.param("orgId");
+  const targetUserId = c.req.param("userId");
+  if (orgId !== p.tenantId) throw forbidden("Organization mismatch.");
+  return inTenant(c, async (tx) => {
+    requireRole(p.role, Rbac.admin);
+    if (targetUserId === p.userId) throw badRequest("Use /orgs/:id (disable) for self-offboarding.");
+    const before = await loadMember(tx, orgId, targetUserId);
+    if (!before) throw notFound("Member not found.");
+    await tx
+      .update(memberships)
+      .set({ status: "deactivated" })
+      .where(and(eq(memberships.tenantId, orgId), eq(memberships.userId, targetUserId)));
+    await audit(tx, {
+      tenantId: orgId,
+      actorId: p.userId,
+      action: "member.deactivated",
+      entityType: "membership",
+      entityId: targetUserId,
+      before: { status: before.status },
+    });
+    return c.json({ ok: true });
+  });
+});
+
+// GET /v1/orgs/{orgId} — member+: org profile + live usage counts vs tier limits.
+orgRoutes.get("/orgs/:orgId", async (c) => {
+  const p = c.get("principal");
+  const orgId = c.req.param("orgId");
+  if (orgId !== p.tenantId) throw forbidden("Organization mismatch.");
+  return inTenant(c, async (tx) => {
+    const tenant = await tx.query.tenants.findFirst({ where: (t, { eq: e }) => e(t.id, orgId) });
+    if (!tenant) throw notFound("Organization not found.");
+    const [membersRow, projectsRow, tasksRow] = await Promise.all([
+      tx.select({ n: count() }).from(memberships).where(and(eq(memberships.tenantId, orgId), eq(memberships.status, "active"))),
+      tx.select({ n: count() }).from(projects).where(and(eq(projects.tenantId, orgId), isNull(projects.deletedAt))),
+      tx.select({ n: count() }).from(tasks).where(and(eq(tasks.tenantId, orgId), isNull(tasks.deletedAt))),
+    ]);
+    const activeMembers = membersRow[0]?.n ?? 0;
+    const activeProjectCount = projectsRow[0]?.n ?? 0;
+    const openTaskCount = tasksRow[0]?.n ?? 0;
+    return c.json({
+      org: { id: tenant.id, name: tenant.name, slug: tenant.slug, plan: tenant.plan, status: tenant.status, createdAt: tenant.createdAt },
+      stats: { activeMembers, activeProjects: activeProjectCount, openTasks: openTaskCount },
+      limits: tierLimits(tenant.plan),
+    });
+  });
+});
+
+// POST /v1/orgs/{orgId}/disable — owner only. Soft-disables the tenant and
+// deactivates every membership: the next request locks out (requireActiveMembership
+// reads status live). Rows are retained — this is reversible by support.
+orgRoutes.post("/orgs/:orgId/disable", async (c) => {
+  const p = c.get("principal");
+  const orgId = c.req.param("orgId");
+  if (orgId !== p.tenantId) throw forbidden("Organization mismatch.");
+  return inTenant(c, async (tx) => {
+    requireRole(p.role, Rbac.owner);
+    const tenant = await tx.query.tenants.findFirst({ where: (t, { eq: e }) => e(t.id, orgId) });
+    if (!tenant) throw notFound("Organization not found.");
+    if (tenant.status !== "active") throw badRequest("Organization is not active.");
+    await tx.update(tenants).set({ status: "disabled" }).where(eq(tenants.id, orgId));
+    await tx.update(memberships).set({ status: "deactivated" }).where(eq(memberships.tenantId, orgId));
+    await audit(tx, {
+      tenantId: orgId, actorId: p.userId, action: "org.disabled",
+      entityType: "tenant", entityId: orgId, before: { status: tenant.status },
+    });
+    return c.json({ ok: true, status: "disabled" });
+  });
+});
+
+// POST /v1/orgs/{orgId}/leave — self-offboarding. Owners cannot leave (that would
+// strand the org) — they must disable it or promote another owner first.
+orgRoutes.post("/orgs/:orgId/leave", async (c) => {
+  const p = c.get("principal");
+  const orgId = c.req.param("orgId");
+  if (orgId !== p.tenantId) throw forbidden("Organization mismatch.");
+  return inTenant(c, async (tx) => {
+    if (p.role === "owner") throw badRequest("Owners cannot leave; disable the organization or promote another owner first.");
+    await tx
+      .update(memberships)
+      .set({ status: "deactivated" })
+      .where(and(eq(memberships.tenantId, orgId), eq(memberships.userId, p.userId)));
+    await audit(tx, {
+      tenantId: orgId, actorId: p.userId, action: "member.self_left",
+      entityType: "membership", entityId: p.userId,
+    });
+    return c.json({ ok: true });
+  });
+});
+
+async function loadMember(tx: Tx, tenantId: string, userId: string) {
+  return (await tx.query.memberships.findFirst({
+    where: (m, { and: a, eq: e }) => a(e(m.tenantId, tenantId), e(m.userId, userId)),
+  })) ?? null;
+}

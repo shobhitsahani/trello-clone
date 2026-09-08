@@ -1,0 +1,129 @@
+"use client";
+
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { api, type User, type ActiveTenant, type TokenBundle, loadAuthFromStorage, clearAuthTokens, getCurrentTenantId, setAuthTokens } from "./api";
+
+interface AuthContextType {
+  user: User | null;
+  memberships: ActiveTenant[];
+  activeTenantId: string | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, name: string, orgName: string) => Promise<void>;
+  logout: () => Promise<void>;
+  switchOrg: (orgId: string) => Promise<void>;
+  refreshUser: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [memberships, setMemberships] = useState<ActiveTenant[]>([]);
+  const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const refreshUser = useCallback(async () => {
+    try {
+      const data = await api.auth.me();
+      setUser(data.user);
+      setMemberships(data.memberships);
+      setActiveTenantId(data.activeTenantId);
+    } catch {
+      clearAuthTokens();
+      setUser(null);
+      setMemberships([]);
+      setActiveTenantId(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAuthFromStorage();
+    if (getAccessToken()) {
+      refreshUser();
+    } else {
+      setIsLoading(false);
+    }
+  }, [refreshUser]);
+
+  const login = async (email: string, password: string) => {
+    const data = await api.auth.login({ email, password });
+    setAuthTokens(data.tokens, data.tenant.tenant_id);
+    setUser(data.user);
+    setMemberships(data.memberships);
+    setActiveTenantId(data.tenant.tenant_id);
+  };
+
+  const signup = async (email: string, password: string, name: string, orgName: string) => {
+    const data = await api.auth.signup({ email, password, name, orgName });
+    setAuthTokens(data.tokens, data.org.id);
+    setUser(data.user);
+    setMemberships([
+      {
+        tenant_id: data.org.id,
+        tenant_name: orgName,
+        tenant_slug: data.org.slug,
+        plan: "free",
+        role: "owner",
+        status: "active",
+      },
+    ]);
+    setActiveTenantId(data.org.id);
+  };
+
+  const logout = async () => {
+    const refreshToken = localStorage.getItem("tf_refresh_token");
+    if (refreshToken) {
+      try {
+        await api.auth.logout(refreshToken);
+      } catch {
+        // ignore
+      }
+    }
+    clearAuthTokens();
+    setUser(null);
+    setMemberships([]);
+    setActiveTenantId(null);
+  };
+
+  const switchOrg = async (orgId: string) => {
+    const data = await api.auth.switchOrg(orgId);
+    const tokens = { accessToken: data.accessToken, refreshToken: localStorage.getItem("tf_refresh_token")! };
+    setAuthTokens(tokens, data.tenant.tenant_id);
+    setActiveTenantId(data.tenant.tenant_id);
+    setMemberships((prev) => prev.map((m) => (m.tenant_id === orgId ? { ...m, status: "active" as const } : m)));
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        memberships,
+        activeTenantId,
+        isLoading,
+        isAuthenticated: !!user,
+        login,
+        signup,
+        logout,
+        switchOrg,
+        refreshUser,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
+}
+
+function getAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("tf_access_token");
+}

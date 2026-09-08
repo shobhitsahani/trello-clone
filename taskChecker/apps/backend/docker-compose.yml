@@ -1,0 +1,63 @@
+# Local dev stack for TeamFlow: Postgres (system of record) + Redis
+# (cache/rate-limit/pubsub/BullMQ) + MinIO (S3-compatible blob store).
+#
+#   docker compose up -d
+#   bun run db:migrate
+#   bun run db:seed
+#   bun run dev
+#
+# NOTE: to demonstrate RLS, the app connects as the NON-superuser `teamflow`
+# role (superusers bypass RLS). The bootstrap superuser is `postgres`; init.sql
+# creates the restricted `teamflow` role. Migrations run as `postgres`
+# (DATABASE_MIGRATE_URL) so the SECURITY DEFINER lookups are owned by a
+# superuser and keep working while the app role is fully RLS-subjected.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: teamflow-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: teamflow
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d teamflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - teamflow_pg:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: teamflow-redis
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - teamflow_redis:/data
+
+  minio:
+    image: minio/minio:latest
+    container_name: teamflow-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - teamflow_minio:/data
+
+volumes:
+  teamflow_pg:
+  teamflow_redis:
+  teamflow_minio:

@@ -1,0 +1,379 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum TeamflowPlan {
+  free
+  pro
+  business
+
+  @@map("teamflow_plan")
+}
+
+enum MembershipRole {
+  owner
+  admin
+  member
+  viewer
+
+  @@map("membership_role")
+}
+
+enum MembershipStatus {
+  invited
+  active
+  deactivated
+
+  @@map("membership_status")
+}
+
+enum TaskStatus {
+  backlog
+  todo
+  in_progress
+  in_review
+  done
+
+  @@map("task_status")
+}
+
+enum TaskPriority {
+  critical
+  high
+  medium
+  low
+  none
+
+  @@map("task_priority")
+}
+
+// ---------------------------------------------------------------------------
+// Global Models
+// ---------------------------------------------------------------------------
+
+model Tenant {
+  id        String       @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String       @unique
+  plan      TeamflowPlan @default(free)
+  status    String       @default("active")
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+
+  memberships   Membership[]
+  teams         Team[]
+  projects      Project[]
+  tasks         Task[]
+  comments      Comment[]
+  attachments   Attachment[]
+  activity      Activity[]
+  notifications Notification[]
+  invites       Invite[]
+  webhooks      Webhook[]
+  deliveries    Delivery[]
+  apiKeys       ApiKey[]
+  usageMeters   UsageMeter[]
+  auditLogs     AuditLog[]
+  idempotencies Idempotency[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  refreshTokens RefreshToken[]
+  memberships   Membership[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz()
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz()
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Tenant-Scoped Models (Multi-Tenant)
+// ---------------------------------------------------------------------------
+
+model Membership {
+  tenantId   String           @map("tenant_id") @db.Uuid
+  userId     String           @map("user_id") @db.Uuid
+  role       MembershipRole
+  status     MembershipStatus @default(active)
+  invitedAt  DateTime         @default(now()) @map("invited_at") @db.Timestamptz()
+  acceptedAt DateTime?        @map("accepted_at") @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, userId])
+  @@index([userId], map: "memberships_user_idx")
+  @@map("memberships")
+}
+
+model Team {
+  tenantId  String    @map("tenant_id") @db.Uuid
+  id        String    @default(uuid()) @db.Uuid
+  name      String
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@map("teams")
+}
+
+model Project {
+  tenantId  String    @map("tenant_id") @db.Uuid
+  id        String    @default(uuid()) @db.Uuid
+  teamId    String?   @map("team_id") @db.Uuid
+  name      String
+  key       String
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tasks  Task[]
+
+  @@id([tenantId, id])
+  @@unique([tenantId, key])
+  @@map("projects")
+}
+
+model Task {
+  tenantId    String       @map("tenant_id") @db.Uuid
+  id          String       @default(uuid()) @db.Uuid
+  projectId   String       @map("project_id") @db.Uuid
+  title       String
+  description String       @default("")
+  status      TaskStatus   @default(backlog)
+  priority    TaskPriority @default(none)
+  assigneeId  String?      @map("assignee_id") @db.Uuid
+  reporterId  String?      @map("reporter_id") @db.Uuid
+  dueAt       DateTime?    @map("due_at") @db.Timestamptz()
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.Timestamptz()
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamptz()
+
+  project     Project      @relation(fields: [tenantId, projectId], references: [tenantId, id])
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  attachments Attachment[]
+
+  @@id([tenantId, id])
+  @@index([tenantId, projectId, status, createdAt(sort: Desc)], map: "tasks_project_status_idx")
+  @@index([tenantId, assigneeId, status], map: "tasks_assignee_status_idx")
+  @@index([tenantId, updatedAt(sort: Desc)], map: "tasks_updated_idx")
+  @@map("tasks")
+}
+
+model Comment {
+  tenantId  String    @map("tenant_id") @db.Uuid
+  id        String    @default(uuid()) @db.Uuid
+  taskId    String    @map("task_id") @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  body      String
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  task   Task   @relation(fields: [tenantId, taskId], references: [tenantId, id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@index([tenantId, taskId, createdAt], map: "comments_task_idx")
+  @@map("comments")
+}
+
+model Attachment {
+  tenantId    String    @map("tenant_id") @db.Uuid
+  id          String    @default(uuid()) @db.Uuid
+  taskId      String?   @map("task_id") @db.Uuid
+  uploaderId  String    @map("uploader_id") @db.Uuid
+  fileName    String    @map("file_name")
+  objectKey   String    @map("object_key")
+  size        Int
+  contentType String    @map("content_type")
+  sha256      String
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz()
+
+  task   Task?  @relation(fields: [tenantId, taskId], references: [tenantId, id])
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@index([tenantId, taskId], map: "attachments_task_idx")
+  @@map("attachments")
+}
+
+model Activity {
+  tenantId   String   @map("tenant_id") @db.Uuid
+  id         String   @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id") @db.Uuid
+  action     String
+  meta       Json     @default("{}")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@index([tenantId, entityType, entityId, createdAt(sort: Desc)], map: "activity_entity_idx")
+  @@map("activity")
+}
+
+model Notification {
+  tenantId  String    @map("tenant_id") @db.Uuid
+  id        String    @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  type      String
+  payload   Json
+  readAt    DateTime? @map("read_at") @db.Timestamptz()
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@index([tenantId, userId, readAt, createdAt(sort: Desc)], map: "notifications_user_idx")
+  @@map("notifications")
+}
+
+model Invite {
+  tenantId    String         @map("tenant_id") @db.Uuid
+  id          String         @default(uuid()) @db.Uuid
+  email       String
+  role        MembershipRole @default(member)
+  tokenHash   String         @map("token_hash")
+  expiresAt   DateTime       @map("expires_at") @db.Timestamptz()
+  acceptedAt  DateTime?      @map("accepted_at") @db.Timestamptz()
+  invitedById String         @map("invited_by_id") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@unique([tenantId, email])
+  @@map("invites")
+}
+
+model Webhook {
+  tenantId   String   @map("tenant_id") @db.Uuid
+  id         String   @default(uuid()) @db.Uuid
+  name       String
+  url        String
+  secretHash String   @map("secret_hash")
+  events     String[] @default([])
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries Delivery[]
+
+  @@id([tenantId, id])
+  @@map("webhooks")
+}
+
+model Delivery {
+  tenantId      String    @map("tenant_id") @db.Uuid
+  id            String    @default(uuid()) @db.Uuid
+  endpointId    String    @map("endpoint_id") @db.Uuid
+  event         String
+  payload       Json
+  status        String    @default("pending")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime? @map("next_attempt_at") @db.Timestamptz()
+  lastError     String?   @map("last_error")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  webhook Webhook @relation(fields: [tenantId, endpointId], references: [tenantId, id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@index([tenantId, endpointId, status], map: "deliveries_endpoint_idx")
+  @@map("deliveries")
+}
+
+model ApiKey {
+  tenantId   String    @map("tenant_id") @db.Uuid
+  id         String    @default(uuid()) @db.Uuid
+  name       String
+  keyHash    String    @map("key_hash")
+  keyPrefix  String    @map("key_prefix")
+  scopes     String[]  @default([])
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz()
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz()
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@map("api_keys")
+}
+
+model UsageMeter {
+  tenantId String   @map("tenant_id") @db.Uuid
+  metric   String
+  ts       DateTime @db.Timestamptz()
+  value    Int      @default(1)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, metric, ts])
+  @@index([tenantId, metric, ts], map: "usage_tenant_metric_ts_idx")
+  @@map("usage_meter")
+}
+
+model AuditLog {
+  tenantId   String   @map("tenant_id") @db.Uuid
+  id         String   @default(uuid()) @db.Uuid
+  actorId    String   @map("actor_id") @db.Uuid
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, id])
+  @@index([tenantId, createdAt(sort: Desc)], map: "audit_tenant_ts_idx")
+  @@map("audit_logs")
+}
+
+model Idempotency {
+  tenantId  String   @map("tenant_id") @db.Uuid
+  key       String
+  response  Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@id([tenantId, key])
+  @@map("idempotency")
+}
