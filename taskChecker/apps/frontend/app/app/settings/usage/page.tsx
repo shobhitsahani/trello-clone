@@ -77,7 +77,11 @@ const UsageBar = memo(function UsageBar({ used, limit, label, unit = "" }: { use
 
 export default function UsagePage() {
   const { org } = useTenant();
-  const orgId = getCurrentTenantId();
+  // Use the displayed org as the single source of truth: getCurrentTenantId()
+  // is a non-reactive module var and can be null/stale (→ 403 Organization
+  // mismatch → empty list → "0 active projects"). Fall back to it only while
+  // the tenant store is still loading.
+  const orgId = org?.id ?? getCurrentTenantId();
   const plan = (org?.plan as Plan) ?? "free";
   const catalog = PLAN_CATALOG[plan] ?? PLAN_CATALOG.free;
   const limits = catalog.limits;
