@@ -2,7 +2,7 @@
 
 import type { TaskStatus, Priority, Role } from "./utils";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:6002/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:4002/v1";
 
 export interface User {
   id: string;
@@ -577,7 +577,7 @@ export const api = {
 
 export function getWsUrl(): string {
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
-  const base = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:6002/v1";
+  const base = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:4002/v1";
   const wsBase = base.replace(/^http/, "ws");
   return wsBase.endsWith("/ws") ? wsBase : `${wsBase.replace(/\/v1$/, "")}/v1/ws`;
 }

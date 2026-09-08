@@ -33,7 +33,7 @@ function need(name: string, fallback?: string): string {
 
 export function loadConfig(): Config {
   return {
-    port: Number(process.env.PORT ?? 6002),
+    port: Number(process.env.PORT ?? 4002),
     nodeEnv: process.env.NODE_ENV ?? "development",
     // App connects as the NON-superuser RLS-scoped role (docker/init.sql);
     // migrations/provisioning run as the bootstrap superuser instead.
@@ -49,7 +49,7 @@ export function loadConfig(): Config {
     s3AccessKey: process.env.S3_ACCESS_KEY,
     s3SecretKey: process.env.S3_SECRET_KEY,
     s3Region: process.env.S3_REGION ?? "us-east-1",
-    publicBaseUrl: process.env.PUBLIC_BASE_URL ?? "http://localhost:6002",
+    publicBaseUrl: process.env.PUBLIC_BASE_URL ?? "http://localhost:4002",
     webhookRetries: Number(process.env.WORKER_WEBHOOK_RETRIES ?? 10),
     logLevel: process.env.LOG_LEVEL ?? "info",
   };
