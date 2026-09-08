@@ -3,7 +3,7 @@
 import { memo } from "react";
 import { useTenant } from "@/components/store";
 import { AppShell } from "@/components/app-shell";
-import { IconUsers, IconFolder, IconZap, IconAlertCircle, IconInfo } from "@/components/icons";
+import { IconUsers, IconFolder, IconZap, IconAlertCircle } from "@/components/icons";
 import { api, getCurrentTenantId, type Plan } from "@/lib/api";
 import { useSWR } from "@/lib/swr";
 import { cx } from "@/lib/utils";
@@ -132,35 +132,6 @@ export default function UsagePage() {
                   />
                 </div>
               ))}
-            </div>
-          </section>
-
-          <section className="settings-section">
-            <h2>Plan details</h2>
-            <div className="plan-details">
-              <div className="detail-grid">
-                <div className="detail-item">
-                  <IconInfo size={16} />
-                  <div>
-                    <h4>Subscription changes</h4>
-                    <p>Plan changes take effect immediately. Upgrades are prorated; downgrades apply at the next billing cycle.</p>
-                  </div>
-                </div>
-                <div className="detail-item">
-                  <IconAlertCircle size={16} />
-                  <div>
-                    <h4>Limit enforcement</h4>
-                    <p>Hard limits block creating new resources (projects, invites, API calls). Soft limits show warnings.</p>
-                  </div>
-                </div>
-                <div className="detail-item">
-                  <IconUsers size={16} />
-                  <div>
-                    <h4>Seat management</h4>
-                    <p>Seats count active members + pending invites. Deactivate inactive members to free seats.</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </section>
         </div>
