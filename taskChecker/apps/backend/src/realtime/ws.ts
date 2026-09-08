@@ -16,7 +16,20 @@ let subscriber: Redis | null = null;
 function ensureSubscriber(): Redis {
   subscriber ??= (() => {
     const sub = redis().duplicate();
-    void sub.psubscribe("org:*");
+    // psubscribe races the (lazy) connection: when Redis isn't reachable yet
+    // the command rejects, and as a floating promise that rejection crashes
+    // the whole gateway process. Catch it and retry on every reconnect so a
+    // client connecting during startup/Redis-failover can never take us down.
+    const subscribe = () => {
+      sub.psubscribe("org:*").catch((err: unknown) => {
+        console.error(
+          "[realtime] psubscribe failed, will retry on reconnect:",
+          (err as Error)?.message ?? err,
+        );
+      });
+    };
+    sub.on("ready", subscribe);
+    subscribe();
     sub.on("pmessage", (_pattern, _channel, message) => {
       for (const sink of sinks) {
         try {
@@ -45,8 +58,19 @@ export function setupRealtime(app: Hono, upgradeWebSocket: UpgradeWebSocket<unkn
 
       return {
         onOpen: (_event, ws) => {
-          ensureSubscriber();
-          ws.send(JSON.stringify({ type: "connected", tenantId: principal.tenantId, hint: 'send {"action":"subscribe"} to start receiving events' }));
+          try {
+            ensureSubscriber();
+            ws.send(JSON.stringify({ type: "connected", tenantId: principal.tenantId, hint: 'send {"action":"subscribe"} to start receiving events' }));
+          } catch (err) {
+            // A send/subscribe failure must not propagate — an exception here
+            // tears down the whole gateway process, not just this socket.
+            console.error("[realtime] onOpen failed:", (err as Error)?.message ?? err);
+            try {
+              ws.close(1011, "realtime unavailable");
+            } catch {
+              // socket already gone — nothing to do
+            }
+          }
         },
         onMessage: (event, ws) => {
           try {

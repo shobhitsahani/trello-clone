@@ -108,6 +108,9 @@ function BoardPage() {
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [showNewProject, setShowNewProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectKey, setNewProjectKey] = useState("");
 
   const columns = useMemo(
     () =>
@@ -185,6 +188,86 @@ function BoardPage() {
       toast({ title: "Create failed", msg: err instanceof Error ? err.message : "Try again." });
     }
   }, [newTitle, orgId, selectedProjectId, tasksQ, toast]);
+
+  const handleCreateProject = useCallback(async () => {
+    if (!newProjectName.trim() || !newProjectKey.trim() || !orgId) return;
+    try {
+      await api.projects.create({ name: newProjectName.trim(), key: newProjectKey.trim().toUpperCase() });
+      setNewProjectName("");
+      setNewProjectKey("");
+      setShowNewProject(false);
+      await projectsQ.mutate();
+      toast({ title: "Project created", msg: "Now add your first task." });
+    } catch (err) {
+      toast({ title: "Create failed", msg: err instanceof Error ? err.message : "Try again." });
+    }
+  }, [newProjectName, newProjectKey, orgId, projectsQ, toast]);
+
+  // Fresh workspace: no project exists yet, so every Add Task entry point is
+  // disabled. Offer project creation inline instead of a dead board.
+  if (!projectsQ.isLoading && projects.length === 0) {
+    return (
+      <AppShell>
+        <div className="page">
+          <div className="empty-state">
+            <h3>No projects yet</h3>
+            <p>Create your first project to start adding tasks.</p>
+            <button className="btn btn-primary" onClick={() => setShowNewProject(true)}>
+              <IconPlus size={14} /> New project
+            </button>
+          </div>
+        </div>
+
+        {showNewProject ? (
+          <div className="modal-backdrop" onClick={() => setShowNewProject(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Create project">
+              <div className="modal-head">
+                <div>
+                  <div className="modal-title">New project</div>
+                  <div className="modal-sub">Tasks live inside a project — pick a short key for its cards.</div>
+                </div>
+              </div>
+              <div className="modal-body">
+                <div className="form-field">
+                  <label htmlFor="project-name">Name</label>
+                  <input
+                    id="project-name"
+                    type="text"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    placeholder="Launch"
+                    autoFocus
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="project-key">Key (short code)</label>
+                  <input
+                    id="project-key"
+                    type="text"
+                    value={newProjectKey}
+                    onChange={(e) => setNewProjectKey(e.target.value)}
+                    placeholder="LAU"
+                    maxLength={10}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void handleCreateProject();
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="modal-foot">
+                <button className="btn btn-ghost" onClick={() => setShowNewProject(false)}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary" onClick={() => void handleCreateProject()} disabled={!newProjectName.trim() || !newProjectKey.trim()}>
+                  <IconPlus size={14} /> Create project
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
