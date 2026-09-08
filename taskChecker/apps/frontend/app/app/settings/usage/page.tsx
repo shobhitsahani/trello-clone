@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, memo } from "react";
+import { memo } from "react";
 import { useTenant } from "@/components/store";
 import { AppShell } from "@/components/app-shell";
-import { IconCreditCard, IconUsers, IconFolder, IconZap, IconCheck, IconAlertCircle, IconInfo } from "@/components/icons";
+import { IconUsers, IconFolder, IconZap, IconAlertCircle, IconInfo } from "@/components/icons";
 import { api, getCurrentTenantId, type Plan } from "@/lib/api";
 import { useSWR } from "@/lib/swr";
 import { cx } from "@/lib/utils";
@@ -49,14 +49,6 @@ const PLAN_CATALOG: Record<Plan, { name: string; price: number; features: string
     ],
     limits: { seats: 1000, activeProjects: 1000, apiCallsPerDay: 100000, attachmentStorageGb: 1024 },
   },
-};
-
-const METRIC_LABELS: Record<string, string> = {
-  api_calls: "API calls",
-  searches: "Search queries",
-  attachments_uploaded: "Attachments uploaded",
-  webhooks_delivered: "Webhooks delivered",
-  emails_sent: "Emails sent",
 };
 
 const UsageBar = memo(function UsageBar({ used, limit, label, unit = "" }: { used: number; limit: number; label: string; unit?: string }) {
@@ -140,60 +132,6 @@ export default function UsagePage() {
                   />
                 </div>
               ))}
-            </div>
-          </section>
-
-          <section className="settings-section">
-            <h2>All metrics (this month)</h2>
-            <div className="metrics-table">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Metric</th>
-                    <th className="numeric">Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {Object.entries(usage).map(([key, value]) => (
-                    <tr key={key}>
-                      <td>{METRIC_LABELS[key] ?? key}</td>
-                      <td className="numeric">{value}</td>
-                    </tr>
-                  ))}
-                  {Object.keys(usage).length === 0 && (
-                    <tr>
-                      <td colSpan={2} className="dim">No usage recorded this month</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          <section className="settings-section">
-            <h2>Plan comparison</h2>
-            <div className="plan-comparison">
-              {(["free", "pro", "business"] as Plan[]).map((p) => {
-                const c = PLAN_CATALOG[p]!;
-                const isCurrent = p === plan;
-                return (
-                  <div key={p} className={cx("plan-card", isCurrent && "current")}>
-                    <div className="plan-header">
-                      <h3>{c.name}</h3>
-                      <div className="plan-price">
-                        <span className="amount">${c.price}</span>
-                        <span className="period">/month</span>
-                      </div>
-                      {isCurrent && <span className="current-badge">Current</span>}
-                    </div>
-                    <ul className="plan-features">
-                      {c.features.map((f) => (
-                        <li key={f}><IconCheck size={14} /> {f}</li>
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
             </div>
           </section>
 
