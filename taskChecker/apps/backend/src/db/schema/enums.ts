@@ -5,7 +5,7 @@ import { customType, pgEnum, timestamp } from "drizzle-orm/pg-core";
 export const planEnum = pgEnum("teamflow_plan", ["free", "pro", "business"]);
 export const roleEnum = pgEnum("membership_role", ["owner", "admin", "member", "viewer"]);
 export const membershipStatusEnum = pgEnum("membership_status", ["invited", "active", "deactivated"]);
-export const taskStatusEnum = pgEnum("task_status", ["backlog", "todo", "in_progress", "in_review", "done"]);
+export const taskStatusEnum = pgEnum("task_status", ["backlog", "todo", "in_progress", "done"]);
 export const taskPriorityEnum = pgEnum("task_priority", ["critical", "high", "medium", "low", "none"]);
 
 // postgres-js driver returns tsvector as string; DB COLUMN is tsvector.

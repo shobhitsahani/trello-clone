@@ -438,6 +438,9 @@ export const api = {
 
     create: (data: { teamId?: string; name: string; key: string }) =>
       request<{ project: Project }>("/projects", { method: "POST", body: JSON.stringify(data) }),
+
+    delete: (id: string) =>
+      request<{ ok: boolean }>(`/projects/${id}`, { method: "DELETE" }),
   },
 
   tasks: {

@@ -11,20 +11,18 @@ import { useSWR } from "@/lib/swr";
 import { useUpdateTask } from "@/lib/mutations";
 import { cx } from "@/lib/utils";
 
-const STATUS_ORDER = ["backlog", "todo", "in_progress", "in_review", "done"] as const;
+const STATUS_ORDER = ["backlog", "todo", "in_progress", "done"] as const;
 const STATUS_LABELS: Record<string, string> = {
   backlog: "Backlog",
   todo: "To do",
   in_progress: "In progress",
-  in_review: "In review",
   done: "Done",
 };
-/* Stitch column dots — slate / blue / brand-purple / violet / emerald */
+/* Stitch column dots — slate / blue / brand-purple / emerald */
 const STATUS_DOTS: Record<string, string> = {
   backlog: "#94a3b8",
   todo: "#2563eb",
   in_progress: "#7c3aed",
-  in_review: "#a855f7",
   done: "#10b981",
 };
 const PRIO_CLASS: Record<string, string> = {

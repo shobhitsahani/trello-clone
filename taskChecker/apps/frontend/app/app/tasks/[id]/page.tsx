@@ -19,20 +19,18 @@ import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { cx, timeAgo, hueFrom } from "@/lib/utils";
 
-const STATUSES = ["backlog", "todo", "in_progress", "in_review", "done"] as const;
+const STATUSES = ["backlog", "todo", "in_progress", "done"] as const;
 const PRIORITIES = ["critical", "high", "medium", "low", "none"] as const;
 const STATUS_LABELS: Record<string, string> = {
   backlog: "Backlog",
   todo: "To do",
   in_progress: "In progress",
-  in_review: "In review",
   done: "Done",
 };
 const STATUS_COLORS: Record<string, string> = {
   backlog: "var(--muted)",
   todo: "hsl(210 80% 50%)",
   in_progress: "hsl(35 90% 50%)",
-  in_review: "hsl(280 70% 55%)",
   done: "hsl(140 60% 45%)",
 };
 const PRIORITY_COLORS: Record<string, string> = {

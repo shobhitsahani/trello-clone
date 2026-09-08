@@ -160,7 +160,7 @@ CREATE INDEX idx_project_members_user ON project_members(user_id);
 
 ### tasks
 ```sql
-CREATE TYPE task_status AS ENUM ('backlog', 'todo', 'in_progress', 'in_review', 'done', 'cancelled');
+CREATE TYPE task_status AS ENUM ('backlog', 'todo', 'in_progress', 'done', 'cancelled');
 CREATE TYPE task_priority AS ENUM ('low', 'medium', 'high', 'urgent');
 
 CREATE TABLE tasks (

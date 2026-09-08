@@ -19,7 +19,6 @@ export const STATUS_META = {
   backlog: { label: "Backlog", color: "var(--st-backlog)" },
   todo: { label: "To do", color: "var(--st-ready)" },
   in_progress: { label: "In progress", color: "var(--st-progress)" },
-  in_review: { label: "In review", color: "var(--st-review)" },
   done: { label: "Done", color: "var(--st-done)" },
 } as const;
 

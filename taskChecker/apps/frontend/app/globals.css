@@ -66,7 +66,6 @@
   --st-todo: #2563eb;
   --st-ready: #2563eb;
   --st-progress: #d97706;
-  --st-review: #7c3aed;
   --st-done: #059669;
   --st-alert: #e11d48;
 
@@ -503,8 +502,20 @@ select, textarea, input[type="text"], input[type="email"], input[type="password"
 /* ---------- right chat / activity rail ---------- */
 .st-chat, .flow {
   width: var(--chat-w); flex: none; background: #fff; border-left: 1px solid var(--slate-200);
-  display: flex; flex-direction: column; min-height: 0;
+  display: flex; flex-direction: column; min-height: 0; position: relative;
 }
+/* Drag-to-resize handle on the chat's left edge */
+.st-chat-resize {
+  position: absolute; top: 0; bottom: 0; left: -6px; width: 12px; z-index: 5;
+  cursor: ew-resize; touch-action: none; outline: none; background: transparent;
+}
+.st-chat-resize::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px;
+  background: transparent; border-radius: 2px; transition: background var(--anim-fast);
+}
+.st-chat-resize:hover::after, .st-chat-resize:focus-visible::after { background: var(--brand-300); }
+.st-chat-resize.is-dragging::after { background: var(--brand-500); }
+.st-chat-resize:focus-visible { box-shadow: 0 0 0 2px rgba(139,92,246,.35); border-radius: 4px; }
 .st-chat-scroll { padding: 20px; flex: 1; overflow-y: auto; min-height: 0; }
 .st-chat-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .st-chat-title { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; color: var(--slate-900); text-transform: uppercase; }

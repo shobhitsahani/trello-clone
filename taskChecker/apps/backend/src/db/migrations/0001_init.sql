@@ -29,7 +29,7 @@ END $$;
 CREATE TYPE teamflow_plan     AS ENUM ('free', 'pro', 'business');
 CREATE TYPE membership_role   AS ENUM ('owner', 'admin', 'member', 'viewer');
 CREATE TYPE membership_status AS ENUM ('invited', 'active', 'deactivated');
-CREATE TYPE task_status       AS ENUM ('backlog', 'todo', 'in_progress', 'in_review', 'done');
+CREATE TYPE task_status       AS ENUM ('backlog', 'todo', 'in_progress', 'done');
 CREATE TYPE task_priority     AS ENUM ('critical', 'high', 'medium', 'low', 'none');
 
 -- ---------------------------------------------------------------------------

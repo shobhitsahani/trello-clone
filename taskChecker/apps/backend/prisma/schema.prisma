@@ -40,7 +40,6 @@ enum TaskStatus {
   backlog
   todo
   in_progress
-  in_review
   done
 
   @@map("task_status")

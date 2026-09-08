@@ -18,7 +18,7 @@ import { decodeCursor, encodeCursor, parseLimit } from "../lib/cursor.js";
 
 export const taskRoutes = new Hono();
 
-const STATUSES = ["backlog", "todo", "in_progress", "in_review", "done"] as const;
+const STATUSES = ["backlog", "todo", "in_progress", "done"] as const;
 const PRIORITIES = ["critical", "high", "medium", "low", "none"] as const;
 
 function taskRecord(t: typeof tasks.$inferSelect) {

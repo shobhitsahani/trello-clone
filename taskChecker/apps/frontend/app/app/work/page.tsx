@@ -15,7 +15,6 @@ const STATUS_COLORS: Record<string, string> = {
   backlog: "var(--muted)",
   todo: "hsl(210 80% 50%)",
   in_progress: "hsl(35 90% 50%)",
-  in_review: "hsl(280 70% 55%)",
   done: "hsl(140 60% 45%)",
 };
 const PRIORITY_COLORS: Record<string, string> = {

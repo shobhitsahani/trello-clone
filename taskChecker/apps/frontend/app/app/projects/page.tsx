@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, memo, useState, startTransition } from "react";
+import { useMemo, memo, useState, useEffect, startTransition } from "react";
 import Link from "next/link";
 import { useTenant } from "@/components/store";
 import { useToast } from "@/components/overlay";
 import { AppShell } from "@/components/app-shell";
-import { IconPlus, IconSearch, IconFolder, IconUsers, IconFile } from "@/components/icons";
+import { IconPlus, IconSearch, IconFolder, IconUsers, IconFile, IconTrash } from "@/components/icons";
 import { api, getCurrentTenantId, type Project, type Team, type Task } from "@/lib/api";
 import { useSWR } from "@/lib/swr";
 import { cx, hueFrom } from "@/lib/utils";
@@ -17,10 +17,12 @@ const ProjectCard = memo(function ProjectCard({
   project,
   team,
   tasks,
+  onContextMenu,
 }: {
   project: Project;
   team: Team | null;
   tasks: Task[];
+  onContextMenu: (e: React.MouseEvent) => void;
 }) {
   const hue = hueFrom(project.key || project.id);
   const openCount = tasks.filter((t) => t.status !== "done").length;
@@ -29,7 +31,12 @@ const ProjectCard = memo(function ProjectCard({
   const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
 
   return (
-    <Link href={`/app/board?project=${project.id}`} className="project-card">
+    <Link
+      href={`/app/board?project=${project.id}`}
+      className="project-card"
+      onContextMenu={onContextMenu}
+      title={`${project.name} — right-click for options`}
+    >
       <div className="project-card-header">
         <div className="project-icon" style={{ background: `linear-gradient(150deg, hsl(${hue} 90% 62%), hsl(${hue} 75% 45%))` }}>
           <IconFolder size={20} />
@@ -67,6 +74,9 @@ export default function ProjectsPage() {
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
   const [newKey, setNewKey] = useState("");
+  const [projMenu, setProjMenu] = useState<{ x: number; y: number; project: Project } | null>(null);
+  const [deletingProj, setDeletingProj] = useState<Project | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const orgId = getCurrentTenantId();
   const projectsQ = useSWR<{ projects: Project[] }>(
@@ -102,6 +112,47 @@ export default function ProjectsPage() {
       toast({ title: "Create failed", msg: err instanceof Error ? err.message : "Try again." });
     }
   };
+
+  const openProjMenu = (e: React.MouseEvent, project: Project) => {
+    e.preventDefault();
+    setProjMenu({
+      x: Math.min(e.clientX, window.innerWidth - 230),
+      y: Math.min(e.clientY, window.innerHeight - 120),
+      project,
+    });
+  };
+
+  const handleDelete = async () => {
+    if (!deletingProj || deleting) return;
+    setDeleting(true);
+    try {
+      await api.projects.delete(deletingProj.id);
+      setDeletingProj(null);
+      setProjMenu(null);
+      await projectsQ.mutate();
+      toast({ title: "Project deleted", msg: `${deletingProj.name} was removed.` });
+    } catch (err) {
+      toast({ title: "Delete failed", msg: err instanceof Error ? err.message : "Try again." });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!projMenu) return;
+    const close = () => setProjMenu(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setProjMenu(null);
+    };
+    window.addEventListener("click", close);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("click", close);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [projMenu]);
 
   // Memoize filtered projects to avoid re-filtering on every render
   const filteredProjects = useMemo(() => {
@@ -179,6 +230,7 @@ export default function ProjectsPage() {
                 project={project}
                 team={teams.find((t) => t.id === project.teamId) ?? null}
                 tasks={taskPagesQ.data?.[i] ?? []}
+                onContextMenu={(e) => openProjMenu(e, project)}
               />
             ))
           )}
@@ -205,6 +257,55 @@ export default function ProjectsPage() {
                 <button className="btn btn-ghost" onClick={() => setShowNew(false)}>Cancel</button>
                 <button className="btn btn-primary" onClick={() => void handleCreate()} disabled={!newName.trim() || !newKey.trim()}>
                   <IconPlus size={14} /> Create project
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {projMenu ? (
+          <div
+            className="menu"
+            role="menu"
+            aria-label={`Options for ${projMenu.project.name}`}
+            style={{ position: "fixed", top: projMenu.y, left: projMenu.x, width: 210, zIndex: 70 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="menu-label" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {projMenu.project.key} · {projMenu.project.name}
+            </div>
+            <button
+              className="menu-item"
+              role="menuitem"
+              style={{ color: "#be123c", fontWeight: 600 }}
+              onClick={() => {
+                setDeletingProj(projMenu.project);
+                setProjMenu(null);
+              }}
+            >
+              <IconTrash size={14} />
+              Delete project
+            </button>
+          </div>
+        ) : null}
+
+        {deletingProj ? (
+          <div className="modal-backdrop" onClick={() => (deleting ? null : setDeletingProj(null))}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Delete project">
+              <div className="modal-header">
+                <h3>Delete {deletingProj.name}?</h3>
+              </div>
+              <div className="modal-body">
+                <p style={{ fontSize: 13, color: "var(--slate-600)" }}>
+                  Project key <span className="mono" style={{ fontWeight: 700 }}>{deletingProj.key}</span> will be
+                  permanently removed from this workspace. This can&apos;t be undone.
+                </p>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-ghost" onClick={() => setDeletingProj(null)} disabled={deleting}>
+                  Cancel
+                </button>
+                <button className="btn btn-danger" onClick={() => void handleDelete()} disabled={deleting}>
+                  <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete project"}
                 </button>
               </div>
             </div>
