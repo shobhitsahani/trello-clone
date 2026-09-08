@@ -9,7 +9,7 @@ import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { useUpdateTask } from "@/lib/mutations";
-import { hueFrom } from "@/lib/utils";
+import { cx } from "@/lib/utils";
 
 const STATUS_ORDER = ["backlog", "todo", "in_progress", "in_review", "done"] as const;
 const STATUS_LABELS: Record<string, string> = {
@@ -19,55 +19,64 @@ const STATUS_LABELS: Record<string, string> = {
   in_review: "In review",
   done: "Done",
 };
-const STATUS_COLORS: Record<string, string> = {
-  backlog: "var(--muted)",
-  todo: "hsl(210 80% 50%)",
-  in_progress: "hsl(35 90% 50%)",
-  in_review: "hsl(280 70% 55%)",
-  done: "hsl(140 60% 45%)",
+/* Stitch column dots — slate / blue / brand-purple / violet / emerald */
+const STATUS_DOTS: Record<string, string> = {
+  backlog: "#94a3b8",
+  todo: "#2563eb",
+  in_progress: "#7c3aed",
+  in_review: "#a855f7",
+  done: "#10b981",
 };
-const PRIORITY_COLORS: Record<string, string> = {
-  critical: "hsl(0 75% 55%)",
-  high: "hsl(35 90% 50%)",
-  medium: "hsl(210 80% 50%)",
-  low: "var(--muted)",
-  none: "var(--muted)",
+const PRIO_CLASS: Record<string, string> = {
+  critical: "st-prio st-prio-critical",
+  high: "st-prio st-prio-high",
+  medium: "st-prio st-prio-medium",
+  low: "st-prio st-prio-low",
+  none: "st-prio st-prio-none",
 };
 
-/** TaskCard — draggable card; re-renders only when its task changes. */
+/** Stitch task card — key pill + short id, title, priority pill + due. */
 function TaskCard({
   task,
   project,
   onDragStart,
+  onDragEnd,
 }: {
   task: Task;
   project: Project | null;
   onDragStart: (e: React.DragEvent, taskId: string) => void;
+  onDragEnd: () => void;
 }) {
-  const hue = project ? hueFrom(project.key || project.id) : 0;
   return (
-    <div className="board-card" draggable onDragStart={(e) => onDragStart(e, task.id)} role="listitem">
-      <div className="board-card-header">
-        <span className="board-card-key">{task.id.slice(0, 8)}</span>
-        <span className="board-card-priority" style={{ color: PRIORITY_COLORS[task.priority] }}>
-          {task.priority === "none" ? "" : task.priority.charAt(0).toUpperCase()}
-        </span>
+    <article
+      className="st-card"
+      draggable
+      onDragStart={(e) => onDragStart(e, task.id)}
+      onDragEnd={onDragEnd}
+      role="listitem"
+      tabIndex={0}
+    >
+      <div className="st-card-top">
+        <span className="st-key-pill">{project?.key ?? "TASK"}</span>
+        <span className="st-card-key">{task.id.slice(0, 8)}</span>
       </div>
-      <h4 className="board-card-title">{task.title}</h4>
-      <div className="board-card-meta">
-        {project ? (
-          <span className="board-card-project" style={{ borderColor: `hsl(${hue} 80% 70%)` }}>
-            {project.key}
-          </span>
-        ) : null}
+      <h3 className="st-card-title">{task.title}</h3>
+      <div className="st-card-foot">
+        <span className={PRIO_CLASS[task.priority] ?? PRIO_CLASS.none}>
+          {task.priority === "none" ? "NO PRIO" : task.priority.toUpperCase()}
+        </span>
         {task.dueAt ? (
           <span className="board-card-due">
             <IconClock size={11} />
             {new Date(task.dueAt).toLocaleDateString()}
           </span>
-        ) : null}
+        ) : (
+          <span className="board-card-project">
+            {project ? `${project.key}-${task.id.slice(0, 4).toUpperCase()}` : task.id.slice(0, 8)}
+          </span>
+        )}
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -98,6 +107,7 @@ function BoardPage() {
 
   const [search, setSearch] = useState("");
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTitle, setNewTitle] = useState("");
 
@@ -122,17 +132,33 @@ function BoardPage() {
   const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => {
     setDraggedTaskId(taskId);
     e.dataTransfer.effectAllowed = "move";
+    try {
+      e.dataTransfer.setData("text/plain", taskId);
+    } catch {
+      /* noop */
+    }
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
+  const handleDragEnd = useCallback(() => {
+    setDraggedTaskId(null);
+    setDragOverCol(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, status: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
+    setDragOverCol(status);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverCol(null);
   }, []);
 
   // Real optimistic status change: PATCH /v1/tasks/{id}, then revalidate board.
   const handleDrop = useCallback(
     async (e: React.DragEvent, newStatus: string) => {
       e.preventDefault();
+      setDragOverCol(null);
       const taskId = draggedTaskId;
       setDraggedTaskId(null);
       if (!taskId) return;
@@ -164,67 +190,91 @@ function BoardPage() {
 
   return (
     <AppShell>
-      <div className="page board-page">
-        <header className="page-header">
-          <div>
-            <h1 className="page-title">Board</h1>
-            <p className="page-subtitle">Kanban view for {selectedProject?.name ?? "no project"}</p>
-          </div>
-          <div className="page-actions">
-            <select
-              value={selectedProjectId}
-              onChange={(e) => {
-                window.location.assign(`/app/board?project=${e.target.value}`);
-              }}
-              className="select"
-            >
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.key})
-                </option>
-              ))}
-              {projects.length === 0 ? <option value="">No projects yet</option> : null}
-            </select>
-            <button className="btn btn-primary" onClick={() => setShowNewTask(true)} disabled={!selectedProjectId || !user}>
-              <IconPlus size={14} /> New task
-            </button>
-          </div>
-        </header>
-
-        <div className="board-toolbar">
-          <div className="search-box">
+      <div className="st-board" role="region" aria-label="Kanban board">
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div className="st-search" style={{ marginLeft: 0, width: 280 }}>
             <IconSearch size={16} />
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter tasks…" />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter tasks…" aria-label="Filter tasks" />
           </div>
+          <select
+            value={selectedProjectId}
+            onChange={(e) => {
+              window.location.assign(`/app/board?project=${e.target.value}`);
+            }}
+            className="select"
+            aria-label="Select project"
+          >
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.key})
+              </option>
+            ))}
+            {projects.length === 0 ? <option value="">No projects yet</option> : null}
+          </select>
+          <span className="faint mono" style={{ fontSize: 11 }}>
+            {projectTasks.length} tasks · drag cards between columns
+          </span>
         </div>
 
-        <div className="board-grid" role="region" aria-label="Kanban board">
+        <div className="st-cols">
           {filteredColumns.map((col) => (
-            <div
+            <section
               key={col.status}
-              className="board-column"
-              onDragOver={handleDragOver}
+              className="st-col"
+              aria-label={`${STATUS_LABELS[col.status]}, ${col.tasks.length} tasks`}
+              onDragOver={(e) => handleDragOver(e, col.status)}
+              onDragLeave={handleDragLeave}
               onDrop={(e) => void handleDrop(e, col.status)}
-              role="list"
-              aria-label={STATUS_LABELS[col.status]}
             >
-              <div className="board-column-head">
-                <span className="board-column-dot" style={{ background: STATUS_COLORS[col.status] }} />
-                <span className="board-column-title">{STATUS_LABELS[col.status]}</span>
-                <span className="board-column-count">{col.tasks.length}</span>
+              <div className="st-col-head">
+                <span className="st-col-dot" style={{ background: STATUS_DOTS[col.status] }} />
+                <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--slate-800)" }}>{STATUS_LABELS[col.status]}</h2>
+                <span className="st-col-count">{col.tasks.length}</span>
+                <button
+                  className="st-col-add"
+                  title={`Add task to ${STATUS_LABELS[col.status]}`}
+                  onClick={() => setShowNewTask(true)}
+                  disabled={!selectedProjectId || !user}
+                >
+                  <IconPlus size={16} />
+                </button>
               </div>
-              {col.tasks.map((task) => (
-                <TaskCard key={task.id} task={task} project={selectedProject} onDragStart={handleDragStart} />
-              ))}
-            </div>
+              <div className={cx("st-drop", dragOverCol === col.status && "drag-over")} role="list">
+                {col.tasks.length === 0 ? (
+                  <div className={cx("st-empty", dragOverCol === col.status && "drag-over-target")}>
+                    Drop tasks here
+                  </div>
+                ) : (
+                  col.tasks.map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      task={task}
+                      project={selectedProject}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                    />
+                  ))
+                )}
+                <button
+                  className="st-add"
+                  onClick={() => setShowNewTask(true)}
+                  disabled={!selectedProjectId || !user}
+                >
+                  <span>+</span> Add Task
+                </button>
+              </div>
+            </section>
           ))}
         </div>
 
         {showNewTask ? (
           <div className="modal-backdrop" onClick={() => setShowNewTask(false)}>
             <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Create task">
-              <div className="modal-header">
-                <h3>New task in {selectedProject?.name}</h3>
+              <div className="modal-head">
+                <div>
+                  <div className="modal-title">New task in {selectedProject?.name}</div>
+                  <div className="modal-sub">Added to Backlog — drag it anywhere.</div>
+                </div>
               </div>
               <div className="modal-body">
                 <div className="form-field">
@@ -242,7 +292,7 @@ function BoardPage() {
                   />
                 </div>
               </div>
-              <div className="modal-footer">
+              <div className="modal-foot">
                 <button className="btn btn-ghost" onClick={() => setShowNewTask(false)}>
                   Cancel
                 </button>

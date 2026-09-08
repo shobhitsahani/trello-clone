@@ -1,8 +1,5 @@
-"use client";
-
-import { App } from "./components/shell";
-import "./home.css";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <App />;
+  redirect("/app/board");
 }

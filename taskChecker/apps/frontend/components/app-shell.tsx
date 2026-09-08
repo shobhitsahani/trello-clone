@@ -6,7 +6,7 @@ import { useEffect, useState, Suspense, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../lib/auth";
-import { ContextBar, Rail, ScopeStrip } from "./shell-parts";
+import { ChatRail, ContextBar, Rail, ScopeStrip } from "./shell-parts";
 import { IconFlowMark } from "./icons";
 
 /** Route guard — the whole /app tree requires a live session. */
@@ -95,12 +95,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="app-shell">
         <Rail />
         <ContextBar />
-        <div className="content">
+        <div className="st-main">
           <ScopeStrip
             onOpenPalette={() => setPaletteOpen(true)}
             onOpenNotifs={() => setNotifOpen(true)}
           />
-          {children}
+          <div className="st-body">
+            <div className="content" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+              {children}
+            </div>
+            <ChatRail onOpenNotifs={() => setNotifOpen(true)} />
+          </div>
         </div>
       </div>
       {paletteOpen ? (
