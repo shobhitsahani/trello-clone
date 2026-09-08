@@ -21,6 +21,7 @@ import {
   IconChevronRight,
   IconFlowMark,
   IconLogout,
+  IconMessageSquare,
   IconPlus,
   IconSearch,
   IconSend,
@@ -367,7 +368,7 @@ export function ScopeStrip({
 
 /* ---------- right chat / live rail (Stitch CHAT) ---------- */
 
-export function ChatRail({ onOpenNotifs }: { onOpenNotifs: () => void }) {
+export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const orgId = getCurrentTenantId();
   const { org } = useTenant();
 
@@ -392,6 +393,16 @@ export function ChatRail({ onOpenNotifs }: { onOpenNotifs: () => void }) {
 
   const items = (activityQ.data?.data ?? []).slice(0, 6);
 
+  if (!open) {
+    return (
+      <button className="st-chat-expand" onClick={onToggle} title="Expand chat" aria-label="Expand chat">
+        <IconMessageSquare size={16} />
+        <span>Chat</span>
+        <span className="pulse-dot" style={{ width: 6, height: 6 }} />
+      </button>
+    );
+  }
+
   return (
     <aside className="st-chat" aria-label="Team chat">
       <div className="st-chat-scroll">
@@ -405,7 +416,7 @@ export function ChatRail({ onOpenNotifs }: { onOpenNotifs: () => void }) {
               <span className="pulse-dot" style={{ width: 6, height: 6 }} />
               Live · team
             </span>
-            <button className="st-col-add" onClick={onOpenNotifs} title="Open notifications">
+            <button className="st-col-add" onClick={onToggle} title="Collapse chat" aria-label="Collapse chat">
               <IconChevronRight size={16} />
             </button>
           </span>

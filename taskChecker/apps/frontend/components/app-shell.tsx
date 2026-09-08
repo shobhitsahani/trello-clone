@@ -52,6 +52,7 @@ const keyCallbacks = new Map<string, Set<() => void>>();
 export function AppShell({ children }: { children: ReactNode }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
 
   useEffect(() => {
     // Register this instance's callback in the module-level Map
@@ -104,7 +105,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="content" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
               {children}
             </div>
-            <ChatRail onOpenNotifs={() => setNotifOpen(true)} />
+            <ChatRail open={chatOpen} onToggle={() => setChatOpen((v) => !v)} />
           </div>
         </div>
       </div>
