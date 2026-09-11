@@ -6,6 +6,7 @@ import { useToast } from "@/components/overlay";
 import { AppShell } from "@/components/app-shell";
 import { IconPlus, IconSearch, IconUsers, IconShield, IconUser, IconMail, IconTrash, IconEdit, IconChevronRight } from "@/components/icons";
 import { api, getCurrentTenantId, type Role } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { cx } from "@/lib/utils";
 
@@ -89,6 +90,7 @@ const MemberRow = memo(function MemberRow({
 
 export default function MembersPage() {
   const { org, orgs } = useTenant();
+  const { user } = useAuth();
   const toast = useToast();
   const orgId = getCurrentTenantId();
   const [search, setSearch] = useState("");
@@ -102,8 +104,8 @@ export default function MembersPage() {
   );
   const members = membersQ.data?.members ?? [];
   const currentUser = useMemo(
-    () => members.find((m) => m.status === "active" && m.userId === getCurrentTenantId?.()),
-    [members]
+    () => members.find((m) => m.userId === user?.id),
+    [members, user?.id]
   );
   const currentUserRole = currentUser?.role ?? "member";
   const currentUserId = currentUser?.userId;

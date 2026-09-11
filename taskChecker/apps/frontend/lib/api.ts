@@ -327,7 +327,7 @@ async function request<T>(
     path.startsWith("/auth/logout") ||
     path.startsWith("/invites/");
 
-  let accessToken = isPublicAuth ? null : getAccessToken();
+  const accessToken = isPublicAuth ? null : getAccessToken();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...options.headers,
