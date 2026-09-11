@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshUser]);
 
   const login = async (email: string, password: string) => {
+    clearAuthTokens();
     const data = await api.auth.login({ email, password });
     setAuthTokens(data.tokens, data.tenant.tenant_id);
     setUser(data.user);
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (email: string, password: string, name: string, orgName: string) => {
+    clearAuthTokens();
     const data = await api.auth.signup({ email, password, name, orgName });
     setAuthTokens(data.tokens, data.org.id);
     setUser(data.user);

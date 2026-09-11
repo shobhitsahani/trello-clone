@@ -24,9 +24,15 @@ interface Membership {
   status: string;
 }
 
+/** NOTE: legacy duplicate of @/lib/auth (which is the provider actually
+ * mounted in app/providers.tsx). Kept for compatibility — response parsing
+ * matches the real backend shapes: signup returns { user, org, tokens },
+ * login returns { user, memberships, tenant, tokens }. */
+
 interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
+  refreshToken: string | null;
   activeTenantId: string | null;
   memberships: Membership[];
 }
@@ -42,6 +48,7 @@ interface AuthContextValue extends AuthState {
 const AuthContext = createContext<AuthContextValue>({
   user: null,
   accessToken: null,
+  refreshToken: null,
   activeTenantId: null,
   memberships: [],
   login: async () => {},
@@ -54,13 +61,20 @@ const AuthContext = createContext<AuthContextValue>({
 const STORAGE_KEY = "teamflow.auth";
 
 function loadState(): AuthState {
-  if (typeof window === "undefined") return { user: null, accessToken: null, activeTenantId: null, memberships: [] };
+  if (typeof window === "undefined") return { user: null, accessToken: null, refreshToken: null, activeTenantId: null, memberships: [] };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { user: null, accessToken: null, activeTenantId: null, memberships: [] };
-    return JSON.parse(raw);
+    if (!raw) return { user: null, accessToken: null, refreshToken: null, activeTenantId: null, memberships: [] };
+    const parsed = JSON.parse(raw);
+    return {
+      user: parsed.user ?? null,
+      accessToken: parsed.accessToken ?? null,
+      refreshToken: parsed.refreshToken ?? null,
+      activeTenantId: parsed.activeTenantId ?? null,
+      memberships: parsed.memberships ?? [],
+    };
   } catch {
-    return { user: null, accessToken: null, activeTenantId: null, memberships: [] };
+    return { user: null, accessToken: null, refreshToken: null, activeTenantId: null, memberships: [] };
   }
 }
 
@@ -85,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState({
       user: data.user,
       accessToken: data.tokens.accessToken,
+      refreshToken: data.tokens.refreshToken ?? null,
       activeTenantId: data.tenant?.tenant_id ?? null,
       memberships: data.memberships ?? [],
     });
@@ -101,16 +116,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(body?.error?.message ?? "Signup failed");
     }
     const data = await res.json();
+    // Backend signup returns { user: { id, email, name }, org: { id, slug }, tokens }
     setState({
-      user: { id: data.userId ?? "", email, name },
+      user: data.user,
       accessToken: data.tokens.accessToken,
-      activeTenantId: data.tenant?.tenant_id ?? null,
-      memberships: data.memberships ?? [],
+      refreshToken: data.tokens.refreshToken ?? null,
+      activeTenantId: data.org?.id ?? null,
+      memberships: data.org
+        ? [{ tenant_id: data.org.id, role: "owner", status: "active" }]
+        : [],
     });
   }, []);
 
   const logout = useCallback(async () => {
-    setState({ user: null, accessToken: null, activeTenantId: null, memberships: [] });
+    setState({ user: null, accessToken: null, refreshToken: null, activeTenantId: null, memberships: [] });
   }, []);
 
   const switchOrg = useCallback(async (orgId: string) => {

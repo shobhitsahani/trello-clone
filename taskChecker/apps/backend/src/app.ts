@@ -39,7 +39,7 @@ export function createApp(): Hono {
     "*",
     cors({
       origin: (origin) => origin || "*",
-      allowHeaders: ["Content-Type", "Authorization", "X-TeamFlow-Signature", "Idempotency-Key", "X-Object-Key", "Upgrade"],
+      allowHeaders: ["Content-Type", "Authorization", "X-TeamFlow-Key", "X-TeamFlow-Signature", "Idempotency-Key", "X-Object-Key", "Upgrade"],
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       exposeHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "Retry-After"],
       credentials: true,

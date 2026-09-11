@@ -317,7 +317,17 @@ async function request<T>(
   options: RequestInit = {},
   retry = true
 ): Promise<T> {
-  let accessToken = getAccessToken();
+  // Public auth endpoints must never send a (possibly stale) session token and
+  // must never trigger the global "Session expired" redirect — otherwise a
+  // failed login masks the real backend message and reloads the sign-in form.
+  const isPublicAuth =
+    path.startsWith("/auth/login") ||
+    path.startsWith("/auth/signup") ||
+    path.startsWith("/auth/refresh") ||
+    path.startsWith("/auth/logout") ||
+    path.startsWith("/invites/");
+
+  let accessToken = isPublicAuth ? null : getAccessToken();
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     ...options.headers,
@@ -332,7 +342,7 @@ async function request<T>(
     headers,
   });
 
-  if (res.status === 401 && retry && getRefreshToken()) {
+  if (res.status === 401 && retry && !isPublicAuth && getRefreshToken()) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       (headers as Record<string, string>)["Authorization"] = `Bearer ${newToken}`;
@@ -343,7 +353,7 @@ async function request<T>(
     }
     clearAuthTokens();
     if (typeof window !== "undefined") {
-      window.location.href = "/auth/login";
+      window.location.href = "/auth/sign-in";
     }
     throw new Error("Session expired");
   }
