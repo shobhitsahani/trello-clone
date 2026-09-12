@@ -53,6 +53,7 @@ const TaskCard = memo(function TaskCard({
   onTouchDragCancel,
   onEdit,
   onDelete,
+  onSetDue,
 }: {
   task: Task;
   project: Project | null;
@@ -68,7 +69,31 @@ const TaskCard = memo(function TaskCard({
   onTouchDragCancel: () => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onSetDue: (taskId: string, dueAt: string | null) => void;
 }) {
+  // Inline deadline editor — local to the card so opening it doesn't
+  // re-render the whole column. All pointer events are stopped: the card
+  // itself starts touch/HTML5 drags on pointerdown.
+  const [editingDue, setEditingDue] = useState(false);
+  const [dueDraft, setDueDraft] = useState("");
+  const overdue = isOverdue(task.dueAt, task.status);
+
+  const openDueEditor = (e: React.SyntheticEvent) => {
+    e.stopPropagation();
+    setDueDraft(task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 10) : "");
+    setEditingDue(true);
+  };
+  const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+
+  const saveDue = () => {
+    if (!dueDraft) {
+      onSetDue(task.id, null);
+    } else {
+      // Deadline = end of the chosen day, viewer's local timezone.
+      onSetDue(task.id, new Date(`${dueDraft}T23:59:00`).toISOString());
+    }
+    setEditingDue(false);
+  };
   return (
     <article
       className={cx("st-card", dragging && "dragging")}
@@ -106,16 +131,59 @@ const TaskCard = memo(function TaskCard({
         </Link>
       </h3>
       <div className="st-card-foot">
-        {task.dueAt ? (
-          <span
+        {editingDue ? (
+          <span className="board-card-due-edit" onPointerDown={stop} onClick={stop}>
+            <input
+              type="date"
+              value={dueDraft}
+              onChange={(e) => setDueDraft(e.target.value)}
+              onPointerDown={stop}
+              onClick={stop}
+              aria-label={`Deadline for ${task.title}`}
+              // Invalid dates (e.g. cleared field saves as "no deadline").
+              max="2100-12-31"
+            />
+            <button type="button" className="btn btn-ghost btn-xs" onClick={saveDue} onPointerDown={stop} aria-label="Save deadline">
+              ✓
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs"
+              onClick={(e) => {
+                stop(e);
+                setEditingDue(false);
+              }}
+              onPointerDown={stop}
+              aria-label="Cancel"
+            >
+              ✕
+            </button>
+          </span>
+        ) : task.dueAt ? (
+          <button
+            type="button"
             className="board-card-due"
-            style={isOverdue(task.dueAt, task.status) ? { color: "hsl(0 75% 45%)", fontWeight: 700 } : undefined}
-            title={isOverdue(task.dueAt, task.status) ? "Overdue — moves back to Backlog automatically" : `Due ${new Date(task.dueAt).toLocaleString()}`}
+            style={overdue ? { color: "hsl(0 75% 45%)", fontWeight: 700 } : undefined}
+            title={overdue ? "Overdue — moves back to Backlog automatically. Click to change." : `Due ${new Date(task.dueAt).toLocaleString()}${canWrite ? ". Click to change." : ""}`}
+            onClick={canWrite ? openDueEditor : undefined}
+            onPointerDown={stop}
+            disabled={!canWrite}
           >
             <IconClock size={11} />
             {new Date(task.dueAt).toLocaleDateString()}
-            {isOverdue(task.dueAt, task.status) ? " · OVERDUE" : null}
-          </span>
+            {overdue ? " · OVERDUE" : null}
+          </button>
+        ) : canWrite ? (
+          <button
+            type="button"
+            className="board-card-due is-empty"
+            title="Set a deadline — if it passes, the task moves back to Backlog"
+            onClick={openDueEditor}
+            onPointerDown={stop}
+          >
+            <IconClock size={11} />
+            + Deadline
+          </button>
         ) : (
           <span className="board-card-project">{project?.key ?? "TASK"}</span>
         )}
@@ -291,6 +359,35 @@ function BoardPage() {
       }
     },
     [projectTasks, updateTask, selectedProjectId, toast, tasksQ],
+  );
+
+  // Deadline set/clear from the card: same optimistic pattern as drops —
+  // instant UI, PATCH as source of truth, revalidate + rollback on failure.
+  const handleSetDue = useCallback(
+    async (taskId: string, dueAt: string | null) => {
+      if (!canWrite) return;
+      await tasksQ.mutate(
+        (current) => ({
+          ...(current ?? { data: [], nextCursor: null, hasMore: false }),
+          data: (current?.data ?? []).map((t) => (t.id === taskId ? { ...t, dueAt } : t)),
+        }),
+        { revalidate: false },
+      );
+      try {
+        await updateTask(taskId, { dueAt }, selectedProjectId);
+        toast({
+          title: dueAt ? "Deadline set" : "Deadline cleared",
+          msg: dueAt
+            ? `Due ${new Date(dueAt).toLocaleDateString()} — misses move back to Backlog.`
+            : "No automatic move will happen.",
+        });
+        await tasksQ.mutate();
+      } catch (err) {
+        await tasksQ.mutate();
+        toast({ title: "Deadline failed", msg: err instanceof Error ? err.message : "Try again." });
+      }
+    },
+    [canWrite, tasksQ, updateTask, selectedProjectId, toast],
   );
 
   // Optimistic status change: update the local board immediately, then persist
@@ -617,6 +714,7 @@ function BoardPage() {
                       onTouchDragCancel={cancelTouchDrag}
                       onEdit={openEditTask}
                       onDelete={setDeletingTask}
+                      onSetDue={handleSetDue}
                     />
                   ))
                 )}
