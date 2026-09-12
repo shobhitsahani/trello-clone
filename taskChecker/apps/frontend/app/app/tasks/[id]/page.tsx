@@ -125,12 +125,17 @@ export default function TaskDetailPage() {
     : null;
 
   const patch = async (data: Partial<Task>, okMsg: string) => {
-    if (!taskId) return;
+    if (!taskId || !task) return;
+    // Optimistic: controlled selects (status/priority) render from server
+    // state, so without this they snap back to the old value while the PATCH
+    // is in flight. Roll back to server state on failure.
+    await taskQ.mutate({ task: { ...task, ...data } }, { revalidate: false });
     try {
       await api.tasks.update(taskId, data);
       await taskQ.mutate();
       toast({ title: okMsg, msg: "Saved." });
     } catch (err) {
+      await taskQ.mutate();
       toast({ title: "Update failed", msg: err instanceof Error ? err.message : "Try again." });
     }
   };

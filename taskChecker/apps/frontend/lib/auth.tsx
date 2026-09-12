@@ -3,6 +3,15 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { api, type User, type ActiveTenant, type TokenBundle, loadAuthFromStorage, clearAuthTokens, getCurrentTenantId, setAuthTokens } from "./api";
 
+// Hydrate the in-memory token store synchronously at import time (browser
+// only). Descendant data-fetch effects run BEFORE this provider's mount
+// effect, so hydrating inside useEffect leaves the first paint's fetches
+// without a token — fresh loads of the task page fired unauthenticated
+// task + comments reads (401s) and could stick on "Task not found" where
+// StrictMode remounts don't rescue it (production). Import-time hydration
+// runs before any render/effect in the tree.
+if (typeof window !== "undefined") loadAuthFromStorage();
+
 interface AuthContextType {
   user: User | null;
   memberships: ActiveTenant[];
