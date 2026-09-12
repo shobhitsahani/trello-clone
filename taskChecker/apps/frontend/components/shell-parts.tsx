@@ -14,7 +14,7 @@ import { useAuth } from "../lib/auth";
 import { api, getCurrentTenantId, type ChatMessage, type PaginatedResponse } from "../lib/api";
 import { useSWR } from "../lib/swr";
 import { useRealtime } from "../lib/realtime";
-import { cx, hueFrom, timeAgo } from "../lib/utils";
+import { cx, formatChatTime, hueFrom } from "../lib/utils";
 import {
   IconBell,
   IconBoard,
@@ -880,12 +880,15 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
               const name =
                 names.get(m.authorId) ?? (m.authorId === user?.id ? (user?.name ?? "You") : "Someone");
               const own = m.authorId === user?.id;
+              const when = formatChatTime(m.createdAt);
               return (
                 <ChatBubble
                   key={m.id}
                   who={name.split(" ")[0] || "Someone"}
                   mention={own ? "You" : "@Team"}
-                  time={timeAgo(m.createdAt)}
+                  time={when.absolute ? `${when.absolute} · ${when.relative}` : when.relative}
+                  dateTime={m.createdAt}
+                  timeTitle={when.title || undefined}
                   tint={hueFrom(m.authorId)}
                   brand={own}
                   onDelete={own && !m.id.startsWith("local-") ? () => void handleDelete(m.id) : undefined}
@@ -908,6 +911,8 @@ function ChatBubble({
   who,
   mention,
   time,
+  dateTime,
+  timeTitle,
   tint,
   brand,
   onDelete,
@@ -916,6 +921,8 @@ function ChatBubble({
   who: string;
   mention: string;
   time: string;
+  dateTime?: string;
+  timeTitle?: string;
   tint: number;
   brand?: boolean;
   onDelete?: () => void;
@@ -931,7 +938,15 @@ function ChatBubble({
             <span style={{ color: "var(--slate-400)", fontWeight: 400 }}>→</span>
             <span className="st-mention">{mention}</span>
           </span>
-          <span className="st-msg-time">{time}</span>
+          <span className="st-msg-time">
+            {dateTime ? (
+              <time dateTime={dateTime} title={timeTitle ?? time}>
+                {time}
+              </time>
+            ) : (
+              time
+            )}
+          </span>
         </div>
         <div className={cx("st-bubble", brand ? "st-bubble-brand" : "st-bubble-slate")}>
           <p>{children}</p>

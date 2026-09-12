@@ -54,6 +54,7 @@ export function hueFrom(seed: string): number {
 /** compact relative time, e.g. "4h", "2d", "now" */
 export function timeAgo(iso: string, now = Date.now()): string {
   const t = new Date(iso).getTime();
+  if (Number.isNaN(t)) return "";
   const s = Math.max(0, Math.floor((now - t) / 1000));
   if (s < 45) return "now";
   const min = Math.floor(s / 60);
@@ -66,21 +67,73 @@ export function timeAgo(iso: string, now = Date.now()): string {
   return `${mo}mo`;
 }
 
-/** absolute short clock time like "09:41" */
+/** absolute short clock time like "09:41" — viewer's local timezone */
 export function clockTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
   });
 }
 
-/** full day label like "Aug 26" */
+/** full day label like "Aug 26" — viewer's local timezone */
 export function dayLabel(iso: string): string {
-  return new Date(iso).toLocaleDateString([], {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString([], {
     month: "short",
     day: "numeric",
   });
+}
+
+/**
+ * Chat timestamp in the *viewer's* local timezone.
+ *
+ * The API stores `created_at` as TIMESTAMPTZ (UTC) and returns an ISO-8601
+ * string, so we deliberately format client-side with no explicit `timeZone`
+ * option — `Date`/`Intl` then resolve to whatever the reader's browser/OS
+ * is set to. Never format to a fixed zone server-side.
+ *
+ * - `absolute`: "09:41" today, "Yesterday 09:41", "Aug 26, 09:41" this year,
+ *   "Aug 26, 2025, 09:41" otherwise (all local).
+ * - `relative`: compact age from {@link timeAgo} ("now", "5m", "3h", …).
+ * - `title`: full local date + time + TZ abbreviation for the tooltip,
+ *   e.g. "Aug 26, 2026, 9:41 AM GMT+5:30".
+ */
+export function formatChatTime(
+  iso: string,
+  now = Date.now(),
+): { absolute: string; relative: string; title: string } {
+  const d = new Date(iso);
+  const relative = timeAgo(iso, now);
+  if (Number.isNaN(d.getTime())) return { absolute: "", relative, title: "" };
+  const time = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+  const day = new Date(now);
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dayDiff = Math.round((startOf(day) - startOf(d)) / 86_400_000);
+  let absolute: string;
+  if (dayDiff <= 0) {
+    absolute = time;
+  } else if (dayDiff === 1) {
+    absolute = `Yesterday ${time}`;
+  } else if (d.getFullYear() === day.getFullYear()) {
+    absolute = `${d.toLocaleDateString([], { month: "short", day: "numeric" })}, ${time}`;
+  } else {
+    absolute = `${d.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}, ${time}`;
+  }
+  let title: string;
+  try {
+    title = d.toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZoneName: "short",
+    });
+  } catch {
+    title = d.toLocaleString();
+  }
+  return { absolute, relative, title };
 }
 
 export function formatNumber(n: number): string {
