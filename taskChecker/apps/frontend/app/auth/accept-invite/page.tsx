@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { IconMail, IconLock, IconUser, IconEye, IconEyeOff, IconFlowMark, IconArrowRight, IconCheck, IconAlertCircle } from "@/components/icons";
 import { api } from "@/lib/api";
 import { cx } from "@/lib/utils";
 
-export default function AcceptInvitePage() {
-  const params = useParams<{ token: string }>();
-  const token = typeof params.token === "string" ? params.token : "";
+type Preview = { email: string; orgName: string; role: string; expiresAt: string };
+
+function AcceptInviteForm() {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") ?? "";
   const router = useRouter();
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -17,11 +19,23 @@ export default function AcceptInvitePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [inviteInfo, setInviteInfo] = useState<{ email: string; orgName: string; role: string } | null>(null);
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [previewError, setPreviewError] = useState("");
 
   useEffect(() => {
-    // We can't fetch invite info without accepting (token is hashed on backend)
-    // But we could add a public endpoint to preview the invite
+    if (!token) return;
+    let cancelled = false;
+    api.auth
+      .previewInvite(token)
+      .then((res) => {
+        if (!cancelled) setPreview(res.invite);
+      })
+      .catch((err) => {
+        if (!cancelled) setPreviewError(err instanceof Error ? err.message : "Invalid invitation link.");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -44,6 +58,26 @@ export default function AcceptInvitePage() {
     }
   };
 
+  if (!token) {
+    return (
+      <div className="auth-page">
+        <div className="auth-container">
+          <div className="auth-brand">
+            <IconFlowMark size={32} />
+            <h1>TeamFlow</h1>
+            <p>This invitation link is missing its token.</p>
+          </div>
+          <div className="auth-error">
+            <IconAlertCircle size={16} /> Ask the sender to copy the full invite link again.
+          </div>
+          <p className="auth-footer">
+            <Link href="/auth/sign-in">Back to sign in</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (success) {
     return (
       <div className="auth-page">
@@ -65,6 +99,8 @@ export default function AcceptInvitePage() {
     );
   }
 
+  const expired = preview ? new Date(preview.expiresAt).getTime() < Date.now() : false;
+
   return (
     <div className="auth-page">
       <div className="auth-container">
@@ -73,6 +109,26 @@ export default function AcceptInvitePage() {
           <h1>TeamFlow</h1>
           <p>Accept your invitation</p>
         </div>
+
+        {preview ? (
+          <div className={cx("invite-preview", expired && "is-expired")}>
+            <p>
+              <strong>{preview.email}</strong> — invited to <strong>{preview.orgName}</strong> as{" "}
+              <strong>{preview.role}</strong>
+            </p>
+            <p className="dim">
+              {expired
+                ? "This link has expired — ask for a fresh invite."
+                : `Link expires ${new Date(preview.expiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}`}
+            </p>
+          </div>
+        ) : previewError ? (
+          <div className="auth-error">
+            <IconAlertCircle size={16} /> {previewError}
+          </div>
+        ) : (
+          <p className="dim">Checking invitation…</p>
+        )}
 
         <form onSubmit={handleSubmit} className="auth-form">
           {error && <div className="auth-error">{error}</div>}
@@ -89,7 +145,7 @@ export default function AcceptInvitePage() {
                 placeholder="Jane Doe"
                 required
                 autoComplete="name"
-                disabled={loading}
+                disabled={loading || expired}
               />
             </div>
           </div>
@@ -106,7 +162,7 @@ export default function AcceptInvitePage() {
                 placeholder="•••••••• (min 8 characters)"
                 required
                 autoComplete="new-password"
-                disabled={loading}
+                disabled={loading || expired}
                 minLength={8}
               />
               <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
@@ -115,7 +171,7 @@ export default function AcceptInvitePage() {
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary btn-block auth-submit" disabled={loading}>
+          <button type="submit" className="btn btn-primary btn-block auth-submit" disabled={loading || expired}>
             {loading ? "Accepting invite…" : "Accept invite"}
             <IconArrowRight size={16} />
           </button>
@@ -126,5 +182,13 @@ export default function AcceptInvitePage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function AcceptInvitePage() {
+  return (
+    <Suspense fallback={<div className="loading">Loading…</div>}>
+      <AcceptInviteForm />
+    </Suspense>
   );
 }

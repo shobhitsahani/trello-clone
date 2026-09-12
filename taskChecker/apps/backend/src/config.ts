@@ -21,6 +21,8 @@ export interface Config {
   s3SecretKey?: string;
   s3Region?: string;
   publicBaseUrl: string;
+  /** Absolute URL of the web app — invite links point here, not at the API. */
+  frontendBaseUrl: string;
   webhookRetries: number;
   logLevel: string;
 }
@@ -50,6 +52,7 @@ export function loadConfig(): Config {
     s3SecretKey: process.env.S3_SECRET_KEY,
     s3Region: process.env.S3_REGION ?? "us-east-1",
     publicBaseUrl: process.env.PUBLIC_BASE_URL ?? "http://localhost:4002",
+    frontendBaseUrl: (process.env.FRONTEND_BASE_URL ?? "http://localhost:4000").replace(/\/+$/, ""),
     webhookRetries: Number(process.env.WORKER_WEBHOOK_RETRIES ?? 10),
     logLevel: process.env.LOG_LEVEL ?? "info",
   };

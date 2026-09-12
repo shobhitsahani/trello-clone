@@ -24,6 +24,7 @@ import { billingRoutes } from "./modules/billing.js";
 const PUBLIC_PATHS = [
   /^\/v1\/auth\/(signup|login|refresh|logout)$/,
   /^\/v1\/invites\/[^/]+$/,
+  /^\/v1\/invites\/[^/]+\/preview$/,
   /^\/livez$/,
   /^\/readyz$/,
 ];

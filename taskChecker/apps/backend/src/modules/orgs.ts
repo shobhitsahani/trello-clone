@@ -13,6 +13,7 @@ import { randomToken, uuidv7 } from "../lib/ids.js";
 import { badRequest, forbidden, notFound, quotaExceeded, unauthorized } from "../lib/errors.js";
 import { audit } from "../lib/audit.js";
 import { signAccessToken } from "../lib/tokens.js";
+import { config } from "../config.js";
 import { db } from "../db/client.js";
 import { invites, memberships, projects, tasks, tenants, users } from "../db/schema.js";
 import { lookupInvite } from "../lib/auth.js";
@@ -104,6 +105,9 @@ orgRoutes.post("/orgs/:orgId/invites", async (c) => {
     }
     const emailLower = parsed.data.email.toLowerCase();
     const token = randomToken(32);
+    // Invite links live 24 hours — the expiry is enforced on accept/preview
+    // and surfaced to the inviter so they can relay the deadline.
+    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000);
     const invite = await tx
       .insert(invites)
       .values({
@@ -112,7 +116,7 @@ orgRoutes.post("/orgs/:orgId/invites", async (c) => {
         email: emailLower,
         role: parsed.data.role,
         tokenHash: hashSecret(token),
-        expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+        expiresAt,
         invitedById: p.userId,
       })
       .onConflictDoNothing()
@@ -126,7 +130,27 @@ orgRoutes.post("/orgs/:orgId/invites", async (c) => {
       entityId: invite[0].id,
       after: { email: emailLower, role: parsed.data.role },
     });
-    return c.json({ invite: { id: invite[0].id, email: emailLower, role: parsed.data.role }, invitationUrl: `/v1/invites/${token}` }, 201);
+    // Absolute web-app link (copyable + emailable) — never the raw /v1 API path.
+    const invitationUrl = `${config().frontendBaseUrl}/auth/accept-invite?token=${token}`;
+    return c.json({ invite: { id: invite[0].id, email: emailLower, role: parsed.data.role, expiresAt: expiresAt.toISOString() }, invitationUrl }, 201);
+  });
+});
+
+// GET /v1/invites/{token}/preview — public: lets the accept page show who the
+// invite is for (org, email, role, expiry) without leaking the token hash.
+orgRoutes.get("/invites/:token/preview", async (c) => {
+  const invite = await lookupInvite(hashSecret(c.req.param("token")));
+  if (!invite) throw notFound("Invalid or expired invitation token.");
+  if (invite.expires_at.getTime() < Date.now()) throw badRequest("Invitation has expired.");
+  if (invite.accepted_at) throw badRequest("Invitation already accepted.");
+  const org = await db.select({ name: tenants.name }).from(tenants).where(eq(tenants.id, invite.tenant_id)).limit(1);
+  return c.json({
+    invite: {
+      email: invite.email,
+      orgName: org[0]?.name ?? "a workspace",
+      role: invite.role,
+      expiresAt: invite.expires_at.toISOString(),
+    },
   });
 });
 

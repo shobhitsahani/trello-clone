@@ -172,14 +172,23 @@ it("enforces RLS at the SQL layer (defense in depth)", async () => {
     const a = await signup(`inv-owner-${tag}`, `Invite Co ${tag}`);
     const inviteeEmail = email(`invitee-${tag}`);
 
-    const invite = await authed<{ invitationUrl: string }>(
+    const invite = await authed<{ invitationUrl: string; invite: { email: string; role: string; expiresAt: string } }>(
       await api.request(`/v1/orgs/${a.tenantId}/invites`, {
         method: "POST",
         ...api.json({ email: inviteeEmail, role: "member" }),
         ...api.auth(a.accessToken),
       }),
     );
-    const token = invite.invitationUrl.split("/").pop()!;
+    // invitationUrl is an absolute web-app link with ?token=; link lives 24h.
+    const token = new URL(invite.invitationUrl).searchParams.get("token")!;
+    expect(token.length).toBeGreaterThan(10);
+    expect(new Date(invite.invite.expiresAt).getTime()).toBeGreaterThan(Date.now());
+    expect(new Date(invite.invite.expiresAt).getTime() - Date.now()).toBeLessThanOrEqual(24 * 3600 * 1000 + 60_000);
+
+    // Preview works without auth and shows the same expiry.
+    const preview = await api.request(`/v1/invites/${token}/preview`);
+    expect(preview.status).toBe(200);
+    expect(((await preview.json()) as { invite: { email: string } }).invite.email).toBe(inviteeEmail);
 
     const accept = await api.request(`/v1/invites/${token}`, {
       method: "POST",

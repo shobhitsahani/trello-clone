@@ -414,6 +414,9 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+
+    previewInvite: (token: string) =>
+      request<{ invite: { email: string; orgName: string; role: Role; expiresAt: string } }>(`/invites/${token}/preview`),
   },
 
   orgs: {
@@ -427,7 +430,10 @@ export const api = {
       request<{ members: Member[] }>(`/orgs/${orgId}/members`),
 
     invite: (orgId: string, data: { email: string; role: Role }) =>
-      request<{ invite: { id: string; email: string; role: Role }; invitationUrl: string }>(`/orgs/${orgId}/invites`, {
+      request<{
+        invite: { id: string; email: string; role: Role; expiresAt: string };
+        invitationUrl: string;
+      }>(`/orgs/${orgId}/invites`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
