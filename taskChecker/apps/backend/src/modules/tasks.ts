@@ -11,7 +11,7 @@ import { requireRole, Rbac } from "../lib/rbac.js";
 import { audit } from "../lib/audit.js";
 import { activityEvents, tasks } from "../db/schema.js";
 import { emitEvent } from "../lib/events.js";
-import { cacheKey, getOrSet, invalidate, N } from "../lib/cache.js";
+import { cacheKey, getOrSet, invalidatePrefix, N } from "../lib/cache.js";
 import { withIdempotency } from "../lib/idempotency.js";
 import { enqueue } from "../lib/queue.js";
 import { decodeCursor, encodeCursor, parseLimit } from "../lib/cursor.js";
@@ -118,7 +118,7 @@ taskRoutes.post("/tasks", async (c) => {
         meta: { title: parsed.data.title, status: values.status },
       });
       await audit(tx, { tenantId: p.tenantId, actorId: p.userId, action: "task.created", entityType: "task", entityId: id, after: { title: parsed.data.title, status: values.status } });
-      await invalidate(cacheKey("boards", N.tenant, p.tenantId, parsed.data.projectId, "all"));
+      await invalidatePrefix(cacheKey("boards", N.tenant, p.tenantId, parsed.data.projectId));
       return taskRecord({ ...values, searchVector: "" } as typeof tasks.$inferSelect);
     });
 
@@ -179,7 +179,7 @@ taskRoutes.patch("/tasks/:id", async (c) => {
       tenantId: p.tenantId, actorId: p.userId, action, entityType: "task", entityId: taskId,
       before: { status: before.status, title: before.title }, after: { ...patch },
     });
-    await invalidate(cacheKey("boards", N.tenant, p.tenantId, before.projectId, "all"));
+    await invalidatePrefix(cacheKey("boards", N.tenant, p.tenantId, before.projectId));
     void emitEvent({ tenantId: p.tenantId, actorId: p.userId || undefined, type: `task.${action}`, entityType: "task", entityId: taskId, meta: { changes: patch } });
     return c.json({ ok: true, action });
   });
@@ -195,7 +195,7 @@ taskRoutes.delete("/tasks/:id", async (c) => {
     if (!before) throw notFound("Task not found.");
     await tx.update(tasks).set({ deletedAt: new Date() }).where(and(eq(tasks.tenantId, p.tenantId), eq(tasks.id, taskId)));
     await audit(tx, { tenantId: p.tenantId, actorId: p.userId, action: "task.deleted", entityType: "task", entityId: taskId, before: { title: before.title } });
-    await invalidate(cacheKey("boards", N.tenant, p.tenantId, before.projectId, "all"));
+    await invalidatePrefix(cacheKey("boards", N.tenant, p.tenantId, before.projectId));
     return c.json({ ok: true, deletedAt: new Date().toISOString() });
   });
 });

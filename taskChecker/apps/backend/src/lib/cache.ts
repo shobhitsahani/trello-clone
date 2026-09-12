@@ -36,3 +36,23 @@ export async function invalidate(...keys: string[]): Promise<void> {
     // stale-by-TTL is the safety net
   }
 }
+
+/** Invalidate every key under a prefix (SCAN + DEL).
+ * Board payloads are cached with cursor/limit/status baked into the key
+ * (e.g. `boards:v1:<tenant>:<project>:all:first:50`), so an exact DEL of
+ * `boards:v1:<tenant>:<project>:all` never clears them — moving a task then
+ * re-reads the stale snapshot and the card snaps back. Use this for keys whose
+ * suffix is dynamic. */
+export async function invalidatePrefix(prefix: string): Promise<void> {
+  try {
+    const client = redis();
+    let cursor = "0";
+    do {
+      const [next, keys] = await client.scan(cursor, "MATCH", `${prefix}*`, "COUNT", 100);
+      if (keys.length > 0) await client.del(...keys);
+      cursor = next;
+    } while (cursor !== "0");
+  } catch {
+    // stale-by-TTL is the safety net
+  }
+}

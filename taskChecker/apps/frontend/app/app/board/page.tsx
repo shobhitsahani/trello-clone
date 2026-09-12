@@ -55,24 +55,28 @@ function TaskCard({
       tabIndex={0}
     >
       <div className="st-card-top">
-        <span className="st-key-pill">{project?.key ?? "TASK"}</span>
-        <span className="st-card-key">{task.id.slice(0, 8)}</span>
-      </div>
-      <h3 className="st-card-title">{task.title}</h3>
-      <div className="st-card-foot">
         <span className={PRIO_CLASS[task.priority] ?? PRIO_CLASS.none}>
           {task.priority === "none" ? "NO PRIO" : task.priority.toUpperCase()}
         </span>
+        <span className="st-card-key">
+          {project ? `${project.key}-${task.id.slice(0, 4).toUpperCase()}` : task.id.slice(0, 8)}
+        </span>
+      </div>
+      <h3 className="st-card-title">{task.title}</h3>
+      <div className="st-card-foot">
         {task.dueAt ? (
           <span className="board-card-due">
             <IconClock size={11} />
             {new Date(task.dueAt).toLocaleDateString()}
           </span>
         ) : (
-          <span className="board-card-project">
-            {project ? `${project.key}-${task.id.slice(0, 4).toUpperCase()}` : task.id.slice(0, 8)}
-          </span>
+          <span className="board-card-project">{project?.key ?? "TASK"}</span>
         )}
+        <span
+          className="st-card-dot"
+          style={{ background: STATUS_DOTS[task.status] }}
+          title={STATUS_LABELS[task.status]}
+        />
       </div>
     </article>
   );
@@ -155,7 +159,8 @@ function BoardPage() {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverCol(null);
   }, []);
 
-  // Real optimistic status change: PATCH /v1/tasks/{id}, then revalidate board.
+  // Optimistic status change: update the local board immediately, then persist
+  // with PATCH and revalidate the board from the server.
   const handleDrop = useCallback(
     async (e: React.DragEvent, newStatus: string) => {
       e.preventDefault();
@@ -165,11 +170,24 @@ function BoardPage() {
       if (!taskId) return;
       const target = projectTasks.find((t) => t.id === taskId);
       if (!target || target.status === newStatus) return;
+      // Move the card instantly so the drop feels immediate; PATCH below is the
+      // source of truth and the final revalidate reconciles with it.
+      await tasksQ.mutate(
+        (current) => ({
+          ...(current ?? { data: [], nextCursor: null, hasMore: false }),
+          data: (current?.data ?? []).map((t) =>
+            t.id === taskId ? { ...t, status: newStatus as Task["status"] } : t,
+          ),
+        }),
+        { revalidate: false },
+      );
       try {
         await updateTask(taskId, { status: newStatus as Task["status"] }, selectedProjectId);
         toast({ title: "Task moved", msg: `Moved to ${STATUS_LABELS[newStatus]}` });
         await tasksQ.mutate();
       } catch (err) {
+        // Persist failed: re-fetch the server state so the card rolls back.
+        await tasksQ.mutate();
         toast({ title: "Move failed", msg: err instanceof Error ? err.message : "Try again." });
       }
     },
@@ -301,7 +319,7 @@ function BoardPage() {
           {filteredColumns.map((col) => (
             <section
               key={col.status}
-              className="st-col"
+              className={cx("st-col", col.status === "in_progress" && "is-lit")}
               aria-label={`${STATUS_LABELS[col.status]}, ${col.tasks.length} tasks`}
               onDragOver={(e) => handleDragOver(e, col.status)}
               onDragLeave={handleDragLeave}
@@ -309,7 +327,7 @@ function BoardPage() {
             >
               <div className="st-col-head">
                 <span className="st-col-dot" style={{ background: STATUS_DOTS[col.status] }} />
-                <h2 style={{ fontSize: 14, fontWeight: 600, color: "var(--slate-800)" }}>{STATUS_LABELS[col.status]}</h2>
+                <h2 className="bcol-name">{STATUS_LABELS[col.status]}</h2>
                 <span className="st-col-count">{col.tasks.length}</span>
                 <button
                   className="st-col-add"
