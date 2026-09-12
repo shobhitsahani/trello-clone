@@ -7,6 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import { useToast } from "@/components/overlay";
 import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash } from "@/components/icons";
 import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
+import { Button } from "@heroui/react";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { useUpdateTask } from "@/lib/mutations";
@@ -158,19 +159,17 @@ const TaskCard = memo(function TaskCard({
               placeholder="N days"
               aria-label="Custom deadline in days"
             />
-            <button
-              type="button"
-              className="btn btn-ghost btn-xs"
-              onClick={(e) => {
-                stop(e);
+            <Button
+              size="sm"
+              variant="ghost"
+              onPress={() => {
                 const n = Math.floor(Number(customDueDays));
                 if (Number.isFinite(n) && n >= 1 && n <= 365) saveDueInDays(n);
               }}
-              onPointerDown={stop}
               aria-label="Save custom deadline"
             >
               ✓
-            </button>
+            </Button>
             <button
               type="button"
               className="btn btn-ghost btn-xs"

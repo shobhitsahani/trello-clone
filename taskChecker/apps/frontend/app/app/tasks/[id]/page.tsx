@@ -14,6 +14,7 @@ import {
   IconX,
 } from "@/components/icons";
 import { api, getCurrentTenantId, type Comment, type Task } from "@/lib/api";
+import { Button } from "@heroui/react";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { cx, timeAgo, hueFrom, isOverdue } from "@/lib/utils";
@@ -604,18 +605,17 @@ export default function TaskDetailPage() {
                       </button>
                     ))}
                     <span className={cx("due-custom", duePreset === "custom" && "is-on")}>
-                      <button
-                        type="button"
-                        className={cx("btn btn-sm", duePreset === "custom" ? "btn-primary" : "btn-ghost")}
-                        aria-pressed={duePreset === "custom"}
-                        onClick={() => {
+                      <Button
+                        size="sm"
+                        variant={duePreset === "custom" ? "primary" : "ghost"}
+                        onPress={() => {
                           const n = Math.max(1, Math.min(365, Math.floor(Number(customDays) || 0)));
                           if (n > 0) applyDueInDays(n, "custom");
                           else setDuePreset("custom");
                         }}
                       >
                         Custom
-                      </button>
+                      </Button>
                       <input
                         type="number"
                         min={1}

@@ -1,3 +1,8 @@
+/* HeroUI (Tailwind v4) — must stay first: tailwind, then heroui theme,
+   then the app's own stylesheet so Stitch classes win on conflicts. */
+@import "tailwindcss";
+@import "@heroui/styles";
+
 /* ================================================================
    Signal Board — Stitch purple Trello-clone theme (light)
    Utility rail + workspace sidebar + topbar + kanban + chat rail.
@@ -745,6 +750,7 @@ mark { background: var(--brand-100); color: var(--brand-800); padding: 0 2px; bo
 .due-custom { display: inline-flex; align-items: center; gap: 6px; border: 1px dashed transparent; border-radius: 8px; padding: 1px 2px; }
 .due-custom.is-on { border-color: var(--brand-300); background: var(--brand-50); }
 .due-custom input[type="number"] { width: 64px; font-size: 12px; border: 1px solid var(--slate-300); border-radius: 6px; padding: 3px 6px; background: #fff; color: var(--slate-800); }
+.board-card-due-edit input[type="number"] { width: 70px; font-size: 11px; font-family: var(--stack-mono); color: var(--slate-700); border: 1px solid var(--slate-300); border-radius: 6px; padding: 1px 4px; background: #fff; }
 .pop { position: fixed; z-index: 50; min-width: 320px; max-width: 380px; padding: 14px; }
 .pop-org { top: 64px; left: 66px; }
 .pop-bell { top: 60px; right: 16px; }
