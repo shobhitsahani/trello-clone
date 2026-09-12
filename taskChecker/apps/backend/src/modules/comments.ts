@@ -36,7 +36,10 @@ commentRoutes.get("/tasks/:id/comments", async (c) => {
     const last = page[page.length - 1];
     return c.json({
       taskId,
-      comments: page.map((r) => ({ id: r.id, authorId: r.authorId, body: r.body, createdAt: r.createdAt })),
+      data: page.map((r) => ({
+        id: r.id, tenantId: r.tenantId, taskId: r.taskId, authorId: r.authorId,
+        body: r.body, createdAt: r.createdAt, deletedAt: null,
+      })),
       nextCursor: page.length === limit && last ? encodeCursor(last.createdAt!, last.id) : null,
       hasMore: rows.length > limit,
     });
@@ -74,7 +77,7 @@ commentRoutes.post("/tasks/:id/comments", async (c) => {
       entityType: "comment", entityId: id,
       meta: { taskId, taskTitle: task.title, body: parsed.data.body },
     });
-    return c.json({ comment: { id, tenantId: p.tenantId, taskId, authorId, body: parsed.data.body, createdAt: new Date() } }, 201);
+    return c.json({ comment: { id, tenantId: p.tenantId, taskId, authorId, body: parsed.data.body, createdAt: new Date(), deletedAt: null } }, 201);
   });
 });
 

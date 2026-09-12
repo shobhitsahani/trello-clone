@@ -42,11 +42,13 @@ function CommentItem({
   authorName,
   onDelete,
   canDelete,
+  isOwn,
 }: {
   comment: Comment;
   authorName: string | null;
   onDelete: () => void;
   canDelete: boolean;
+  isOwn: boolean;
 }) {
   const tint = hueFrom(comment.authorId);
   return (
@@ -56,10 +58,15 @@ function CommentItem({
       </div>
       <div className="comment-content">
         <div className="comment-header">
-          <span className="comment-author">{authorName ?? "Unknown"}</span>
+          <span className="comment-author">
+            {authorName ?? "Unknown"}
+            {isOwn ? <span className="faint"> · you</span> : null}
+          </span>
           <span className="comment-time">{timeAgo(comment.createdAt)}</span>
         </div>
-        <p className="comment-body">{comment.body}</p>
+        <p className="comment-body" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+          {comment.body}
+        </p>
         {canDelete ? (
           <div className="comment-actions">
             <button className="btn btn-ghost btn-xs" onClick={onDelete}>
@@ -80,6 +87,7 @@ export default function TaskDetailPage() {
   const toast = useToast();
   const orgId = getCurrentTenantId();
   const [commentBody, setCommentBody] = useState("");
+  const [postingComment, setPostingComment] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -198,22 +206,43 @@ export default function TaskDetailPage() {
   };
 
   const handleComment = async () => {
-    if (!commentBody.trim() || !taskId) return;
+    const body = commentBody.trim();
+    if (!body || !taskId || postingComment) return;
+    setPostingComment(true);
     try {
-      await api.comments.create(taskId, commentBody.trim());
+      const res = await api.comments.create(taskId, body);
       setCommentBody("");
-      await commentsQ.mutate();
+      // Optimistic: show the new comment instantly, then reconcile with server.
+      await commentsQ.mutate(
+        (current) => ({
+          data: [res.comment, ...(current?.data ?? [])],
+          nextCursor: current?.nextCursor ?? null,
+          hasMore: current?.hasMore ?? false,
+        }),
+      );
       toast({ title: "Comment added", msg: "Posted." });
     } catch (err) {
       toast({ title: "Comment failed", msg: err instanceof Error ? err.message : "Try again." });
+    } finally {
+      setPostingComment(false);
     }
   };
 
   const handleDeleteComment = async (commentId: string) => {
+    // Optimistic: remove instantly, roll back to server state on failure.
+    await commentsQ.mutate(
+      (current) => ({
+        data: (current?.data ?? []).filter((c) => c.id !== commentId),
+        nextCursor: current?.nextCursor ?? null,
+        hasMore: current?.hasMore ?? false,
+      }),
+      { revalidate: false },
+    );
     try {
       await api.comments.delete(commentId);
       await commentsQ.mutate();
     } catch (err) {
+      await commentsQ.mutate();
       toast({ title: "Delete failed", msg: err instanceof Error ? err.message : "Try again." });
     }
   };
@@ -311,39 +340,55 @@ export default function TaskDetailPage() {
             </section>
 
             <section className="task-section">
-              <h3>Comments</h3>
+              <h3>Comments {comments.length > 0 ? <span className="faint">({comments.length})</span> : null}</h3>
               <div className="comments-list">
-                {comments.map((c) => (
-                  <CommentItem
-                    key={c.id}
-                    comment={c}
-                    authorName={nameById.get(c.authorId) ?? null}
-                    canDelete={canDeleteComment(c)}
-                    onDelete={() => void handleDeleteComment(c.id)}
-                  />
-                ))}
-                {comments.length === 0 ? (
+                {commentsQ.isLoading ? (
+                  <p className="empty-text">Loading comments…</p>
+                ) : comments.length === 0 ? (
                   <p className="empty-text">No comments yet. Be the first to comment!</p>
-                ) : null}
-                <form
-                  className="comment-form"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    void handleComment();
-                  }}
-                >
-                  <textarea
-                    value={commentBody}
-                    onChange={(e) => setCommentBody(e.target.value)}
-                    placeholder="Write a comment…"
-                    rows={3}
-                  />
-                  <div className="comment-form-actions">
-                    <button type="submit" className="btn btn-primary" disabled={!commentBody.trim()}>
-                      <IconMessageSquare size={14} /> Add comment
-                    </button>
-                  </div>
-                </form>
+                ) : (
+                  comments.map((c) => (
+                    <CommentItem
+                      key={c.id}
+                      comment={c}
+                      authorName={nameById.get(c.authorId) ?? null}
+                      canDelete={canDeleteComment(c)}
+                      isOwn={c.authorId === user?.id}
+                      onDelete={() => void handleDeleteComment(c.id)}
+                    />
+                  ))
+                )}
+                {canWrite ? (
+                  <form
+                    className="comment-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void handleComment();
+                    }}
+                  >
+                    <textarea
+                      value={commentBody}
+                      onChange={(e) => setCommentBody(e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") void handleComment();
+                      }}
+                      placeholder="Write a comment… (⌘/Ctrl + Enter to post)"
+                      rows={3}
+                      disabled={postingComment}
+                    />
+                    <div className="comment-form-actions">
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={!commentBody.trim() || postingComment}
+                      >
+                        <IconMessageSquare size={14} /> {postingComment ? "Posting…" : "Add comment"}
+                      </button>
+                    </div>
+                  </form>
+                ) : (
+                  <p className="empty-text">View-only role — you can read but not post comments.</p>
+                )}
               </div>
             </section>
           </main>
