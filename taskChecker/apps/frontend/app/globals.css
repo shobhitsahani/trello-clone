@@ -740,6 +740,8 @@ mark { background: var(--brand-100); color: var(--brand-800); padding: 0 2px; bo
 .invite-link-row input { padding-right: 86px !important; font-family: var(--stack-mono); font-size: 11.5px; }
 .invite-preview { padding: 10px 12px; border-radius: 8px; background: var(--slate-50); border: 1px solid var(--slate-200); font-size: 13px; color: var(--slate-700); margin-bottom: 14px; }
 .invite-preview.is-expired { background: #fef2f2; border-color: #fecaca; }
+/* edit-modal deadline presets */
+.due-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pop { position: fixed; z-index: 50; min-width: 320px; max-width: 380px; padding: 14px; }
 .pop-org { top: 64px; left: 66px; }
 .pop-bell { top: 60px; right: 16px; }

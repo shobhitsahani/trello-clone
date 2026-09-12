@@ -556,13 +556,55 @@ export default function TaskDetailPage() {
                   </select>
                 </div>
                 <div className="form-field">
-                  <label htmlFor="edit-due">Due date</label>
+                  <label htmlFor="edit-due">Deadline</label>
                   <input
                     id="edit-due"
                     type="datetime-local"
                     value={editDueAt}
                     onChange={(e) => setEditDueAt(e.target.value)}
                   />
+                  <div className="due-presets" role="group" aria-label="Deadline presets">
+                    {[
+                      { label: "Today", days: 0 },
+                      { label: "Tomorrow", days: 1 },
+                      { label: "Next week", days: 7 },
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        className="btn btn-ghost btn-xs"
+                        onClick={() => {
+                          const d = new Date();
+                          d.setDate(d.getDate() + p.days);
+                          d.setHours(18, 0, 0, 0);
+                          const pad = (n: number) => String(n).padStart(2, "0");
+                          setEditDueAt(
+                            `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+                          );
+                        }}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                    {editDueAt ? (
+                      <button type="button" className="btn btn-ghost btn-xs" onClick={() => setEditDueAt("")}>
+                        Clear
+                      </button>
+                    ) : null}
+                  </div>
+                  {editDueAt && !Number.isNaN(Date.parse(editDueAt)) ? (
+                    isOverdue(new Date(editDueAt).toISOString(), editStatus) ? (
+                      <p className="field-hint" style={{ color: "hsl(0 75% 45%)", fontWeight: 600 }}>
+                        Overdue — if still open, the next sweep moves this task back to Backlog.
+                      </p>
+                    ) : (
+                      <p className="field-hint">
+                        Due {new Date(editDueAt).toLocaleString()}. Misses move back to Backlog automatically.
+                      </p>
+                    )
+                  ) : (
+                    <p className="field-hint">No deadline — the task never auto-moves.</p>
+                  )}
                 </div>
               </div>
               <div className="modal-foot">
