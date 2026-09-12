@@ -74,10 +74,13 @@ export default function WorkPage() {
   const projects = projectsQ.data?.projects ?? [];
 
   // All my tasks across the tenant's projects — fetched in parallel per project.
+  // Key includes the project set so a newly created project revalidates
+  // instead of reusing the stale closure; limit 50 halves the fan-out payload.
+  const projectIdsKey = projects.map((p) => p.id).join(",");
   const tasksQ = useSWR<TaskWithProject[]>(
-    orgId && projects.length > 0 ? `work-tasks-${orgId}` : null,
+    orgId && projects.length > 0 ? `work-tasks-${orgId}-${projectIdsKey}` : null,
     async () => {
-      const pages = await Promise.all(projects.map((p) => api.tasks.list(orgId!, p.id, { limit: 100 })));
+      const pages = await Promise.all(projects.map((p) => api.tasks.list(orgId!, p.id, { limit: 50 })));
       return pages.flatMap((page, i) => page.data.map((task) => ({ task, project: projects[i] ?? null })));
     },
   );

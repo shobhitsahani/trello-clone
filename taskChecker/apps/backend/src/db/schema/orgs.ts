@@ -25,4 +25,6 @@ export const invites = pgTable("invites", {
   acceptedAt: t("accepted_at"),
   invitedById: uuid("invited_by_id").notNull(),
   createdAt: t("created_at").default(now()),
-});
+}, (table) => [
+  index("invites_hash_idx").on(table.tokenHash),
+]);

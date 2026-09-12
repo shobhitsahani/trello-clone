@@ -33,6 +33,7 @@
     "@repo/typescript-config": "*",
     "@types/bun": "^1.2.0",
     "@types/node": "^26.0.0",
+    "@types/ws": "^8.18.1",
     "prisma": "^6.4.1",
     "typescript": "7.0.2"
   }

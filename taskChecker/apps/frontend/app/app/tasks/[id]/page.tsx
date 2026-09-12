@@ -81,13 +81,23 @@ function CommentItem({
 }
 
 export default function TaskDetailPage() {
-  const { user } = useAuth();
+  const { user, memberships } = useAuth();
   const params = useParams<{ id: string }>();
   const taskId = typeof params.id === "string" ? params.id : "";
   const router = useRouter();
   const toast = useToast();
   const orgId = getCurrentTenantId();
   const [commentBody, setCommentBody] = useState("");
+  const [showEdit, setShowEdit] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState<Task["status"]>("backlog");
+  const [editPriority, setEditPriority] = useState<Task["priority"]>("none");
+  const [editAssigneeId, setEditAssigneeId] = useState("");
+  const [editDueAt, setEditDueAt] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const taskQ = useSWR<{ task: Task }>(taskId ? `task-${taskId}` : null, () => api.tasks.get(taskId));
   const commentsQ = useSWR<{ data: Comment[]; nextCursor: string | null; hasMore: boolean }>(
@@ -113,6 +123,8 @@ export default function TaskDetailPage() {
     () => (task ? projectQ.data?.projects.find((p) => p.id === task.projectId) : null) ?? null,
     [task, projectQ.data],
   );
+  const myRole = memberships.find((m) => m.tenant_id === orgId)?.role;
+  const canWrite = myRole === "owner" || myRole === "admin" || myRole === "member";
   const assignee = task?.assigneeId
     ? { id: task.assigneeId, name: nameById.get(task.assigneeId) ?? "Unknown" }
     : null;
@@ -138,12 +150,53 @@ export default function TaskDetailPage() {
 
   const handleDelete = async () => {
     if (!taskId) return;
+    setDeleting(true);
     try {
       await api.tasks.delete(taskId);
       toast({ title: "Task deleted", msg: "Task moved to trash" });
       router.push("/app/work");
     } catch (err) {
       toast({ title: "Delete failed", msg: err instanceof Error ? err.message : "Try again." });
+      setDeleting(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  const openEdit = () => {
+    if (!task) return;
+    setEditTitle(task.title);
+    setEditDescription(task.description ?? "");
+    setEditStatus(task.status);
+    setEditPriority(task.priority);
+    setEditAssigneeId(task.assigneeId ?? "");
+    setEditDueAt(task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 16) : "");
+    setShowEdit(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!taskId || !editTitle.trim()) return;
+    setSaving(true);
+    try {
+      const payload: Record<string, string | null> = {};
+      if (editTitle.trim() !== task?.title) payload.title = editTitle.trim();
+      if (editDescription !== (task?.description ?? "")) payload.description = editDescription;
+      if (editStatus !== task?.status) payload.status = editStatus;
+      if (editPriority !== task?.priority) payload.priority = editPriority;
+      const nextAssignee = editAssigneeId === "" ? null : editAssigneeId;
+      if (nextAssignee !== (task?.assigneeId ?? null)) payload.assigneeId = nextAssignee;
+      const nextDue = editDueAt === "" ? null : new Date(editDueAt).toISOString();
+      const currentDue = task?.dueAt ? new Date(task.dueAt).toISOString() : null;
+      if (nextDue !== currentDue) payload.dueAt = nextDue;
+      if (Object.keys(payload).length > 0) {
+        await api.tasks.update(taskId, payload);
+        await taskQ.mutate();
+      }
+      setShowEdit(false);
+      toast({ title: "Task updated", msg: "Saved." });
+    } catch (err) {
+      toast({ title: "Update failed", msg: err instanceof Error ? err.message : "Try again." });
+    } finally {
+      setSaving(false);
     }
   };
 

@@ -155,17 +155,14 @@ export function ContextBar() {
   const projectsQ = useSWR<{ projects: ApiProject[] }>(
     orgId ? `ctx-projects-${orgId}` : null,
     () => api.projects.list(orgId!),
-    { refreshInterval: 60_000 },
   );
   const teamsQ = useSWR<{ teams: ApiTeam[] }>(
     orgId ? `ctx-teams-${orgId}` : null,
     () => api.teams.list(orgId!),
-    { refreshInterval: 60_000 },
   );
   const membersQ = useSWR<{ members: Array<{ userId: string; name: string | null; status: string }> }>(
     orgId ? `ctx-members-${orgId}` : null,
     () => api.orgs.listMembers(orgId!),
-    { refreshInterval: 60_000 },
   );
 
   const projects = projectsQ.data?.projects ?? [];
@@ -661,12 +658,12 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
   const chatQ = useSWR<PaginatedResponse<ChatMessage>>(
     orgId ? `chat-messages-${orgId}` : null,
     () => api.chat.list({ limit: 50 }),
-    { refreshInterval: 15_000 },
   );
+  // Shared cache key with ContextBar (`ctx-members-*`): same endpoint, so one
+  // request serves both instead of two polls per minute.
   const membersQ = useSWR<{ members: Array<{ userId: string; name: string | null; email: string | null }> }>(
-    orgId ? `chat-members-${orgId}` : null,
+    orgId ? `ctx-members-${orgId}` : null,
     () => api.orgs.listMembers(orgId!),
-    { refreshInterval: 60_000 },
   );
 
   const names = useMemo(() => {
@@ -691,9 +688,14 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
   const { isConnected } = useRealtime(realtimeOpts);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const stickRef = useRef(true);
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    if (!open) return;
+    // Don't yank the user's scroll when history/previews revalidate:
+    // stick only if they were already near the bottom (or it's first paint).
+    if (stickRef.current) el.scrollTop = el.scrollHeight;
   }, [items.length, open]);
 
   const handleSend = useCallback(
@@ -851,7 +853,14 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
         onDoubleClick={() => setWidth(CHAT_DEFAULT_W)}
         onKeyDown={onResizeKey}
       />
-      <div className="st-chat-scroll" ref={scrollRef}>
+      <div
+        className="st-chat-scroll"
+        ref={scrollRef}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        }}
+      >
         <div className="st-chat-head">
           <span className="st-chat-title">
             <span className="pulse-dot" />

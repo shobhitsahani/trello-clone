@@ -1,4 +1,4 @@
-import { pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { index, pgTable, text, uuid } from "drizzle-orm/pg-core";
 import { planEnum, t, now } from "./enums.js";
 
 // ---------- global (non-tenant) tables ----------
@@ -26,4 +26,6 @@ export const refreshTokens = pgTable("refresh_tokens", {
   expiresAt: t("expires_at").notNull(),
   revokedAt: t("revoked_at"),
   createdAt: t("created_at").default(now()),
-});
+}, (table) => [
+  index("refresh_tokens_hash_idx").on(table.tokenHash),
+]);

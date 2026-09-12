@@ -2,10 +2,10 @@
  * notifications double as the WS catch-up store (a client reconnecting replays
  * `since` its last cursor), so a dropped connection never loses updates. */
 import { Hono } from "hono";
-import { and, desc, eq, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { inTenant } from "../lib/request.js";
 import { notFound } from "../lib/errors.js";
-import { decodeCursor, encodeCursor, parseLimit } from "../lib/cursor.js";
+import { decodeCursor, encodeCursor, keysetBefore, parseLimit } from "../lib/cursor.js";
 import { activityEvents, notifications } from "../db/schema.js";
 
 export const feedRoutes = new Hono();
@@ -21,12 +21,12 @@ feedRoutes.get("/activity", async (c) => {
     const where = [eq(activityEvents.tenantId, p.tenantId)];
     if (entityType) where.push(eq(activityEvents.entityType, entityType));
     if (entityId) where.push(eq(activityEvents.entityId, entityId));
-    if (cursor) where.push(lt(activityEvents.createdAt, new Date(cursor.createdAt)));
+    if (cursor) where.push(keysetBefore(activityEvents.createdAt, activityEvents.id, cursor));
     const rows = await tx
       .select()
       .from(activityEvents)
       .where(and(...where))
-      .orderBy(desc(activityEvents.createdAt))
+      .orderBy(desc(activityEvents.createdAt), desc(activityEvents.id))
       .limit(limit + 1);
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];
@@ -47,12 +47,12 @@ feedRoutes.get("/notifications", async (c) => {
   return inTenant(c, async (tx) => {
     const where = [eq(notifications.tenantId, p.tenantId), eq(notifications.userId, p.userId)];
     if (unreadOnly) where.push(isNull(notifications.readAt));
-    if (cursor) where.push(lt(notifications.createdAt, new Date(cursor.createdAt)));
+    if (cursor) where.push(keysetBefore(notifications.createdAt, notifications.id, cursor));
     const rows = await tx
       .select()
       .from(notifications)
       .where(and(...where, isNull(notifications.deletedAt)))
-      .orderBy(desc(notifications.createdAt))
+      .orderBy(desc(notifications.createdAt), desc(notifications.id))
       .limit(limit + 1);
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];

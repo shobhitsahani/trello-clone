@@ -1,10 +1,11 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useToast } from "@/components/overlay";
-import { IconPlus, IconSearch, IconClock } from "@/components/icons";
+import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash } from "@/components/icons";
 import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
@@ -35,31 +36,38 @@ const PRIO_CLASS: Record<string, string> = {
 
 /** Stitch task card — key pill + short id, title, priority pill + due.
  * Mouse uses native HTML5 drag-and-drop; touch uses the long-press pointer
- * handlers below (HTML5 DnD never fires on touchscreens). */
-function TaskCard({
+ * handlers below (HTML5 DnD never fires on touchscreens). Memoized so board
+ * filter keystrokes don't re-render every card. */
+const TaskCard = memo(function TaskCard({
   task,
   project,
   draggable,
   dragging,
   touchActive,
+  canWrite,
   onDragStart,
   onDragEnd,
   onTouchDragStart,
   onTouchDragMove,
   onTouchDragEnd,
   onTouchDragCancel,
+  onEdit,
+  onDelete,
 }: {
   task: Task;
   project: Project | null;
   draggable: boolean;
   dragging: boolean;
   touchActive: boolean;
+  canWrite: boolean;
   onDragStart: (e: React.DragEvent, taskId: string) => void;
   onDragEnd: () => void;
   onTouchDragStart: (e: React.PointerEvent, taskId: string) => void;
   onTouchDragMove: (e: React.PointerEvent) => void;
   onTouchDragEnd: (e: React.PointerEvent) => void;
   onTouchDragCancel: () => void;
+  onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
 }) {
   return (
     <article
@@ -86,7 +94,17 @@ function TaskCard({
           {project ? `${project.key}-${task.id.slice(0, 4).toUpperCase()}` : task.id.slice(0, 8)}
         </span>
       </div>
-      <h3 className="st-card-title">{task.title}</h3>
+      <h3 className="st-card-title">
+        <Link
+          href={`/app/tasks/${task.id}`}
+          draggable={false}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          style={{ color: "inherit", textDecoration: "none" }}
+        >
+          {task.title}
+        </Link>
+      </h3>
       <div className="st-card-foot">
         {task.dueAt ? (
           <span className="board-card-due">
@@ -102,12 +120,41 @@ function TaskCard({
           title={STATUS_LABELS[task.status]}
         />
       </div>
+      {canWrite ? (
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-xs"
+            aria-label={`Edit ${task.title}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(task);
+            }}
+          >
+            <IconEdit size={12} /> Edit
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-xs"
+            aria-label={`Delete ${task.title}`}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(task);
+            }}
+          >
+            <IconTrash size={12} /> Delete
+          </button>
+        </div>
+      ) : null}
     </article>
   );
-}
+});
 
 function BoardPage() {
   const toast = useToast();
+  const router = useRouter();
   const { user, memberships } = useAuth();
   const orgId = getCurrentTenantId();
   const searchParams = useSearchParams();
@@ -137,6 +184,8 @@ function BoardPage() {
   const projectTasks = tasksQ.data?.data ?? [];
 
   const [search, setSearch] = useState("");
+  // Defer the expensive 100-card filter so keystrokes stay responsive.
+  const deferredSearch = useDeferredValue(search);
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   // Touch drag state (HTML5 DnD never fires on touchscreens). Long-press a
@@ -157,6 +206,14 @@ function BoardPage() {
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectKey, setNewProjectKey] = useState("");
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState<Task["status"]>("backlog");
+  const [editPriority, setEditPriority] = useState<Task["priority"]>("none");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const columns = useMemo(
     () =>
@@ -168,13 +225,13 @@ function BoardPage() {
   );
 
   const filteredColumns = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = deferredSearch.toLowerCase();
     if (!q) return columns;
     return columns.map((col) => ({
       ...col,
       tasks: col.tasks.filter((t) => t.title.toLowerCase().includes(q) || t.id.toLowerCase().includes(q)),
     }));
-  }, [columns, search]);
+  }, [columns, deferredSearch]);
 
   const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => {
     setDraggedTaskId(taskId);
@@ -364,6 +421,51 @@ function BoardPage() {
     }
   }, [newProjectName, newProjectKey, orgId, projectsQ, toast]);
 
+  const openEditTask = useCallback((task: Task) => {
+    setEditingTask(task);
+    setEditTitle(task.title);
+    setEditDescription(task.description ?? "");
+    setEditStatus(task.status);
+    setEditPriority(task.priority);
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingTask || !editTitle.trim()) return;
+    setSavingEdit(true);
+    try {
+      const patch: Partial<Task> = {};
+      if (editTitle.trim() !== editingTask.title) patch.title = editTitle.trim();
+      if (editDescription !== (editingTask.description ?? "")) patch.description = editDescription;
+      if (editStatus !== editingTask.status) patch.status = editStatus;
+      if (editPriority !== editingTask.priority) patch.priority = editPriority;
+      if (Object.keys(patch).length > 0) {
+        await updateTask(editingTask.id, patch, selectedProjectId);
+        await tasksQ.mutate();
+      }
+      setEditingTask(null);
+      toast({ title: "Task updated", msg: "Changes saved." });
+    } catch (err) {
+      toast({ title: "Update failed", msg: err instanceof Error ? err.message : "Try again." });
+    } finally {
+      setSavingEdit(false);
+    }
+  }, [editingTask, editTitle, editDescription, editStatus, editPriority, updateTask, selectedProjectId, tasksQ, toast]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deletingTask) return;
+    setDeleting(true);
+    try {
+      await api.tasks.delete(deletingTask.id);
+      setDeletingTask(null);
+      await tasksQ.mutate();
+      toast({ title: "Task deleted", msg: "Task moved to trash." });
+    } catch (err) {
+      toast({ title: "Delete failed", msg: err instanceof Error ? err.message : "Try again." });
+    } finally {
+      setDeleting(false);
+    }
+  }, [deletingTask, tasksQ, toast]);
+
   // Fresh workspace: no project exists yet, so every Add Task entry point is
   // disabled. Offer project creation inline instead of a dead board.
   if (!projectsQ.isLoading && projects.length === 0) {
@@ -441,7 +543,7 @@ function BoardPage() {
           <select
             value={selectedProjectId}
             onChange={(e) => {
-              window.location.assign(`/app/board?project=${e.target.value}`);
+              router.push(`/app/board?project=${e.target.value}`);
             }}
             className="select"
             aria-label="Select project"
@@ -501,12 +603,15 @@ function BoardPage() {
                       draggable={canWrite}
                       dragging={draggedTaskId === task.id || (touchDrag?.active === true && touchDrag.taskId === task.id)}
                       touchActive={touchDrag?.active === true && touchDrag.taskId === task.id}
+                      canWrite={canWrite}
                       onDragStart={handleDragStart}
                       onDragEnd={handleDragEnd}
                       onTouchDragStart={handleTouchDragStart}
                       onTouchDragMove={handleTouchDragMove}
                       onTouchDragEnd={handleTouchDragEnd}
                       onTouchDragCancel={cancelTouchDrag}
+                      onEdit={openEditTask}
+                      onDelete={setDeletingTask}
                     />
                   ))
                 )}
@@ -584,6 +689,104 @@ function BoardPage() {
                 </button>
                 <button className="btn btn-primary" onClick={() => void handleCreateTask()} disabled={!newTitle.trim()}>
                   <IconPlus size={14} /> Create task
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {editingTask ? (
+          <div className="modal-backdrop" onClick={() => setEditingTask(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Edit task">
+              <div className="modal-head">
+                <div>
+                  <div className="modal-title">Edit task</div>
+                  <div className="modal-sub">Update the title, details, status, or priority.</div>
+                </div>
+              </div>
+              <div className="modal-body">
+                <div className="form-field">
+                  <label htmlFor="edit-task-title">Title</label>
+                  <input
+                    id="edit-task-title"
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="Task title"
+                    autoFocus
+                    maxLength={200}
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="edit-task-desc">Description</label>
+                  <textarea
+                    id="edit-task-desc"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="Add more detail…"
+                    rows={4}
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div className="form-field" style={{ flex: 1 }}>
+                    <label htmlFor="edit-task-status">Status</label>
+                    <select
+                      id="edit-task-status"
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value as Task["status"])}
+                      className="select"
+                    >
+                      {STATUS_ORDER.map((s) => (
+                        <option key={s} value={s}>
+                          {STATUS_LABELS[s]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-field" style={{ flex: 1 }}>
+                    <label htmlFor="edit-task-priority">Priority</label>
+                    <select
+                      id="edit-task-priority"
+                      value={editPriority}
+                      onChange={(e) => setEditPriority(e.target.value as Task["priority"])}
+                      className="select"
+                    >
+                      <option value="critical">Critical</option>
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                      <option value="none">None</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-foot">
+                <button className="btn btn-ghost" onClick={() => setEditingTask(null)} disabled={savingEdit}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary" onClick={() => void handleSaveEdit()} disabled={!editTitle.trim() || savingEdit}>
+                  {savingEdit ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {deletingTask ? (
+          <div className="modal-backdrop" onClick={() => setDeletingTask(null)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Delete task">
+              <div className="modal-head">
+                <div>
+                  <div className="modal-title">Delete task?</div>
+                  <div className="modal-sub">“{deletingTask.title}” will be moved to trash. This can be undone by an admin.</div>
+                </div>
+              </div>
+              <div className="modal-foot">
+                <button className="btn btn-ghost" onClick={() => setDeletingTask(null)} disabled={deleting}>
+                  Cancel
+                </button>
+                <button className="btn btn-danger" onClick={() => void handleConfirmDelete()} disabled={deleting}>
+                  <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete task"}
                 </button>
               </div>
             </div>

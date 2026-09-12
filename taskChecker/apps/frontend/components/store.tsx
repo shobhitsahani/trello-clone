@@ -112,10 +112,11 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   }, [org]);
 
   // Notifications for the current user (tenant-scoped server-side by JWT).
+  // WS-driven via useRealtimeNotifications — no polling interval so the whole
+  // shell doesn't re-render every 30s; focus/online revalidation still applies.
   const notificationsQ = useSWR<PaginatedNotifications>(
     isAuthenticated && activeTenantId ? "/notifications?limit=20" : null,
     () => api.notifications.list({ limit: 20 }),
-    { refreshInterval: 30_000 },
   );
   const notifications = notificationsQ.data?.data ?? [];
   const unread = notifications.reduce((acc, n) => acc + (n.readAt ? 0 : 1), 0);
@@ -148,8 +149,24 @@ export function TenantProvider({ children }: { children: ReactNode }) {
 
   const markAllRead = useCallback(() => {
     const unreadIds = notifications.filter((n) => !n.readAt).map((n) => n.id);
-    for (const id of unreadIds) markRead(id);
-  }, [notifications, markRead]);
+    if (unreadIds.length === 0) return;
+    // Single optimistic pass + one revalidation instead of N mutate cycles.
+    void mutateNotifications(
+      (current) => {
+        if (!current) return current as unknown as PaginatedNotifications;
+        const now = new Date().toISOString();
+        const unreadSet = new Set(unreadIds);
+        return {
+          ...current,
+          data: current.data.map((n) => (unreadSet.has(n.id) ? { ...n, readAt: n.readAt ?? now } : n)),
+        };
+      },
+      { revalidate: false },
+    );
+    Promise.allSettled(unreadIds.map((id) => api.notifications.markRead(id))).then(() =>
+      mutateNotifications(),
+    );
+  }, [notifications, mutateNotifications]);
 
   const setOrg = useCallback(
     async (id: string) => {
@@ -206,8 +223,13 @@ export function TenantProvider({ children }: { children: ReactNode }) {
     [isAuthenticated, creatingOrg, createOrgAuth, refreshUser, router],
   );
 
+  const ctxValue = useMemo<TenantCtx>(
+    () => ({ org, orgs, setOrg, createOrg, creatingOrg, notifications, unread, markRead, markAllRead, mutateNotifications }),
+    [org, orgs, setOrg, createOrg, creatingOrg, notifications, unread, markRead, markAllRead, mutateNotifications],
+  );
+
   return (
-    <Ctx.Provider value={{ org, orgs, setOrg, createOrg, creatingOrg, notifications, unread, markRead, markAllRead, mutateNotifications }}>
+    <Ctx.Provider value={ctxValue}>
       {children}
     </Ctx.Provider>
   );

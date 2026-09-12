@@ -4,6 +4,7 @@
  * (docs/design/teamflow.md §3: cursor, capped limit.)
  */
 import { uuidv7 } from "./ids.js";
+import { sql, type AnyColumn } from "drizzle-orm";
 
 export interface Cursor {
   createdAt: string; // ISO timestamp
@@ -32,6 +33,16 @@ export function parseLimit(raw: string | undefined, max = 100, def = 50): number
   const n = Number(raw);
   if (!Number.isInteger(n) || n <= 0) return def;
   return Math.min(n, max);
+}
+
+/**
+ * Stable keyset predicate for `(created_at, id)` newest-first pages.
+ * The old `created_at < cursor` skipped/duplicated rows sharing a timestamp
+ * (bulk uuidv7 inserts, seeds) and forced client refetches — compare the full
+ * tuple instead. Pair with `.orderBy(desc(createdAt), desc(id))`.
+ */
+export function keysetBefore(createdAt: AnyColumn, id: AnyColumn, cursor: Cursor) {
+  return sql`(${createdAt}, ${id}) < (${new Date(cursor.createdAt)}, ${cursor.id})`;
 }
 
 export { uuidv7 };

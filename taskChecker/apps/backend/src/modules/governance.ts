@@ -2,7 +2,7 @@
  * (shown once, stored hashed, scoped), audit logs (admin+), and usage meters
  * vs tier limits. */
 import { Hono } from "hono";
-import { and, desc, eq, gte, lt } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import { inTenant } from "../lib/request.js";
 import { badRequest, notFound } from "../lib/errors.js";
@@ -11,7 +11,7 @@ import { requireRole, Rbac } from "../lib/rbac.js";
 import { encryptSecret, hashSecret } from "../lib/password.js";
 import { audit } from "../lib/audit.js";
 import { apiKeys, auditLogs, usageMeter, webhooks } from "../db/schema.js";
-import { decodeCursor, encodeCursor, parseLimit } from "../lib/cursor.js";
+import { decodeCursor, encodeCursor, keysetBefore, parseLimit } from "../lib/cursor.js";
 import { tierLimits } from "../lib/usage.js";
 
 export const govRoutes = new Hono();
@@ -166,12 +166,12 @@ govRoutes.get("/audit-logs", async (c) => {
   const cursor = c.req.query("cursor") ? decodeCursor(c.req.query("cursor")!) : null;
   return inTenant(c, async (tx) => {
     const where = [eq(auditLogs.tenantId, p.tenantId)];
-    if (cursor) where.push(lt(auditLogs.createdAt, new Date(cursor.createdAt)));
+    if (cursor) where.push(keysetBefore(auditLogs.createdAt, auditLogs.id, cursor));
     const rows = await tx
       .select()
       .from(auditLogs)
       .where(and(...where))
-      .orderBy(desc(auditLogs.createdAt))
+      .orderBy(desc(auditLogs.createdAt), desc(auditLogs.id))
       .limit(limit + 1);
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];

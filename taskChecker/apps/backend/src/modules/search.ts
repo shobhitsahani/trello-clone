@@ -23,8 +23,11 @@ searchRoutes.get("/search", async (c) => {
     const wantTasks = type === "task" || type === "all";
     const wantComments = type === "comment" || type === "all";
     const rank = sql<number>`ts_rank_cd(t.search_vector, websearch_to_tsquery('english', ${q}))`;
-    const taskRows = wantTasks
-      ? await tx.execute(sql`
+    // Parallel: the two FTS queries are independent — sequential await
+    // doubled p99 on every keystroke search.
+    const [taskRows, commentRows] = await Promise.all([
+      wantTasks
+        ? tx.execute(sql`
           select 'task' as type, t.id::text as id, t.title as title,
                  t.status::text as status, t.project_id::text as project_id,
                  ${rank} as score,
@@ -37,9 +40,9 @@ searchRoutes.get("/search", async (c) => {
           order by score desc, t.created_at desc
           limit ${limit}
         `)
-      : [];
-    const commentRows = wantComments
-      ? await tx.execute(sql`
+        : Promise.resolve([]),
+      wantComments
+        ? tx.execute(sql`
           select 'comment' as type, cm.id::text as id, cm.task_id::text as task_id,
                  cm.author_id::text as author_id,
                  ts_rank_cd(cm.search_vector, websearch_to_tsquery('english', ${q})) as score,
@@ -51,7 +54,8 @@ searchRoutes.get("/search", async (c) => {
           order by score desc, cm.created_at desc
           limit ${limit}
         `)
-      : [];
+        : Promise.resolve([]),
+    ]);
     return [...taskRows, ...commentRows];
   });
 

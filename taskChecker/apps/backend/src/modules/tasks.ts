@@ -2,7 +2,7 @@
  * board reads are cache-aside with invalidation on write; mutations audit
  * before/after in-tx and emit domain events (notifications/webhooks derive). */
 import { Hono } from "hono";
-import { and, desc, eq, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { inTenant } from "../lib/request.js";
 import { badRequest, forbidden, notFound } from "../lib/errors.js";
@@ -14,7 +14,7 @@ import { emitEvent } from "../lib/events.js";
 import { cacheKey, getOrSet, invalidatePrefix, N } from "../lib/cache.js";
 import { withIdempotency } from "../lib/idempotency.js";
 import { enqueue } from "../lib/queue.js";
-import { decodeCursor, encodeCursor, parseLimit } from "../lib/cursor.js";
+import { decodeCursor, encodeCursor, keysetBefore, parseLimit } from "../lib/cursor.js";
 
 export const taskRoutes = new Hono();
 
@@ -46,10 +46,10 @@ taskRoutes.get("/orgs/:orgId/projects/:projectId/tasks", async (c) => {
     inTenant(c, async (tx) => {
       const where = [eq(tasks.tenantId, p.tenantId), eq(tasks.projectId, projectId)];
       if (status && (STATUSES as readonly string[]).includes(status)) where.push(eq(tasks.status, status));
-      if (cursor) where.push(lt(tasks.createdAt, new Date(cursor.createdAt)));
+      if (cursor) where.push(keysetBefore(tasks.createdAt, tasks.id, cursor));
       const rows = await tx.select().from(tasks)
         .where(and(...where, isNull(tasks.deletedAt)))
-        .orderBy(desc(tasks.createdAt))
+        .orderBy(desc(tasks.createdAt), desc(tasks.id))
         .limit(limit + 1);
       const page = rows.slice(0, limit);
       const last = page[page.length - 1];

@@ -75,7 +75,9 @@ export function useSWR<T>(key: string | null, fetcher: () => T | Promise<T>, con
 
   // Memoize config to prevent unnecessary re-renders
   const configRef = useRef(config);
-  configRef.current = config;
+  useEffect(() => {
+    configRef.current = config;
+  });
 
   // Use fallback data for initial render if available
   const initialData = useMemo(() => 
@@ -88,7 +90,9 @@ export function useSWR<T>(key: string | null, fetcher: () => T | Promise<T>, con
   const [isValidating, setIsValidating] = useState(false);
 
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
 
   // Use requestIdleCallback for non-critical cache updates (js-request-idle-callback)
   const scheduleCacheUpdate = useCallback((key: string, data: unknown) => {
@@ -149,6 +153,11 @@ export function useSWR<T>(key: string | null, fetcher: () => T | Promise<T>, con
     [key, dedupingInterval, scheduleCacheUpdate]
   );
 
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  });
+
   const mutate = useCallback(
     async (
       newData?: T | Promise<T> | ((current: T | undefined) => T | Promise<T>),
@@ -157,7 +166,7 @@ export function useSWR<T>(key: string | null, fetcher: () => T | Promise<T>, con
       if (!key) return undefined;
       let resolvedData: T | undefined;
       if (typeof newData === "function") {
-        resolvedData = await (newData as (current: T | undefined) => T | Promise<T>)(data);
+        resolvedData = await (newData as (current: T | undefined) => T | Promise<T>)(dataRef.current);
       } else if (newData instanceof Promise) {
         resolvedData = await newData;
       } else {
@@ -173,7 +182,7 @@ export function useSWR<T>(key: string | null, fetcher: () => T | Promise<T>, con
       }
       return resolvedData;
     },
-    [key, data, executeFetcher]
+    [key, executeFetcher]
   );
 
   // Initial fetch and subscription
@@ -230,12 +239,18 @@ export function useSWRInfinite<T>(
   const [size, setSize] = useState(1);
 
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  const getKeyRef = useRef(getKey);
+  const pagesRef = useRef(pages);
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+    getKeyRef.current = getKey;
+    pagesRef.current = pages;
+  });
 
   const loadPage = useCallback(
     async (index: number, isRevalidation = false) => {
-      const prevPage = pages[index - 1] ?? null;
-      const key = getKey(index, prevPage);
+      const prevPage = pagesRef.current[index - 1] ?? null;
+      const key = getKeyRef.current(index, prevPage);
       if (!key) return null;
 
       if (!isRevalidation) setIsLoading(true);
@@ -271,7 +286,7 @@ export function useSWRInfinite<T>(
         setIsValidating(false);
       }
     },
-    [pages, getKey]
+    []
   );
 
   const mutate = useCallback(async () => {

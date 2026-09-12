@@ -11,7 +11,9 @@ export const webhooks = pgTable("webhooks", {
   events: text("events").array().notNull().default(sql`'{}'::text[]`),
   active: boolean("active").notNull().default(true),
   createdAt: t("created_at").default(now()),
-});
+}, (table) => [
+  index("webhooks_tenant_created_idx").on(table.tenantId, table.createdAt),
+]);
 
 export const deliveries = pgTable(
   "deliveries",
@@ -40,7 +42,10 @@ export const apiKeys = pgTable("api_keys", {
   revokedAt: t("revoked_at"),
   lastUsedAt: t("last_used_at"),
   createdAt: t("created_at").default(now()),
-});
+}, (table) => [
+  index("api_keys_hash_idx").on(table.keyHash),
+  index("api_keys_tenant_created_idx").on(table.tenantId, table.createdAt),
+]);
 
 export const usageMeter = pgTable("usage_meter", {
   tenantId: uuid("tenant_id").notNull(),
@@ -63,7 +68,8 @@ export const auditLogs = pgTable(
     ip: text("ip"),
     createdAt: t("created_at").default(now()),
   },
-  (table) => [index("audit_tenant_ts_idx").on(table.tenantId, table.createdAt)]
+  (table) => [index("audit_tenant_ts_idx").on(table.tenantId, table.createdAt),
+    index("audit_tenant_created_id_idx").on(table.tenantId, table.createdAt, table.id)]
 );
 
 export const idempotency = pgTable("idempotency", {

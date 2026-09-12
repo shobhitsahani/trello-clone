@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Barrel icon file (components/icons.tsx) otherwise lands whole in the
+  // shell bundle — transpile/optimize it per-import.
+  experimental: {
+    optimizePackageImports: ["@/components/icons"],
+  },
   async rewrites() {
     return [
       {

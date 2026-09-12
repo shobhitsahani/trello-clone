@@ -29,13 +29,16 @@ export async function emitEvent(event: DomainEvent): Promise<void> {
     version: 1,
   };
   await realtimePublish(event.tenantId, envelope);
-  // Fan-out jobs (each consumer filters what it cares about).
-  await enqueue("notify", envelope);
-  await enqueue("webhook", envelope);
-  await enqueue("usage", {
-    tenantId: event.tenantId,
-    metric: "events",
-    value: 1,
-    ts: new Date().toISOString(),
-  });
+  // Fan-out jobs (each consumer filters what it cares about) — parallel so
+  // one slow queue doesn't add 4 sequential Redis RTTs to every write.
+  await Promise.all([
+    enqueue("notify", envelope),
+    enqueue("webhook", envelope),
+    enqueue("usage", {
+      tenantId: event.tenantId,
+      metric: "events",
+      value: 1,
+      ts: new Date().toISOString(),
+    }),
+  ]);
 }

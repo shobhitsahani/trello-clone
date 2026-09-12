@@ -26,6 +26,7 @@ export const tasks = pgTable(
     index("tasks_project_status_idx").on(table.tenantId, table.projectId, table.status, table.createdAt),
     index("tasks_assignee_status_idx").on(table.tenantId, table.assigneeId, table.status),
     index("tasks_updated_idx").on(table.tenantId, table.updatedAt),
+    index("tasks_tenant_created_id_idx").on(table.tenantId, table.createdAt, table.id),
   ]
 );
 
@@ -43,7 +44,8 @@ export const comments = pgTable(
     createdAt: t("created_at").default(now()),
     deletedAt: t("deleted_at"),
   },
-  (table) => [index("comments_task_idx").on(table.tenantId, table.taskId, table.createdAt)]
+  (table) => [index("comments_task_idx").on(table.tenantId, table.taskId, table.createdAt),
+    index("comments_tenant_task_created_id_idx").on(table.tenantId, table.taskId, table.createdAt, table.id)]
 );
 
 export const attachments = pgTable(

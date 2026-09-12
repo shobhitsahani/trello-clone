@@ -3,7 +3,7 @@
  * GET list), mirroring the comments write path: activity + audit in-tx,
  * domain event post-commit. */
 import { Hono } from "hono";
-import { and, desc, eq, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { inTenant } from "../lib/request.js";
 import { badRequest, forbidden, notFound } from "../lib/errors.js";
@@ -12,7 +12,7 @@ import { requireRole, Rbac } from "../lib/rbac.js";
 import { audit } from "../lib/audit.js";
 import { activityEvents, chatMessages } from "../db/schema.js";
 import { emitEvent } from "../lib/events.js";
-import { decodeCursor, encodeCursor, parseLimit } from "../lib/cursor.js";
+import { decodeCursor, encodeCursor, keysetBefore, parseLimit } from "../lib/cursor.js";
 
 export const chatRoutes = new Hono();
 
@@ -27,12 +27,12 @@ chatRoutes.get("/chat/messages", async (c) => {
   const cursor = c.req.query("cursor") ? decodeCursor(c.req.query("cursor")!) : null;
   return inTenant(c, async (tx) => {
     const where = [eq(chatMessages.tenantId, p.tenantId)];
-    if (cursor) where.push(lt(chatMessages.createdAt, new Date(cursor.createdAt)));
+    if (cursor) where.push(keysetBefore(chatMessages.createdAt, chatMessages.id, cursor));
     const rows = await tx
       .select()
       .from(chatMessages)
       .where(and(...where, isNull(chatMessages.deletedAt)))
-      .orderBy(desc(chatMessages.createdAt))
+      .orderBy(desc(chatMessages.createdAt), desc(chatMessages.id))
       .limit(limit + 1);
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];

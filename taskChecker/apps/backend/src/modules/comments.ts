@@ -1,6 +1,6 @@
 /** Comments: tenant-scoped, cursor-paginated, soft-deletable, FTS-indexed. */
 import { Hono } from "hono";
-import { and, desc, eq, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { inTenant } from "../lib/request.js";
 import { badRequest, forbidden, notFound } from "../lib/errors.js";
@@ -9,7 +9,7 @@ import { requireRole, Rbac } from "../lib/rbac.js";
 import { audit } from "../lib/audit.js";
 import { activityEvents, comments, tasks } from "../db/schema.js";
 import { emitEvent } from "../lib/events.js";
-import { decodeCursor, encodeCursor, parseLimit } from "../lib/cursor.js";
+import { decodeCursor, encodeCursor, keysetBefore, parseLimit } from "../lib/cursor.js";
 
 export const commentRoutes = new Hono();
 
@@ -25,12 +25,12 @@ commentRoutes.get("/tasks/:id/comments", async (c) => {
     });
     if (!task) throw notFound("Task not found.");
     const where = [eq(comments.tenantId, p.tenantId), eq(comments.taskId, taskId)];
-    if (cursor) where.push(lt(comments.createdAt, new Date(cursor.createdAt)));
+    if (cursor) where.push(keysetBefore(comments.createdAt, comments.id, cursor));
     const rows = await tx
       .select()
       .from(comments)
       .where(and(...where, isNull(comments.deletedAt)))
-      .orderBy(desc(comments.createdAt))
+      .orderBy(desc(comments.createdAt), desc(comments.id))
       .limit(limit + 1);
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];

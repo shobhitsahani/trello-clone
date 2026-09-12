@@ -14,7 +14,8 @@ export const activityEvents = pgTable(
     meta: jsonb("meta").$type<Record<string, unknown>>().notNull().default(sql`'{}'::jsonb`),
     createdAt: t("created_at").default(now()),
   },
-  (table) => [index("activity_entity_idx").on(table.tenantId, table.entityType, table.entityId, table.createdAt)]
+  (table) => [index("activity_entity_idx").on(table.tenantId, table.entityType, table.entityId, table.createdAt),
+    index("activity_tenant_created_id_idx").on(table.tenantId, table.createdAt, table.id)]
 );
 
 export const notifications = pgTable(
@@ -29,5 +30,6 @@ export const notifications = pgTable(
     createdAt: t("created_at").default(now()),
     deletedAt: t("deleted_at"),
   },
-  (table) => [index("notifications_user_idx").on(table.tenantId, table.userId, table.readAt, table.createdAt)]
+  (table) => [index("notifications_user_idx").on(table.tenantId, table.userId, table.readAt, table.createdAt),
+    index("notifications_user_created_id_idx").on(table.tenantId, table.userId, table.createdAt, table.id)]
 );

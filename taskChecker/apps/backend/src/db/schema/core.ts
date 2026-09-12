@@ -1,4 +1,4 @@
-import { pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { index, pgTable, text, uuid } from "drizzle-orm/pg-core";
 import { t, now } from "./enums.js";
 
 export const teams = pgTable("teams", {
@@ -7,7 +7,9 @@ export const teams = pgTable("teams", {
   name: text("name").notNull(),
   createdAt: t("created_at").default(now()),
   deletedAt: t("deleted_at"),
-});
+}, (table) => [
+  index("teams_tenant_created_idx").on(table.tenantId, table.createdAt),
+]);
 
 export const projects = pgTable("projects", {
   tenantId: uuid("tenant_id").notNull(),
@@ -17,4 +19,6 @@ export const projects = pgTable("projects", {
   key: text("key").notNull(), // unique within tenant: PROJ
   createdAt: t("created_at").default(now()),
   deletedAt: t("deleted_at"),
-});
+}, (table) => [
+  index("projects_tenant_created_idx").on(table.tenantId, table.createdAt),
+]);

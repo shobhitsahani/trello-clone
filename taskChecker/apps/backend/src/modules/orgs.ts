@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
 import type { Tx } from "../lib/tenant.js";
-import { inTenant, withTenant } from "../lib/request.js";
+import { inTenant, withTenant, evictMembership } from "../lib/request.js";
 import { requireRole, Rbac, type Role } from "../lib/rbac.js";
 import { hashPassword, hashSecret } from "../lib/password.js";
 import { randomToken, uuidv7 } from "../lib/ids.js";
@@ -170,18 +170,15 @@ orgRoutes.get("/orgs/:orgId/members", async (c) => {
   const p = c.get("principal");
   if (c.req.param("orgId") !== p.tenantId) throw forbidden("Organization mismatch.");
   return inTenant(c, async (tx) => {
+    // Single join — the old Promise.all per-member SELECT held the tx open
+    // for N round-trips and stalled the pool under load.
     const rows = await tx
-      .select({ userId: memberships.userId, role: memberships.role, status: memberships.status, acceptedAt: memberships.acceptedAt })
+      .select({ userId: memberships.userId, role: memberships.role, status: memberships.status, acceptedAt: memberships.acceptedAt, name: users.name, email: users.email })
       .from(memberships)
+      .leftJoin(users, eq(users.id, memberships.userId))
       .where(eq(memberships.tenantId, p.tenantId))
       .orderBy(memberships.role);
-    const enriched = await Promise.all(
-      rows.map(async (r) => {
-        const u = await tx.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, r.userId)).limit(1);
-        return { userId: r.userId, name: u[0]?.name ?? null, email: u[0]?.email ?? null, role: r.role, status: r.status };
-      }),
-    );
-    return c.json({ members: enriched });
+    return c.json({ members: rows.map((r) => ({ userId: r.userId, name: r.name ?? null, email: r.email ?? null, role: r.role, status: r.status })) });
   });
 });
 
@@ -211,6 +208,7 @@ orgRoutes.patch("/orgs/:orgId/members/:userId", async (c) => {
       before: { role: before.role },
       after: { role: parsed.data.role },
     });
+    evictMembership(orgId, targetUserId);
     return c.json({ userId: targetUserId, role: parsed.data.role });
   });
 });
@@ -238,6 +236,7 @@ orgRoutes.delete("/orgs/:orgId/members/:userId", async (c) => {
       entityId: targetUserId,
       before: { status: before.status },
     });
+    evictMembership(orgId, targetUserId);
     return c.json({ ok: true });
   });
 });
