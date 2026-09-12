@@ -92,7 +92,7 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
       }
     };
 
-    ws.onclose = (event) => {
+    ws.onclose = () => {
       setIsConnected(false);
       if (wsRef.current === ws) wsRef.current = null;
       optionsRef.current.onDisconnect?.();
@@ -160,7 +160,7 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
 
 // Hook for realtime notifications that auto-updates the notification store
 export function useRealtimeNotifications() {
-  const { markRead, mutateNotifications } = useTenant();
+  const { mutateNotifications } = useTenant();
 
   const handleNotification = useCallback(
     (msg: WSMessage) => {
