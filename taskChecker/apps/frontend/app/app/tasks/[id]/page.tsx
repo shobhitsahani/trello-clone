@@ -95,6 +95,11 @@ export default function TaskDetailPage() {
   const [editPriority, setEditPriority] = useState<Task["priority"]>("none");
   const [editAssigneeId, setEditAssigneeId] = useState("");
   const [editDueAt, setEditDueAt] = useState("");
+  // Duration-chip selection driving the deadline (no calendar): "none" clears
+  // it, "custom" takes its day count from `customDays`. editDueAt stays the
+  // underlying datetime-local value so saving is unchanged.
+  const [duePreset, setDuePreset] = useState<"none" | "1" | "3" | "7" | "custom">("none");
+  const [customDays, setCustomDays] = useState("");
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -175,7 +180,32 @@ export default function TaskDetailPage() {
     setEditPriority(task.priority);
     setEditAssigneeId(task.assigneeId ?? "");
     setEditDueAt(task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 16) : "");
+    // Reflect the existing deadline in the duration chips where possible.
+    if (!task.dueAt) {
+      setDuePreset("none");
+      setCustomDays("");
+    } else {
+      const days = Math.round((new Date(task.dueAt).getTime() - Date.now()) / 86_400_000);
+      if (days === 1 || days === 3 || days === 7) {
+        setDuePreset(String(days) as "1" | "3" | "7");
+        setCustomDays("");
+      } else {
+        setDuePreset("custom");
+        setCustomDays(String(Math.max(1, days)));
+      }
+    }
     setShowEdit(true);
+  };
+
+  /** Set the deadline N days from now (same time of day), as a local
+   * datetime-local value for the existing save path. */
+  const applyDueInDays = (days: number, preset: "1" | "3" | "7" | "custom") => {
+    const d = new Date(Date.now() + days * 86_400_000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    setEditDueAt(
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
+    );
+    setDuePreset(preset);
   };
 
   const handleSaveEdit = async () => {
@@ -556,41 +586,62 @@ export default function TaskDetailPage() {
                   </select>
                 </div>
                 <div className="form-field">
-                  <label htmlFor="edit-due">Deadline</label>
-                  <input
-                    id="edit-due"
-                    type="datetime-local"
-                    value={editDueAt}
-                    onChange={(e) => setEditDueAt(e.target.value)}
-                  />
-                  <div className="due-presets" role="group" aria-label="Deadline presets">
+                  <label>Deadline</label>
+                  <div className="due-presets" role="group" aria-label="Deadline">
                     {[
-                      { label: "Today", days: 0 },
-                      { label: "Tomorrow", days: 1 },
-                      { label: "Next week", days: 7 },
-                    ].map((p) => (
+                      { preset: "1", label: "1 day" },
+                      { preset: "3", label: "3 days" },
+                      { preset: "7", label: "7 days" },
+                    ].map((o) => (
                       <button
-                        key={p.label}
+                        key={o.preset}
                         type="button"
-                        className="btn btn-ghost btn-xs"
-                        onClick={() => {
-                          const d = new Date();
-                          d.setDate(d.getDate() + p.days);
-                          d.setHours(18, 0, 0, 0);
-                          const pad = (n: number) => String(n).padStart(2, "0");
-                          setEditDueAt(
-                            `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`,
-                          );
-                        }}
+                        className={cx("btn btn-sm", duePreset === o.preset ? "btn-primary" : "btn-ghost")}
+                        aria-pressed={duePreset === o.preset}
+                        onClick={() => applyDueInDays(Number(o.preset), o.preset as "1" | "3" | "7")}
                       >
-                        {p.label}
+                        {o.label}
                       </button>
                     ))}
-                    {editDueAt ? (
-                      <button type="button" className="btn btn-ghost btn-xs" onClick={() => setEditDueAt("")}>
-                        Clear
+                    <span className={cx("due-custom", duePreset === "custom" && "is-on")}>
+                      <button
+                        type="button"
+                        className={cx("btn btn-sm", duePreset === "custom" ? "btn-primary" : "btn-ghost")}
+                        aria-pressed={duePreset === "custom"}
+                        onClick={() => {
+                          const n = Math.max(1, Math.min(365, Math.floor(Number(customDays) || 0)));
+                          if (n > 0) applyDueInDays(n, "custom");
+                          else setDuePreset("custom");
+                        }}
+                      >
+                        Custom
                       </button>
-                    ) : null}
+                      <input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={customDays}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          setCustomDays(raw);
+                          const n = Math.floor(Number(raw));
+                          if (Number.isFinite(n) && n >= 1 && n <= 365) applyDueInDays(n, "custom");
+                        }}
+                        placeholder="days"
+                        aria-label="Custom deadline in days"
+                      />
+                    </span>
+                    <button
+                      type="button"
+                      className={cx("btn btn-sm", duePreset === "none" ? "btn-primary" : "btn-ghost")}
+                      aria-pressed={duePreset === "none"}
+                      onClick={() => {
+                        setEditDueAt("");
+                        setDuePreset("none");
+                      }}
+                    >
+                      No deadline
+                    </button>
                   </div>
                   {editDueAt && !Number.isNaN(Date.parse(editDueAt)) ? (
                     isOverdue(new Date(editDueAt).toISOString(), editStatus) ? (

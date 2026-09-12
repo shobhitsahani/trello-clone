@@ -742,6 +742,9 @@ mark { background: var(--brand-100); color: var(--brand-800); padding: 0 2px; bo
 .invite-preview.is-expired { background: #fef2f2; border-color: #fecaca; }
 /* edit-modal deadline presets */
 .due-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.due-custom { display: inline-flex; align-items: center; gap: 6px; border: 1px dashed transparent; border-radius: 8px; padding: 1px 2px; }
+.due-custom.is-on { border-color: var(--brand-300); background: var(--brand-50); }
+.due-custom input[type="number"] { width: 64px; font-size: 12px; border: 1px solid var(--slate-300); border-radius: 6px; padding: 3px 6px; background: #fff; color: var(--slate-800); }
 .pop { position: fixed; z-index: 50; min-width: 320px; max-width: 380px; padding: 14px; }
 .pop-org { top: 64px; left: 66px; }
 .pop-bell { top: 60px; right: 16px; }
