@@ -75,23 +75,18 @@ const TaskCard = memo(function TaskCard({
   // re-render the whole column. All pointer events are stopped: the card
   // itself starts touch/HTML5 drags on pointerdown.
   const [editingDue, setEditingDue] = useState(false);
-  const [dueDraft, setDueDraft] = useState("");
+  const [customDueDays, setCustomDueDays] = useState("");
   const overdue = isOverdue(task.dueAt, task.status);
 
   const openDueEditor = (e: React.SyntheticEvent) => {
     e.stopPropagation();
-    setDueDraft(task.dueAt ? new Date(task.dueAt).toISOString().slice(0, 10) : "");
     setEditingDue(true);
   };
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
-  const saveDue = () => {
-    if (!dueDraft) {
-      onSetDue(task.id, null);
-    } else {
-      // Deadline = end of the chosen day, viewer's local timezone.
-      onSetDue(task.id, new Date(`${dueDraft}T23:59:00`).toISOString());
-    }
+  // Duration chips only — no calendar anywhere. N days from now, same time.
+  const saveDueInDays = (days: number) => {
+    onSetDue(task.id, new Date(Date.now() + days * 86_400_000).toISOString());
     setEditingDue(false);
   };
   return (
@@ -132,18 +127,48 @@ const TaskCard = memo(function TaskCard({
       </h3>
       <div className="st-card-foot">
         {editingDue ? (
-          <span className="board-card-due-edit" onPointerDown={stop} onClick={stop}>
+          <span className="board-card-due-edit" onPointerDown={stop} onClick={stop} role="group" aria-label="Set deadline">
+            {[
+              { days: 1, label: "1d" },
+              { days: 3, label: "3d" },
+              { days: 7, label: "7d" },
+            ].map((o) => (
+              <button
+                key={o.days}
+                type="button"
+                className="btn btn-ghost btn-xs"
+                onClick={(e) => {
+                  stop(e);
+                  saveDueInDays(o.days);
+                }}
+                onPointerDown={stop}
+                aria-label={`Deadline in ${o.days} day${o.days === 1 ? "" : "s"}`}
+              >
+                {o.label}
+              </button>
+            ))}
             <input
-              type="date"
-              value={dueDraft}
-              onChange={(e) => setDueDraft(e.target.value)}
+              type="number"
+              min={1}
+              max={365}
+              value={customDueDays}
+              onChange={(e) => setCustomDueDays(e.target.value)}
               onPointerDown={stop}
               onClick={stop}
-              aria-label={`Deadline for ${task.title}`}
-              // Invalid dates (e.g. cleared field saves as "no deadline").
-              max="2100-12-31"
+              placeholder="N days"
+              aria-label="Custom deadline in days"
             />
-            <button type="button" className="btn btn-ghost btn-xs" onClick={saveDue} onPointerDown={stop} aria-label="Save deadline">
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs"
+              onClick={(e) => {
+                stop(e);
+                const n = Math.floor(Number(customDueDays));
+                if (Number.isFinite(n) && n >= 1 && n <= 365) saveDueInDays(n);
+              }}
+              onPointerDown={stop}
+              aria-label="Save custom deadline"
+            >
               ✓
             </button>
             <button
@@ -151,10 +176,11 @@ const TaskCard = memo(function TaskCard({
               className="btn btn-ghost btn-xs"
               onClick={(e) => {
                 stop(e);
+                onSetDue(task.id, null);
                 setEditingDue(false);
               }}
               onPointerDown={stop}
-              aria-label="Cancel"
+              aria-label="Clear deadline"
             >
               ✕
             </button>
