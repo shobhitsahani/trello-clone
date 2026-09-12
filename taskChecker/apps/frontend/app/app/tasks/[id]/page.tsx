@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useTenant } from "@/components/store";
 import { useToast } from "@/components/overlay";
 import { AppShell } from "@/components/app-shell";
 import {
@@ -32,13 +31,6 @@ const STATUS_COLORS: Record<string, string> = {
   todo: "hsl(210 80% 50%)",
   in_progress: "hsl(35 90% 50%)",
   done: "hsl(140 60% 45%)",
-};
-const PRIORITY_COLORS: Record<string, string> = {
-  critical: "hsl(0 75% 55%)",
-  high: "hsl(35 90% 50%)",
-  medium: "hsl(210 80% 50%)",
-  low: "var(--muted)",
-  none: "var(--muted)",
 };
 
 function SidebarCard({ children, className }: { children?: React.ReactNode; className?: string }) {
@@ -272,12 +264,16 @@ export default function TaskDetailPage() {
             </div>
           </div>
           <div className="task-header-actions">
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => toast({ title: "Edit task", msg: "Use the fields below to edit this task." })}
-            >
-              <IconEdit size={14} /> Edit
-            </button>
+            {canWrite ? (
+              <>
+                <button className="btn btn-ghost btn-sm" onClick={openEdit}>
+                  <IconEdit size={14} /> Edit
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setShowDeleteConfirm(true)}>
+                  <IconTrash size={14} /> Delete
+                </button>
+              </>
+            ) : null}
           </div>
         </header>
 
@@ -293,10 +289,20 @@ export default function TaskDetailPage() {
                     className="textarea"
                     rows={3}
                     placeholder="No description yet. Write one here…"
-                    onBlur={(e) => void patch({ description: e.target.value }, "Description updated")}
+                    disabled={!canWrite}
+                    onBlur={(e) => {
+                      if (e.target.value.trim() && e.target.value !== task.description) {
+                        void patch({ description: e.target.value }, "Description updated");
+                      }
+                    }}
                   />
                 )}
               </div>
+              {canWrite && task.description ? (
+                <button className="btn btn-ghost btn-sm" onClick={openEdit}>
+                  <IconEdit size={14} /> Edit description
+                </button>
+              ) : null}
             </section>
 
             <section className="task-section">
@@ -338,11 +344,200 @@ export default function TaskDetailPage() {
           </main>
 
           <aside className="task-sidebar">
+            <SidebarCard>
+              <h3 style={{ marginBottom: 12 }}>Details</h3>
+              <div className="form-field">
+                <label htmlFor="task-status">Status</label>
+                <select
+                  id="task-status"
+                  value={task.status}
+                  disabled={!canWrite}
+                  onChange={(e) => handleStatusChange(e.target.value)}
+                  className="select"
+                >
+                  {STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {STATUS_LABELS[s]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-field">
+                <label htmlFor="task-priority">Priority</label>
+                <select
+                  id="task-priority"
+                  value={task.priority}
+                  disabled={!canWrite}
+                  onChange={(e) => handlePriorityChange(e.target.value)}
+                  className="select"
+                >
+                  {PRIORITIES.map((p) => (
+                    <option key={p} value={p}>
+                      {p.charAt(0).toUpperCase() + p.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-field">
+                <label>Assignee</label>
+                <span className="faint" style={{ fontSize: 13 }}>{assignee?.name ?? "Unassigned"}</span>
+              </div>
+              <div className="form-field">
+                <label>Reporter</label>
+                <span className="faint" style={{ fontSize: 13 }}>{reporter?.name ?? "Unknown"}</span>
+              </div>
+              {task.dueAt ? (
+                <div className="form-field">
+                  <label>Due</label>
+                  <span className="faint" style={{ fontSize: 13 }}>
+                    <IconClock size={12} /> {new Date(task.dueAt).toLocaleString()}
+                  </span>
+                </div>
+              ) : null}
+              {canWrite ? (
+                <button className="btn btn-ghost btn-sm" onClick={openEdit} style={{ marginTop: 4 }}>
+                  <IconEdit size={14} /> Edit all fields
+                </button>
+              ) : null}
+            </SidebarCard>
             <Link href="/app/work" className="btn btn-primary">
               Back to your work
             </Link>
+            {canWrite ? (
+              <button className="btn btn-danger" onClick={() => setShowDeleteConfirm(true)}>
+                <IconTrash size={14} /> Delete task
+              </button>
+            ) : null}
           </aside>
         </div>
+
+        {showEdit ? (
+          <div className="modal-backdrop" onClick={() => setShowEdit(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Edit task">
+              <div className="modal-head">
+                <div>
+                  <div className="modal-title">Edit task</div>
+                  <div className="modal-sub">Update any field. Changes are saved to the server.</div>
+                </div>
+                <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setShowEdit(false)} aria-label="Close">
+                  <IconX size={14} />
+                </button>
+              </div>
+              <div className="modal-body">
+                <div className="form-field">
+                  <label htmlFor="edit-title">Title</label>
+                  <input
+                    id="edit-title"
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    maxLength={200}
+                    autoFocus
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="edit-description">Description</label>
+                  <textarea
+                    id="edit-description"
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    rows={4}
+                    placeholder="Add more detail…"
+                  />
+                </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div className="form-field" style={{ flex: 1 }}>
+                    <label htmlFor="edit-status">Status</label>
+                    <select
+                      id="edit-status"
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value as Task["status"])}
+                      className="select"
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s} value={s}>
+                          {STATUS_LABELS[s]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-field" style={{ flex: 1 }}>
+                    <label htmlFor="edit-priority">Priority</label>
+                    <select
+                      id="edit-priority"
+                      value={editPriority}
+                      onChange={(e) => setEditPriority(e.target.value as Task["priority"])}
+                      className="select"
+                    >
+                      {PRIORITIES.map((p) => (
+                        <option key={p} value={p}>
+                          {p.charAt(0).toUpperCase() + p.slice(1)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="edit-assignee">Assignee</label>
+                  <select
+                    id="edit-assignee"
+                    value={editAssigneeId}
+                    onChange={(e) => setEditAssigneeId(e.target.value)}
+                    className="select"
+                  >
+                    <option value="">Unassigned</option>
+                    {(membersQ.data?.members ?? []).map((m) => (
+                      <option key={m.userId} value={m.userId}>
+                        {m.name ?? m.userId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="edit-due">Due date</label>
+                  <input
+                    id="edit-due"
+                    type="datetime-local"
+                    value={editDueAt}
+                    onChange={(e) => setEditDueAt(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="modal-foot">
+                <button className="btn btn-ghost" onClick={() => setShowEdit(false)} disabled={saving}>
+                  Cancel
+                </button>
+                <button className="btn btn-primary" onClick={() => void handleSaveEdit()} disabled={!editTitle.trim() || saving}>
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showDeleteConfirm ? (
+          <div className="modal-backdrop" onClick={() => setShowDeleteConfirm(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Delete task">
+              <div className="modal-head">
+                <div>
+                  <div className="modal-title">Delete task?</div>
+                  <div className="modal-sub">“{task.title}” will be moved to trash.</div>
+                </div>
+                <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setShowDeleteConfirm(false)} aria-label="Close">
+                  <IconX size={14} />
+                </button>
+              </div>
+              <div className="modal-foot">
+                <button className="btn btn-ghost" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>
+                  Cancel
+                </button>
+                <button className="btn btn-danger" onClick={() => void handleDelete()} disabled={deleting}>
+                  <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete task"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </AppShell>
   );
