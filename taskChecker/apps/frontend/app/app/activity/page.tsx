@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, memo, useState, startTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, memo, useState, startTransition } from "react";
 import { AppShell } from "@/components/app-shell";
 import { useTenant } from "@/components/store";
+import { Dropdown, MenuItem } from "@/components/overlay";
 import { IconSearch, IconFilter, IconPulse, IconFile, IconMessageSquare, IconUsers, IconFolder, IconChevronRight } from "@/components/icons";
 import { api, getCurrentTenantId, type ActivityEvent } from "@/lib/api";
 import { useSWR } from "@/lib/swr";
@@ -77,14 +78,20 @@ export default function ActivityPage() {
   const orgId = getCurrentTenantId();
   const [activities, setActivities] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState("all");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
+  // Cursor ref so fetches always use the latest page token without
+  // re-creating the callback (avoids stale closures + effect loops).
+  const cursorRef = useRef<string | null>(null);
+  const loadingRef = useRef(false);
 
   // Actor names for the current tenant (single fetch, shared by all rows).
+  // Shared cache key with the shell (`ctx-members-*`): same endpoint, one request.
   const membersQ = useSWR<{ members: Array<{ userId: string; name: string | null }> }>(
-    orgId ? `activity-members-${orgId}` : null,
+    orgId ? `ctx-members-${orgId}` : null,
     () => api.orgs.listMembers(orgId!),
   );
   const actorNames = useMemo(() => {
@@ -98,29 +105,43 @@ export default function ActivityPage() {
   // Live feed: GET /v1/activity (tenant-scoped by the backend, cursor-paginated).
   const fetchActivities = useCallback(
     async (reset = false) => {
-      if (!orgId) return;
+      if (!orgId || loadingRef.current) return;
+      loadingRef.current = true;
       setLoading(true);
+      if (reset) setLoadError(null);
       try {
         const params: { entityType?: string; cursor?: string; limit?: number } = { limit: 20 };
         if (filter !== "all") params.entityType = filter;
-        if (!reset && cursor) params.cursor = cursor;
+        const token = reset ? undefined : cursorRef.current ?? undefined;
+        if (token) params.cursor = token;
         const page: Page = await api.activity.list(params);
-        setActivities((prev) => (reset ? page.data : [...prev, ...page.data]));
+        setActivities((prev) => {
+          if (reset) return page.data;
+          const seen = new Set(prev.map((a) => a.id));
+          return [...prev, ...page.data.filter((a) => !seen.has(a.id))];
+        });
+        cursorRef.current = page.nextCursor;
         setCursor(page.nextCursor);
         setHasMore(page.hasMore);
       } catch (err) {
-        console.error("Failed to fetch activities:", err);
+        if (reset) setLoadError(err instanceof Error ? err.message : "Failed to load activity.");
       } finally {
+        loadingRef.current = false;
         setLoading(false);
       }
     },
-    [filter, cursor, orgId],
+    [filter, orgId],
   );
 
+  // Initial load + reload when the org arrives late (auth hydration) or the
+  // filter changes. Switching filters resets the list and page token.
   useEffect(() => {
+    cursorRef.current = null;
+    setCursor(null);
+    setHasMore(true);
+    setActivities([]);
     void fetchActivities(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filter]);
+  }, [filter, orgId, fetchActivities]);
 
   const handleLoadMore = () => {
     void fetchActivities(false);
@@ -171,16 +192,49 @@ export default function ActivityPage() {
             />
           </div>
           <div className="filter-dropdown">
-            <button className="btn btn-ghost btn-sm" aria-haspopup="listbox">
-              <IconFilter size={14} />
-              <span>{ACTIVITY_TYPES.find(t => t.value === filter)?.label ?? "All"}</span>
-              <IconChevronRight size={12} />
-            </button>
+            <Dropdown
+              align="right"
+              trigger={() => (
+                <button className="btn btn-ghost btn-sm" aria-haspopup="listbox" type="button">
+                  <IconFilter size={14} />
+                  <span>{ACTIVITY_TYPES.find((t) => t.value === filter)?.label ?? "All"}</span>
+                  <IconChevronRight size={12} />
+                </button>
+              )}
+            >
+              {(close) => (
+                <>
+                  {ACTIVITY_TYPES.map((t) => (
+                    <MenuItem
+                      key={t.value}
+                      checked={filter === t.value}
+                      onSelect={() => {
+                        handleFilterChange(t.value);
+                        close();
+                      }}
+                    >
+                      <t.icon size={14} /> {t.label}
+                    </MenuItem>
+                  ))}
+                </>
+              )}
+            </Dropdown>
           </div>
         </div>
 
         <div className="activity-feed">
-          {filteredActivities.length === 0 ? (
+          {loading && activities.length === 0 ? (
+            <div className="loading">Loading activity…</div>
+          ) : loadError && activities.length === 0 ? (
+            <div className="empty-state">
+              <IconPulse size={48} className="dim" />
+              <h3>Couldn't load activity</h3>
+              <p>{loadError}</p>
+              <button className="btn btn-secondary btn-sm" onClick={() => void fetchActivities(true)}>
+                Retry
+              </button>
+            </div>
+          ) : filteredActivities.length === 0 ? (
             <div className="empty-state">
               <IconPulse size={48} className="dim" />
               <h3>No activity</h3>

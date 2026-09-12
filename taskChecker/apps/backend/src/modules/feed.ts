@@ -30,8 +30,12 @@ feedRoutes.get("/activity", async (c) => {
       .limit(limit + 1);
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];
+    // Envelope matches every other cursor-paginated list ({ data, nextCursor,
+    // hasMore } per docs/design/api-design.md) — the frontend's shared
+    // PaginatedResponse type reads `.data`, so a custom key silently empties
+    // the feed.
     return c.json({
-      activity: page.map((r) => ({ id: r.id, actorId: r.actorId, entityType: r.entityType, entityId: r.entityId, action: r.action, meta: r.meta, createdAt: r.createdAt })),
+      data: page.map((r) => ({ id: r.id, actorId: r.actorId, entityType: r.entityType, entityId: r.entityId, action: r.action, meta: r.meta, createdAt: r.createdAt })),
       nextCursor: page.length === limit && last ? encodeCursor(last.createdAt!, last.id) : null,
       hasMore: rows.length > limit,
     });
@@ -56,8 +60,9 @@ feedRoutes.get("/notifications", async (c) => {
       .limit(limit + 1);
     const page = rows.slice(0, limit);
     const last = page[page.length - 1];
+    // Same shared envelope as /activity above.
     return c.json({
-      notifications: page.map((r) => ({ id: r.id, type: r.type, payload: r.payload, readAt: r.readAt, createdAt: r.createdAt })),
+      data: page.map((r) => ({ id: r.id, type: r.type, payload: r.payload, readAt: r.readAt, createdAt: r.createdAt })),
       nextCursor: page.length === limit && last ? encodeCursor(last.createdAt!, last.id) : null,
       hasMore: rows.length > limit,
     });
