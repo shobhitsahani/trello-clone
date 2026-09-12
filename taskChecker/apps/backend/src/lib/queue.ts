@@ -49,3 +49,20 @@ export async function enqueue<T extends Record<string, unknown>>(
 export function closeQueue(): Promise<void> {
   return queue.close();
 }
+
+/**
+ * Repeatable deadline sweep — one job every few minutes that moves overdue
+ * open tasks back to `backlog`. Fixed jobId + repeat key make re-scheduling
+ * idempotent across restarts/deploys; the sweep itself is idempotent too.
+ */
+export async function ensureDeadlineSweepSchedule(everyMs: number): Promise<void> {
+  try {
+    await queue.add(
+      "deadline-sweep",
+      {},
+      { jobId: "deadline-sweep-repeat", repeat: { every: everyMs } },
+    );
+  } catch (err) {
+    console.error("[queue] failed to schedule deadline-sweep:", (err as Error).message);
+  }
+}

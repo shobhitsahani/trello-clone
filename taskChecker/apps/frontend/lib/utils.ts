@@ -67,6 +67,16 @@ export function timeAgo(iso: string, now = Date.now()): string {
   return `${mo}mo`;
 }
 
+/** true when a task missed its deadline and is still open (mirrors the
+ * backend sweep predicate: done/backlog never count as overdue). */
+export function isOverdue(dueAt: string | null | undefined, status: string | undefined, now = Date.now()): boolean {
+  if (!dueAt || !status) return false;
+  if (status === "done" || status === "backlog") return false;
+  const t = new Date(dueAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return t < now;
+}
+
 /** absolute short clock time like "09:41" — viewer's local timezone */
 export function clockTime(iso: string): string {
   const d = new Date(iso);

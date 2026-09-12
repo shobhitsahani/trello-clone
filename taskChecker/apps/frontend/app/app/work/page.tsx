@@ -9,7 +9,7 @@ import { IconCheck, IconFile, IconClock, IconUser, IconPulse, IconSearch, IconPl
 import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
-import { cx, timeAgo, hueFrom } from "@/lib/utils";
+import { cx, timeAgo, hueFrom, isOverdue } from "@/lib/utils";
 
 const STATUS_COLORS: Record<string, string> = {
   backlog: "var(--muted)",
@@ -49,9 +49,14 @@ const TaskCard = memo(function TaskCard({ item }: { item: TaskWithProject }) {
           </span>
         ) : null}
         {task.dueAt ? (
-          <span className="task-due">
+          <span
+            className="task-due"
+            style={isOverdue(task.dueAt, task.status) ? { color: "hsl(0 75% 45%)", fontWeight: 700 } : undefined}
+            title={isOverdue(task.dueAt, task.status) ? "Overdue — moves back to Backlog automatically" : undefined}
+          >
             <IconClock size={12} />
             {new Date(task.dueAt).toLocaleDateString()}
+            {isOverdue(task.dueAt, task.status) ? " · OVERDUE" : null}
           </span>
         ) : null}
       </div>

@@ -29,6 +29,15 @@ export function hueFrom(s: string): number {
   return h;
 }
 
+/** true when a task missed its deadline and is still open (see `lib/utils`). */
+export function isOverdue(dueAt: string | null | undefined, status: string | undefined, now = Date.now()): boolean {
+  if (!dueAt || !status) return false;
+  if (status === "done" || status === "backlog") return false;
+  const t = new Date(dueAt).getTime();
+  if (Number.isNaN(t)) return false;
+  return t < now;
+}
+
 /**
  * Timestamp in the *viewer's* local timezone (see `lib/utils.ts`).
  * Kept in sync for app-router pages: no explicit `timeZone` so the

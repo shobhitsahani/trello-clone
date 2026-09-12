@@ -16,7 +16,7 @@ import {
 import { api, getCurrentTenantId, type Comment, type Task } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
-import { cx, timeAgo, hueFrom } from "@/lib/utils";
+import { cx, timeAgo, hueFrom, isOverdue } from "@/lib/utils";
 
 const STATUSES = ["backlog", "todo", "in_progress", "done"] as const;
 const PRIORITIES = ["critical", "high", "medium", "low", "none"] as const;
@@ -295,6 +295,15 @@ export default function TaskDetailPage() {
               <span className="task-status-badge" style={{ background: STATUS_COLORS[task.status] }}>
                 {STATUS_LABELS[task.status]}
               </span>
+              {isOverdue(task.dueAt, task.status) ? (
+                <span
+                  className="task-status-badge"
+                  style={{ background: "hsl(0 75% 45%)" }}
+                  title={`Deadline passed ${new Date(task.dueAt as string).toLocaleString()} — moves back to Backlog automatically`}
+                >
+                  OVERDUE
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="task-header-actions">
@@ -442,6 +451,9 @@ export default function TaskDetailPage() {
                   <span className="faint" style={{ fontSize: 13 }}>
                     <IconClock size={12} /> {new Date(task.dueAt).toLocaleString()}
                   </span>
+                  {task.status !== "done" && task.status !== "backlog" ? (
+                    <p className="field-hint">If the deadline passes first, this task moves back to Backlog automatically.</p>
+                  ) : null}
                 </div>
               ) : null}
               {canWrite ? (

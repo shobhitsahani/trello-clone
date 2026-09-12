@@ -6,7 +6,7 @@ import { startRealtimeGateway } from "./realtime/ws.js";
 import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { startWorkers } from "./worker/workers.js";
-import { closeQueue } from "./lib/queue.js";
+import { closeQueue, ensureDeadlineSweepSchedule } from "./lib/queue.js";
 import { closeRedis } from "./lib/redis.js";
 import { sql } from "./db/client.js";
 
@@ -23,6 +23,8 @@ startRealtimeGateway(server, app);
 
 const workers = startWorkers();
 console.log(`[teamflow-api] worker pool started (${workers.length} worker)`);
+// Overdue-task → backlog sweep (repeatable BullMQ job; best-effort schedule).
+void ensureDeadlineSweepSchedule(config().deadlineSweepMs);
 
 async function shutdown(signal: string) {
   console.log(`[teamflow-api] ${signal} received — draining`);

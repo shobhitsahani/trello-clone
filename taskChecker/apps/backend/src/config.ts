@@ -23,6 +23,8 @@ export interface Config {
   publicBaseUrl: string;
   /** Absolute URL of the web app — invite links point here, not at the API. */
   frontendBaseUrl: string;
+  /** Deadline sweep cadence (ms) — how often overdue tasks move to backlog. */
+  deadlineSweepMs: number;
   webhookRetries: number;
   logLevel: string;
 }
@@ -53,6 +55,7 @@ export function loadConfig(): Config {
     s3Region: process.env.S3_REGION ?? "us-east-1",
     publicBaseUrl: process.env.PUBLIC_BASE_URL ?? "http://localhost:4002",
     frontendBaseUrl: (process.env.FRONTEND_BASE_URL ?? "http://localhost:4000").replace(/\/+$/, ""),
+    deadlineSweepMs: Number(process.env.DEADLINE_SWEEP_MS ?? 5 * 60 * 1000),
     webhookRetries: Number(process.env.WORKER_WEBHOOK_RETRIES ?? 10),
     logLevel: process.env.LOG_LEVEL ?? "info",
   };

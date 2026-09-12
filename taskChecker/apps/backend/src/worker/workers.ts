@@ -10,6 +10,7 @@ import { and, eq } from "drizzle-orm";
 import { decryptSecret, signPayload } from "../lib/password.js";
 import { deterministicUuid } from "../lib/ids.js";
 import { config } from "../config.js";
+import { sweepOverdueTasks } from "./deadlines.js";
 
 export interface EventJob {
   id: string;
@@ -152,6 +153,11 @@ export function startWorkers(): Worker[] {
           return handleWebhookEvent(job, job.data as unknown as EventJob);
         case "usage":
           return handleUsage(job.data as unknown as UsageJob);
+        case "deadline-sweep": {
+          const moved = await sweepOverdueTasks();
+          if (moved > 0) console.log(`[worker:deadlines] moved ${moved} overdue task(s) to backlog`);
+          return moved;
+        }
         case "ai":
           return handleAi(job.data as unknown as EventJob);
         default:

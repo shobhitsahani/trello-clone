@@ -10,7 +10,7 @@ import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { useUpdateTask } from "@/lib/mutations";
-import { cx } from "@/lib/utils";
+import { cx, isOverdue } from "@/lib/utils";
 
 const STATUS_ORDER = ["backlog", "todo", "in_progress", "done"] as const;
 const STATUS_LABELS: Record<string, string> = {
@@ -107,9 +107,14 @@ const TaskCard = memo(function TaskCard({
       </h3>
       <div className="st-card-foot">
         {task.dueAt ? (
-          <span className="board-card-due">
+          <span
+            className="board-card-due"
+            style={isOverdue(task.dueAt, task.status) ? { color: "hsl(0 75% 45%)", fontWeight: 700 } : undefined}
+            title={isOverdue(task.dueAt, task.status) ? "Overdue — moves back to Backlog automatically" : `Due ${new Date(task.dueAt).toLocaleString()}`}
+          >
             <IconClock size={11} />
             {new Date(task.dueAt).toLocaleDateString()}
+            {isOverdue(task.dueAt, task.status) ? " · OVERDUE" : null}
           </span>
         ) : (
           <span className="board-card-project">{project?.key ?? "TASK"}</span>
