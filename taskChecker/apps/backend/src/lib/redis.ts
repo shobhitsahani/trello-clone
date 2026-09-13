@@ -54,12 +54,30 @@ export async function closeRedis(): Promise<void> {
   }
 }
 
-/** Health probe — PING the shared client; false when Redis is unreachable.
+/** Health probe — PING Redis; false when unreachable.
+ * Uses a short-lived client with offline queue enabled so the probe can
+ * actually connect even when the shared hot-path client has
+ * `enableOfflineQueue:false` (which rejects pings while disconnected).
  * Used by /readyz only; hot paths keep their try/catch degradation instead. */
 export async function redisHealthy(): Promise<boolean> {
+  let probe: Redis | undefined;
   try {
-    return (await redis().ping()) === "PONG";
+    probe = new Redis(config().redisUrl, {
+      maxRetriesPerRequest: 1,
+      connectTimeout: 1000,
+      enableOfflineQueue: true,
+      lazyConnect: false,
+      retryStrategy: () => null,
+    });
+    // ioredis still emits 'error' if unhandled; attach no-op.
+    probe.on("error", () => {});
+    const pong = await probe.ping();
+    await probe.quit().catch(() => {});
+    return pong === "PONG";
   } catch {
+    try {
+      await probe?.quit().catch(() => {});
+    } catch {}
     return false;
   }
 }

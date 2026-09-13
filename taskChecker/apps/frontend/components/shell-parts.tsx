@@ -32,7 +32,7 @@ import {
 } from "./icons";
 
 const NAV_RUN = [
-  { href: "/app/settings/usage", label: "Usage", icon: IconZap },
+  // { href: "/app/settings/usage", label: "Usage", icon: IconZap }, // usage commented out
   { href: "/app/settings/members", label: "Members", icon: IconUsers },
   { href: "/app/activity", label: "Flow", icon: IconZap, live: true },
 ] as const;
@@ -517,10 +517,10 @@ export function ContextBar() {
         <div>
           <h3 className="st-sec-label">Run the tenant</h3>
           <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Link href="/app/settings/usage" className="st-nav-item">
+            {/* <Link href="/app/settings/usage" className="st-nav-item"> // usage commented out
               <IconZap size={16} className="dim" />
               <span className="grow">Usage</span>
-            </Link>
+            </Link> */}
             <Link href="/app/settings/members" className="st-nav-item">
               <IconUsers size={16} className="dim" />
               <span className="grow">Members</span>
