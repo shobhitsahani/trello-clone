@@ -27,6 +27,11 @@ export interface Config {
   deadlineSweepMs: number;
   webhookRetries: number;
   logLevel: string;
+  /** Supabase — optional. When set, the backend can use the Supabase
+   * client (service_role / anon) and the Postgres pooler as DATABASE_URL. */
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+  supabaseServiceRoleKey?: string;
 }
 
 function need(name: string, fallback?: string): string {
@@ -58,6 +63,9 @@ export function loadConfig(): Config {
     deadlineSweepMs: Number(process.env.DEADLINE_SWEEP_MS ?? 5 * 60 * 1000),
     webhookRetries: Number(process.env.WORKER_WEBHOOK_RETRIES ?? 10),
     logLevel: process.env.LOG_LEVEL ?? "info",
+    supabaseUrl: process.env.SUPABASE_URL,
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
+    supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   };
 }
 
