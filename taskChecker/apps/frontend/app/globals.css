@@ -751,6 +751,26 @@ mark { background: var(--brand-100); color: var(--brand-800); padding: 0 2px; bo
 .due-custom.is-on { border-color: var(--brand-300); background: var(--brand-50); }
 .due-custom input[type="number"] { width: 64px; font-size: 12px; border: 1px solid var(--slate-300); border-radius: 6px; padding: 3px 6px; background: #fff; color: var(--slate-800); }
 
+/* Deadline number inputs — remove spinner arrows (Chrome/Safari/Firefox) */
+.due-custom-input::-webkit-outer-spin-button,
+.due-custom-input::-webkit-inner-spin-button,
+.due-custom-input--sm::-webkit-outer-spin-button,
+.due-custom-input--sm::-webkit-inner-spin-button,
+.due-custom input[type="number"]::-webkit-outer-spin-button,
+.due-custom input[type="number"]::-webkit-inner-spin-button,
+.board-card-due-edit input[type="number"]::-webkit-outer-spin-button,
+.board-card-due-edit input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.due-custom-input,
+.due-custom-input--sm,
+.due-custom input[type="number"],
+.board-card-due-edit input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* HeroUI custom deadline — task modal */
 .due-custom-heroui {
   display: inline-flex; align-items: center; gap: 6px;

@@ -17,7 +17,7 @@ interface SettingsSection {
 
 const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   { href: "/app/settings/members", title: "Members", description: "Manage team members and roles", icon: IconUsers },
-  { href: "/app/settings/usage", title: "Usage & plan", description: "View usage meters and subscription tier", icon: IconCreditCard },
+  // { href: "/app/settings/usage", title: "Usage & plan", description: "View usage meters and subscription tier", icon: IconCreditCard }, // usage commented out
   { href: "/app/settings/integrations", title: "Integrations", description: "Webhooks and API keys", icon: IconWebhook },
   { href: "/app/settings/audit", title: "Audit log", description: "Security and admin activity trail", icon: IconFileText },
 ] as const;
