@@ -1,10 +1,17 @@
 /* Tiny shared helpers — no React dep, safe for server + client. */
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export type ClassVal = string | false | null | undefined;
 
 /** join conditional class names */
 export function cx(...vals: ClassVal[]): string {
   return vals.filter(Boolean).join(" ");
+}
+
+/** shadcn-style cn: clsx + tailwind-merge */
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
 }
 
 /** initials from a full name */

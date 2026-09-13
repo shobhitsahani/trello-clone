@@ -9,12 +9,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTenant } from "./store";
 import { useToast, Dropdown, MenuItem, Modal } from "./overlay";
-import { Avatar, Kbd } from "./ui";
+import { Kbd } from "./ui";
+import { Avatar as ShadcnAvatar, AvatarFallback } from "./ui/avatar";
 import { useAuth } from "../lib/auth";
 import { api, getCurrentTenantId, type ChatMessage, type PaginatedResponse } from "../lib/api";
 import { useSWR } from "../lib/swr";
 import { useRealtime } from "../lib/realtime";
-import { cx, formatChatTime, hueFrom } from "../lib/utils";
+import { cx, formatChatTime, hueFrom, initials } from "../lib/utils";
 import {
   IconBell,
   IconBoard,
@@ -36,6 +37,31 @@ const NAV_RUN = [
   { href: "/app/settings/members", label: "Members", icon: IconUsers },
   { href: "/app/activity", label: "Flow", icon: IconZap, live: true },
 ] as const;
+
+/* shadcn avatar helper — uses base-ui Avatar with hue-based fallback */
+function UserAvatar({
+  name,
+  size = "sm",
+  tint = 220,
+}: {
+  name: string;
+  size?: "sm" | "default" | "lg";
+  tint?: number;
+}) {
+  return (
+    <ShadcnAvatar size={size}>
+      <AvatarFallback
+        style={{
+          background: `hsl(${tint} 45% 20%)`,
+          color: `hsl(${tint} 80% 78%)`,
+          borderColor: `hsl(${tint} 40% 30%)`,
+        }}
+      >
+        {initials(name)}
+      </AvatarFallback>
+    </ShadcnAvatar>
+  );
+}
 
 /* ---------- utility rail (far left, w-14) ---------- */
 
@@ -87,7 +113,7 @@ export function Rail() {
           title={user?.name ?? "Account"}
           onClick={() => go("/app/settings")}
         >
-          <Avatar name={user?.name ?? "You"} size="sm" />
+          <UserAvatar name={user?.name ?? "You"} size="sm" tint={hueFrom(user?.id ?? "you")} />
         </button>
         <button
           className="st-rail-btn"
@@ -347,10 +373,10 @@ export function ContextBar() {
             </span>
             <span className="avatar-stack">
               {members.slice(0, 3).map((m, i) => (
-                <Avatar key={m.userId} name={m.name ?? `M${i + 1}`} size="sm" tint={hueFrom(m.userId)} />
+                <UserAvatar key={m.userId} name={m.name ?? `M${i + 1}`} size="sm" tint={hueFrom(m.userId)} />
               ))}
               {members.length === 0
-                ? ["PR", "AT", "CC"].map((n) => <Avatar key={n} name={n} size="sm" tint={hueFrom(n)} />)
+                ? ["PR", "AT", "CC"].map((n) => <UserAvatar key={n} name={n} size="sm" tint={hueFrom(n)} />)
                 : null}
             </span>
           </div>
@@ -544,7 +570,7 @@ export function ContextBar() {
 
       <div className="ctx-foot">
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <Avatar name={me.name} tint={hueFrom(me.name)} size="sm" />
+          <UserAvatar name={me.name} tint={hueFrom(me.name)} size="sm" />
           <span className="grow" style={{ minWidth: 0 }}>
             <span style={{ display: "block", fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {me.name}
@@ -613,7 +639,7 @@ export function ScopeStrip({
           {unread > 0 ? <span className="bell-badge" /> : null}
         </button>
         <span className="topbar-me">
-          <Avatar name={user?.name ?? "You"} tint={hueFrom(user?.id ?? "you")} size="sm" />
+          <UserAvatar name={user?.name ?? "You"} tint={hueFrom(user?.id ?? "you")} size="sm" />
         </span>
       </div>
     </header>
@@ -732,27 +758,6 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
       }
     },
     [chatQ, toast, user],
-  );
-
-  const handleDelete = useCallback(
-    async (id: string) => {
-      const prev = chatQ.data;
-      await chatQ.mutate(
-        (current) =>
-          current
-            ? { ...current, data: current.data.filter((m) => m.id !== id) }
-            : { data: [], nextCursor: null, hasMore: false },
-        { revalidate: false },
-      );
-      try {
-        await api.chat.remove(id);
-        await chatQ.mutate();
-      } catch (err) {
-        if (prev) await chatQ.mutate(prev, { revalidate: false });
-        toast({ title: "Delete failed", msg: err instanceof Error ? err.message : "Try again.", kind: "err" });
-      }
-    },
-    [chatQ, toast],
   );
 
   // Persist width; cheap + survives remounts / page changes.
@@ -896,7 +901,6 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
                   timeTitle={when.title || undefined}
                   tint={hueFrom(m.authorId)}
                   brand={own}
-                  onDelete={own && !m.id.startsWith("local-") ? () => void handleDelete(m.id) : undefined}
                 >
                   {m.body}
                 </ChatBubble>
@@ -920,7 +924,6 @@ function ChatBubble({
   timeTitle,
   tint,
   brand,
-  onDelete,
   children,
 }: {
   who: string;
@@ -930,12 +933,11 @@ function ChatBubble({
   timeTitle?: string;
   tint: number;
   brand?: boolean;
-  onDelete?: () => void;
   children: React.ReactNode;
 }) {
   return (
     <div className="st-msg">
-      <Avatar name={who} tint={tint} size="sm" />
+      <UserAvatar name={who} tint={tint} size="sm" />
       <div className="st-msg-body">
         <div className="st-msg-head">
           <span className="st-msg-who">
@@ -956,13 +958,6 @@ function ChatBubble({
         <div className={cx("st-bubble", brand ? "st-bubble-brand" : "st-bubble-slate")}>
           <p>{children}</p>
         </div>
-        {onDelete ? (
-          <div className="comment-actions">
-            <button className="btn btn-ghost btn-xs" onClick={onDelete}>
-              Delete
-            </button>
-          </div>
-        ) : null}
       </div>
     </div>
   );

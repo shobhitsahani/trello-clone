@@ -76,7 +76,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         ["Activity", "/app/activity"],
         ["Settings", "/app/settings"],
         ["Members", "/app/settings/members"],
-        ["Usage & plan", "/app/settings/usage"],
+        // ["Usage & plan", "/app/settings/usage"], // usage commented out
         ["Integrations", "/app/settings/integrations"],
         ["Audit log", "/app/settings/audit"],
       ] as const satisfies readonly [string, string][]

@@ -17,7 +17,8 @@ import { api, getCurrentTenantId, type Comment, type Task } from "@/lib/api";
 import { Button } from "@heroui/react";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
-import { cx, timeAgo, hueFrom, isOverdue } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cx, timeAgo, hueFrom, isOverdue, initials } from "@/lib/utils";
 
 const STATUSES = ["backlog", "todo", "in_progress", "done"] as const;
 const PRIORITIES = ["critical", "high", "medium", "low", "none"] as const;
@@ -55,7 +56,16 @@ function CommentItem({
   return (
     <div className="comment-item">
       <div className="comment-avatar">
-        <span style={{ background: `hsl(${tint} 60% 50%)` }}>{(authorName ?? "?").slice(0, 1)}</span>
+        <Avatar size="sm">
+          <AvatarFallback
+            style={{
+              background: `hsl(${tint} 45% 20%)`,
+              color: `hsl(${tint} 80% 78%)`,
+            }}
+          >
+            {initials(authorName ?? "?")}
+          </AvatarFallback>
+        </Avatar>
       </div>
       <div className="comment-content">
         <div className="comment-header">
