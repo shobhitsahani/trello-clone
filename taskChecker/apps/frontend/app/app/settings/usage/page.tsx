@@ -115,8 +115,8 @@ export default function UsagePage() {
       <div className="page settings-page">
         <header className="page-header">
           <div>
-            <h1 className="page-title">Usage & Plan</h1>
-            <p className="page-subtitle">Current plan: {catalog.name} — ${catalog.price}/month</p>
+            <h1 className="page-title">Usage</h1>
+            <p className="page-subtitle">Current plan: {catalog.name}</p>
           </div>
         </header>
 
