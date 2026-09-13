@@ -124,6 +124,30 @@ taskRoutes.post("/tasks", async (c) => {
 
     if (!replay) {
       void emitEvent({ tenantId: p.tenantId, actorId: p.userId || undefined, type: "task.created", entityType: "task", entityId: data.id, meta: { title: data.title, projectId: data.projectId } });
+      if (data.assigneeId && data.assigneeId !== p.userId) {
+        const _actorId = p.userId;
+        let actorName = "Someone";
+        if (_actorId) {
+          const u = await tx.query.users.findFirst({ where: (u2, { eq: eq2 }) => eq2(u2.id, _actorId) });
+          if (u?.name) actorName = u.name;
+        }
+        void emitEvent({
+          tenantId: p.tenantId,
+          actorId: p.userId || undefined,
+          type: "task.assigned",
+          entityType: "task",
+          entityId: data.id,
+          meta: {
+            title: "Assigned you a task",
+            message: data.title,
+            taskId: data.id,
+            projectId: data.projectId,
+            assigneeId: data.assigneeId,
+            actorName,
+          },
+          targetUserIds: [data.assigneeId],
+        });
+      }
       // AI seam: enqueue a provider-agnostic job (summarize, auto-label, ...).
       // Deduped by jobId so a +1 of the same task can never double-execute.
       void enqueue(
@@ -181,6 +205,38 @@ taskRoutes.patch("/tasks/:id", async (c) => {
     });
     await invalidatePrefix(cacheKey("boards", N.tenant, p.tenantId, before.projectId));
     void emitEvent({ tenantId: p.tenantId, actorId: p.userId || undefined, type: `task.${action}`, entityType: "task", entityId: taskId, meta: { changes: patch } });
+    if (
+      parsed.data.assigneeId !== undefined &&
+      parsed.data.assigneeId !== null &&
+      parsed.data.assigneeId !== before.assigneeId &&
+      parsed.data.assigneeId !== p.userId
+    ) {
+      const _actorId2 = p.userId;
+      let actorName2 = "Someone";
+      if (_actorId2) {
+        const u2 = await tx.query.users.findFirst({ where: (u, { eq: eq2 }) => eq2(u.id, _actorId2) });
+        if (u2?.name) actorName2 = u2.name;
+      }
+      const fresh = await tx.query.tasks.findFirst({
+        where: (t, { and: a, eq: e }) => a(e(t.tenantId, p.tenantId), e(t.id, taskId)),
+      });
+      void emitEvent({
+        tenantId: p.tenantId,
+        actorId: p.userId || undefined,
+        type: "task.assigned",
+        entityType: "task",
+        entityId: taskId,
+        meta: {
+          title: "Assigned you a task",
+          message: fresh?.title ?? before.title,
+          taskId,
+          projectId: before.projectId,
+          assigneeId: parsed.data.assigneeId,
+          actorName: actorName2,
+        },
+        targetUserIds: [parsed.data.assigneeId as string],
+      });
+    }
     return c.json({ ok: true, action });
   });
 });

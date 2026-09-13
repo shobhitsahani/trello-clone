@@ -14,7 +14,7 @@ import { enqueue } from "./queue.js";
 export interface DomainEvent {
   tenantId: string;
   actorId?: string;
-  type: string; // task.created | task.updated | comment.created | ...
+  type: string; // task.created | task.assigned | chat.mentioned | ...
   entityType: string;
   entityId: string;
   meta: Record<string, unknown>;

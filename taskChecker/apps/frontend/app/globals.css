@@ -589,6 +589,24 @@ button.board-card-due:disabled { cursor: default; }
   border-radius: 8px; font-size: 12px; color: var(--slate-800); outline: none;
 }
 .st-chat-input input:focus { background: #fff; border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(139,92,246,.12); }
+.st-mention-inline { background: var(--brand-50); color: var(--brand-700); font-weight: 700; padding: 0 3px; border-radius: 4px; border: 1px solid var(--brand-200); font-size: 11px; }
+.st-mention-list {
+  position: absolute; bottom: calc(100% + 8px); left: 0; right: 0;
+  background: #fff; border: 1px solid var(--slate-200); border-radius: 12px;
+  box-shadow: 0 12px 24px -8px rgba(15,23,42,0.18), 0 4px 8px -2px rgba(15,23,42,0.08);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  max-height: 220px; overflow-y: auto; z-index: 30;
+}
+.st-mention-list-head { font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--slate-500); padding: 4px 8px 6px; }
+.st-mention-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 6px 8px; border-radius: 8px; background: transparent; border: none;
+  text-align: left; cursor: pointer; transition: background var(--anim-fast);
+}
+.st-mention-item:hover, .st-mention-item.is-active { background: var(--slate-50); }
+.st-mention-item.is-active { background: var(--brand-50); border: 1px solid var(--brand-200); }
+.st-mention-item-name { font-size: 12px; font-weight: 600; color: var(--slate-800); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-mention-item-handle { font-size: 11px; font-family: var(--stack-mono); color: var(--brand-600); background: var(--brand-50); padding: 1px 6px; border-radius: 9999px; border: 1px solid var(--brand-200); }
 .st-send { position: absolute; right: 4px; width: 28px; height: 28px; background: var(--brand-600); color: #fff; border-radius: 6px; display: grid; place-items: center; box-shadow: var(--shadow-xs); }
 .st-send:hover { background: var(--brand-700); }
 .st-chat-expand {

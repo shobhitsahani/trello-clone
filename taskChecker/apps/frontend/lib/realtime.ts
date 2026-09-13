@@ -165,6 +165,32 @@ export function useRealtimeNotifications() {
   const handleNotification = useCallback(
     (msg: WSMessage) => {
       const payload = msg.payload as { id?: string; type?: string; [key: string]: unknown } | undefined;
+      // Targeted notifications carry targetUserIds — ignore if not for current user.
+      // The envelope may also carry it at the top level (emitEvent shape).
+      const targeted = (msg as { targetUserIds?: string[] }).targetUserIds ??
+        (msg.payload as { targetUserIds?: string[] } | undefined)?.targetUserIds ??
+        (payload as { targetUserIds?: string[] } | undefined)?.targetUserIds;
+      if (Array.isArray(targeted) && targeted.length > 0) {
+        try {
+          const tid = localStorage.getItem("tf_tenant_id");
+          // we can't easily get userId synchronously here without auth store,
+          // so let the server-side DB filter be the source of truth and just
+          // allow the optimistc add — the next fetch will correct it. If the
+          // message explicitly lists targetUserIds and we can read the current
+          // user from the token payload, filter now for snappier UX.
+          const token = getAccessToken();
+          if (token) {
+            const part = token.split(".")[1];
+            if (part) {
+              const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
+              const uid = json.userId ?? json.sub ?? json.uid;
+              if (uid && !targeted.includes(String(uid))) return;
+            }
+          }
+        } catch {
+          // best-effort decode only
+        }
+      }
       // Optimistically add the notification to the list
       if (payload?.id) {
         mutateNotifications(

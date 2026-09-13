@@ -5,26 +5,42 @@
 
 import { useRouter } from "next/navigation";
 import { useTenant } from "./store";
-import { IconCheck, IconFlowMark, IconX } from "./icons";
+import { IconCheck, IconFlowMark, IconMessageSquare, IconUser, IconX } from "./icons";
 import { cx, timeAgo } from "../lib/utils";
 import type { Notification } from "../lib/api";
 
 function notifTitle(n: Notification): string {
   const t = String((n.payload as { title?: string })?.title ?? "");
   if (t) return t;
+  if (n.type === "task.assigned") return "Assigned you a task";
+  if (n.type === "chat.mentioned") return "Mentioned you in chat";
   return n.type.replace(/[._]/g, " ");
 }
 
 function notifMsg(n: Notification): string {
-  const m = String((n.payload as { message?: string; body?: string })?.message ??
-    (n.payload as { body?: string })?.body ?? "");
+  const p = n.payload as { message?: string; body?: string; actorName?: string; assigneeId?: string } | undefined;
+  const m = String(p?.message ?? p?.body ?? "");
+  if (n.type === "task.assigned" && p?.actorName) return `${p.actorName} → ${m}`;
+  if (n.type === "chat.mentioned" && p?.actorName) return `${p.actorName}: ${m}`;
   return m;
 }
 
 function notifHref(n: Notification): string {
-  const p = n.payload as { taskId?: string; projectId?: string; entityId?: string } | undefined;
+  const p = n.payload as { taskId?: string; projectId?: string; entityId?: string; entityType?: string; chatMessageId?: string } | undefined;
+  if (n.type === "chat.mentioned" || p?.entityType === "chat") return "/app/board";
   const id = p?.taskId ?? p?.entityId;
-  return id ? `/app/tasks/${id}` : "/app/activity";
+  if (id) {
+    // entityType task/comment → task page; chat → board already handled
+    if (p?.entityType === "chat") return "/app/board";
+    return `/app/tasks/${id}`;
+  }
+  return "/app/activity";
+}
+
+function NotifIcon({ type }: { type: string }) {
+  if (type === "task.assigned") return <IconUser size={14} />;
+  if (type === "chat.mentioned") return <IconMessageSquare size={14} />;
+  return <IconFlowMark size={14} />;
 }
 
 export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -71,7 +87,7 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
               }}
             >
               <span className="notif-ico">
-                <IconFlowMark size={14} />
+                <NotifIcon type={n.type} />
               </span>
               <span className="grow">
                 <span className="notif-title" style={{ display: "block" }}>

@@ -70,6 +70,88 @@ chatRoutes.post("/chat/messages", async (c) => {
       entityType: "chat", entityId: id,
       meta: { authorId, body: parsed.data.body },
     });
+
+    // Targeted mention notification: parse @mentions and fan-out only to mentioned users.
+    const bodyLower = parsed.data.body.toLowerCase();
+    const mentions = [...parsed.data.body.matchAll(/@([^\s@]+)/g)].map((m) => m[1] ?? "");
+    if (mentions.length > 0) {
+      try {
+        const memberships = await tx.query.memberships.findMany({
+          where: (m, { and: a, eq: e }) => a(e(m.tenantId, p.tenantId), e(m.status, "active")),
+        });
+        const memberIds = memberships.map((m) => m.userId).filter((uid): uid is string => !!uid);
+        if (memberIds.length > 0) {
+          const users = await tx.query.users.findMany({
+            where: (u, { inArray }) => inArray(u.id, memberIds),
+          });
+          const byEmail = new Map(users.map((u) => [u.email.toLowerCase(), u.id]));
+          const byName = new Map(users.map((u) => [u.name.toLowerCase(), u.id]));
+          const byCompact = new Map(users.map((u) => [u.name.toLowerCase().replace(/\s+/g, ""), u.id]));
+          const mentionedIdSet = new Set<string>();
+          for (const raw of mentions) {
+            const token = raw.replace(/[.,;:!?]+$/, "").toLowerCase();
+            if (!token) continue;
+            let uid: string | undefined;
+            if (token.includes("@") && byEmail.has(token)) uid = byEmail.get(token);
+            else if (byName.has(token)) uid = byName.get(token);
+            else if (byCompact.has(token)) uid = byCompact.get(token);
+            else {
+              // also try email username or first name only if unambiguous
+              for (const u of users) {
+                const emailUser = u.email.split("@")[0]?.toLowerCase();
+                const first = u.name.toLowerCase().split(/\s+/)[0];
+                if (emailUser && token === emailUser) { uid = u.id; break; }
+                if (first && token === first) {
+                  const sameFirst = users.filter((x) => x.name.toLowerCase().split(/\s+/)[0] === first);
+                  if (sameFirst.length === 1) { uid = u.id; break; }
+                }
+              }
+            }
+            if (!uid) {
+              // substring fallback: body contains "@Full Name"
+              for (const u of users) {
+                if (bodyLower.includes(`@${u.name.toLowerCase()}`) || bodyLower.includes(`@${u.email.toLowerCase()}`)) {
+                  mentionedIdSet.add(u.id);
+                }
+              }
+              if (uid) mentionedIdSet.add(uid);
+              continue;
+            }
+            if (uid) mentionedIdSet.add(uid);
+          }
+          // full-name substring already covers multi-word names
+          for (const u of users) {
+            if (bodyLower.includes(`@${u.name.toLowerCase()}`) || bodyLower.includes(`@${u.email.toLowerCase()}`)) {
+              mentionedIdSet.add(u.id);
+            }
+          }
+          mentionedIdSet.delete(authorId);
+          const mentionedIds = [...mentionedIdSet];
+          if (mentionedIds.length > 0) {
+            const authorName = users.find((u) => u.id === authorId)?.name ?? "Someone";
+            void emitEvent({
+              tenantId: p.tenantId,
+              actorId: authorId,
+              type: "chat.mentioned",
+              entityType: "chat",
+              entityId: id,
+              meta: {
+                title: "Mentioned you in chat",
+                message: parsed.data.body.slice(0, 120),
+                body: parsed.data.body,
+                authorId,
+                authorName,
+                mentionedIds,
+              },
+              targetUserIds: mentionedIds,
+            });
+          }
+        }
+      } catch {
+        // mention fan-out is best-effort — chat already persisted
+      }
+    }
+
     return c.json({ message: { id, tenantId: p.tenantId, authorId, body: parsed.data.body, createdAt: new Date() } }, 201);
   });
 });

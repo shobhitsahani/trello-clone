@@ -31,12 +31,16 @@ export interface UsageJob {
   ts: string;
 }
 
-/** Notification fan-out: task events → assignee + reporter; others → members. */
+/** Notification fan-out: targeted via targetUserIds/meta.notifyUserIds, else all members. */
 export async function handleNotify(event: EventJob): Promise<number> {
   const targets = await withTenant(event.tenantId, async (tx) => {
     const rows = await tx.query.memberships.findMany({ where: (m, { eq: e }) => e(m.tenantId, event.tenantId) });
     const active = rows.filter((m) => m.status === "active" && m.userId !== event.actorId);
-    if (event.meta?.notifyUserIds) return (event.meta.notifyUserIds as string[]).filter((u) => u !== event.actorId);
+    const targeted =
+      (event as unknown as { targetUserIds?: string[] }).targetUserIds ??
+      (event.meta?.notifyUserIds as string[] | undefined) ??
+      (event.meta?.targetUserIds as string[] | undefined);
+    if (targeted) return targeted.filter((u) => u !== event.actorId);
     return active.map((m) => m.userId);
   });
 

@@ -32,6 +32,41 @@ import {
   IconZap,
 } from "./icons";
 
+// ---------- @mention helpers (single @ to mention a teammate) ----------
+type ChatMember = { userId: string; name: string | null; email: string | null };
+
+function getMentionHandle(m: ChatMember): string {
+  if (m.name) return m.name.replace(/\s+/g, "");
+  if (m.email) return (m.email.split("@")[0] ?? "").replace(/[^a-zA-Z0-9_]/g, "");
+  return m.userId.slice(0, 8);
+}
+function getDisplayName(m: ChatMember): string {
+  return m.name ?? m.email ?? `User ${m.userId.slice(0, 4)}`;
+}
+function detectMention(value: string, cursor: number): { at: number; query: string } | null {
+  const before = value.slice(0, cursor);
+  const atIdx = before.lastIndexOf("@");
+  if (atIdx === -1) return null;
+  if (atIdx > 0 && !/\s/.test(before[atIdx - 1] ?? "")) return null;
+  const afterAt = before.slice(atIdx);
+  if (!/^@[^\s@]*$/.test(afterAt)) return null;
+  const query = afterAt.slice(1);
+  if (query.length > 30) return null;
+  return { at: atIdx, query };
+}
+function renderMentions(text: string) {
+  const parts = text.split(/(@[A-Za-z0-9_]+)/g);
+  return parts.map((part, i) =>
+    /^@[A-Za-z0-9_]+$/.test(part) ? (
+      <span key={i} className="st-mention-inline">
+        {part}
+      </span>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  );
+}
+
 const NAV_RUN = [
   // { href: "/app/settings/usage", label: "Usage", icon: IconZap }, // usage commented out
   { href: "/app/settings/members", label: "Members", icon: IconUsers },
@@ -910,7 +945,7 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
         </div>
       </div>
       <div className="st-chat-foot">
-        <ChatInput onSend={handleSend} />
+        <ChatInput onSend={handleSend} members={membersQ.data?.members ?? []} />
       </div>
     </aside>
   );
@@ -956,17 +991,71 @@ function ChatBubble({
           </span>
         </div>
         <div className={cx("st-bubble", brand ? "st-bubble-brand" : "st-bubble-slate")}>
-          <p>{children}</p>
+          <p>{typeof children === "string" ? renderMentions(children) : children}</p>
         </div>
       </div>
     </div>
   );
 }
 
-function ChatInput({ onSend }: { onSend: (body: string) => Promise<void> }) {
+function ChatInput({
+  onSend,
+  members = [],
+}: {
+  onSend: (body: string) => Promise<void>;
+  members?: ChatMember[];
+}) {
   const [value, setValue] = useState("");
   const [sending, setSending] = useState(false);
+  const [mention, setMention] = useState<{ at: number; query: string } | null>(null);
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
   const canSend = value.trim().length > 0 && !sending;
+
+  const filtered = useMemo(() => {
+    if (!mention) return [];
+    const q = mention.query.toLowerCase();
+    return members
+      .filter((m) => {
+        const handle = getMentionHandle(m).toLowerCase();
+        const display = getDisplayName(m).toLowerCase();
+        return handle.includes(q) || display.includes(q);
+      })
+      .slice(0, 8);
+  }, [mention, members]);
+
+  const updateMention = useCallback(
+    (val: string, cursor: number | null) => {
+      if (cursor == null) {
+        setMention(null);
+        return;
+      }
+      const m = detectMention(val, cursor);
+      setMention(m);
+      setMentionIndex(0);
+    },
+    [],
+  );
+
+  const selectMember = useCallback(
+    (m: ChatMember) => {
+      if (!mention || !inputRef.current) return;
+      const handle = getMentionHandle(m);
+      const cursor = inputRef.current.selectionStart ?? value.length;
+      const before = value.slice(0, mention.at);
+      const after = value.slice(cursor);
+      const next = `${before}@${handle} ${after}`;
+      setValue(next);
+      setMention(null);
+      setMentionIndex(0);
+      requestAnimationFrame(() => {
+        const pos = before.length + handle.length + 2;
+        inputRef.current?.setSelectionRange(pos, pos);
+        inputRef.current?.focus();
+      });
+    },
+    [mention, value],
+  );
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -976,6 +1065,7 @@ function ChatInput({ onSend }: { onSend: (body: string) => Promise<void> }) {
     try {
       await onSend(text);
       setValue("");
+      setMention(null);
     } catch {
       // onSend already toasted + rolled back; keep the text for retry.
     } finally {
@@ -983,16 +1073,88 @@ function ChatInput({ onSend }: { onSend: (body: string) => Promise<void> }) {
     }
   };
 
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (mention && filtered.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setMentionIndex((i) => (i + 1) % filtered.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setMentionIndex((i) => (i - 1 + filtered.length) % filtered.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        if (filtered[mentionIndex]) {
+          e.preventDefault();
+          selectMember(filtered[mentionIndex]);
+          return;
+        }
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setMention(null);
+        return;
+      }
+    }
+  };
+
   return (
     <form className="st-chat-input" onSubmit={(e) => void submit(e)}>
+      {mention && filtered.length > 0 ? (
+        <div className="st-mention-list" role="listbox" aria-label="Mention suggestions" id="mention-list">
+          <div className="st-mention-list-head">Mention — @{mention.query || "…"}</div>
+          {filtered.map((m, idx) => (
+            <button
+              key={m.userId}
+              type="button"
+              role="option"
+              aria-selected={idx === mentionIndex}
+              className={cx("st-mention-item", idx === mentionIndex && "is-active")}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                selectMember(m);
+              }}
+            >
+              <UserAvatar name={getDisplayName(m)} tint={hueFrom(m.userId)} size="sm" />
+              <span className="st-mention-item-name">{getDisplayName(m)}</span>
+              <span className="st-mention-item-handle">@{getMentionHandle(m)}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
       <input
+        ref={inputRef}
         type="text"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Send a message…"
+        onChange={(e) => {
+          const v = e.target.value;
+          setValue(v);
+          updateMention(v, e.target.selectionStart);
+        }}
+        onSelect={(e) => {
+          const t = e.target as HTMLInputElement;
+          updateMention(value, t.selectionStart);
+        }}
+        onKeyUp={(e) => {
+          const t = e.target as HTMLInputElement;
+          if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End") {
+            updateMention(value, t.selectionStart);
+          }
+        }}
+        onKeyDown={onKeyDown}
+        onBlur={() => {
+          setTimeout(() => setMention(null), 150);
+        }}
+        placeholder="Send a message…  @ to mention"
         aria-label="Send a message"
+        aria-autocomplete="list"
+        aria-expanded={!!mention && filtered.length > 0}
+        aria-controls={mention ? "mention-list" : undefined}
         maxLength={2000}
         disabled={sending}
+        autoComplete="off"
       />
       <button
         className="st-send"
