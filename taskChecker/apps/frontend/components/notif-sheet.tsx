@@ -18,10 +18,11 @@ function notifTitle(n: Notification): string {
 }
 
 function notifMsg(n: Notification): string {
-  const p = n.payload as { message?: string; body?: string; actorName?: string; assigneeId?: string } | undefined;
-  const m = String(p?.message ?? p?.body ?? "");
+  const p = n.payload as { message?: string; body?: string; actorName?: string; assigneeId?: string; taskTitle?: string } | undefined;
+  const m = String(p?.message ?? p?.body ?? p?.taskTitle ?? "");
   if (n.type === "task.assigned" && p?.actorName) return `${p.actorName} → ${m}`;
   if (n.type === "chat.mentioned" && p?.actorName) return `${p.actorName}: ${m}`;
+  if (n.type === "task.created" && p?.actorName) return `${p.actorName} created "${m}"`;
   return m;
 }
 
@@ -40,6 +41,7 @@ function notifHref(n: Notification): string {
 function NotifIcon({ type }: { type: string }) {
   if (type === "task.assigned") return <IconUser size={14} />;
   if (type === "chat.mentioned") return <IconMessageSquare size={14} />;
+  if (type === "task.created") return <IconCheck size={14} />;
   return <IconFlowMark size={14} />;
 }
 

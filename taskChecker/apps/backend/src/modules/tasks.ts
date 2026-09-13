@@ -123,7 +123,29 @@ taskRoutes.post("/tasks", async (c) => {
     });
 
     if (!replay) {
-      void emitEvent({ tenantId: p.tenantId, actorId: p.userId || undefined, type: "task.created", entityType: "task", entityId: data.id, meta: { title: data.title, projectId: data.projectId } });
+      // Notify other authorized members that a task was created — any member+ can create, all others are notified.
+      const _creatorId = p.userId;
+      let creatorName: string | null = null;
+      if (_creatorId) {
+        const creator = await tx.query.users.findFirst({ where: (u, { eq: eq2 }) => eq2(u.id, _creatorId) });
+        creatorName = creator?.name ?? null;
+      }
+      void emitEvent({
+        tenantId: p.tenantId,
+        actorId: p.userId || undefined,
+        type: "task.created",
+        entityType: "task",
+        entityId: data.id,
+        meta: {
+          title: "New task created",
+          message: data.title,
+          taskTitle: data.title,
+          taskId: data.id,
+          projectId: data.projectId,
+          actorName: creatorName ?? "Someone",
+          assigneeId: data.assigneeId ?? null,
+        },
+      });
       if (data.assigneeId && data.assigneeId !== p.userId) {
         const _actorId = p.userId;
         let actorName = "Someone";
