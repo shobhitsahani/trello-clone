@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useToast } from "@/components/overlay";
-import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash, IconX } from "@/components/icons";
+import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash, IconX, IconDoneAll } from "@/components/icons";
 import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { Button } from "@heroui/react";
 import { useAuth } from "@/lib/auth";
@@ -54,6 +54,7 @@ const TaskCard = memo(function TaskCard({
   onTouchDragCancel,
   onEdit,
   onDelete,
+  onDone,
   onSetDue,
 }: {
   task: Task;
@@ -70,6 +71,7 @@ const TaskCard = memo(function TaskCard({
   onTouchDragCancel: () => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onDone: (task: Task) => void;
   onSetDue: (taskId: string, dueAt: string | null) => void;
 }) {
   // Inline deadline editor — local to the card so opening it doesn't
@@ -223,6 +225,21 @@ const TaskCard = memo(function TaskCard({
       </div>
       {canWrite ? (
         <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          {task.status !== "done" ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs st-btn-done"
+              aria-label={`Mark ${task.title} as done`}
+              title="Mark as done"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDone(task);
+              }}
+            >
+              <IconDoneAll size={12} /> Done
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn-ghost btn-xs"
@@ -417,6 +434,16 @@ function BoardPage() {
       }
     },
     [canWrite, tasksQ, updateTask, selectedProjectId, toast],
+  );
+
+  // One-tap done from the card: same optimistic persist path as a drop into
+  // the Done column — instant UI, PATCH as source of truth, rollback.
+  const handleDone = useCallback(
+    async (task: Task) => {
+      if (!canWrite || task.status === "done") return;
+      await performDrop(task.id, "done");
+    },
+    [canWrite, performDrop],
   );
 
   // Optimistic status change: update the local board immediately, then persist
@@ -748,6 +775,7 @@ function BoardPage() {
                       onTouchDragCancel={cancelTouchDrag}
                       onEdit={openEditTask}
                       onDelete={setDeletingTask}
+                      onDone={handleDone}
                       onSetDue={handleSetDue}
                     />
                   ))

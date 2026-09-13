@@ -135,6 +135,16 @@ export function IconCheck(p: IconProps) {
   );
 }
 
+/** Done-all mark: double tick (✓✓) for one-tap task completion. */
+export function IconDoneAll(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="m4 13 4 4L11 9" />
+      <path d="m14 13 4 4L21 9" />
+    </Ico>
+  );
+}
+
 export function IconX(p: IconProps) {
   return (
     <Ico {...p}>

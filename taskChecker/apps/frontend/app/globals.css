@@ -399,6 +399,7 @@ select, textarea, input[type="text"], input[type="email"], input[type="password"
 .st-desc { color: var(--slate-600); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-meta { font-size: 11px; color: var(--slate-400); font-family: var(--stack-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-stage { color: var(--st-done); }
+.st-btn-done { color: #10b981; }
 .st-search, .search, .scope-search, .search-box {
   display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 10px;
   border-radius: var(--r-md); border: 1px solid var(--border-subtle); background: var(--slate-50);
