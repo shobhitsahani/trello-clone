@@ -10,9 +10,10 @@ import { randomToken, uuidv7 } from "../lib/ids.js";
 import { requireRole, Rbac } from "../lib/rbac.js";
 import { encryptSecret, hashSecret } from "../lib/password.js";
 import { audit } from "../lib/audit.js";
-import { apiKeys, auditLogs, usageMeter, webhooks } from "../db/schema.js";
+import { apiKeys, auditLogs, webhooks } from "../db/schema.js";
+// import { usageMeter } from "../db/schema.js"; // usage commented out
 import { decodeCursor, encodeCursor, keysetBefore, parseLimit } from "../lib/cursor.js";
-import { tierLimits } from "../lib/usage.js";
+// import { tierLimits } from "../lib/usage.js"; // usage commented out
 
 export const govRoutes = new Hono();
 
@@ -183,25 +184,25 @@ govRoutes.get("/audit-logs", async (c) => {
   });
 });
 
-// GET /v1/usage — meters for the current month vs tier limits.
-govRoutes.get("/usage", async (c) => {
-  const p = c.get("principal");
-  return inTenant(c, async (tx) => {
-    const tenant = await tx.query.tenants.findFirst({ where: (t, { eq: e }) => e(t.id, p.tenantId) });
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    const rows = await tx
-      .select({ metric: usageMeter.metric, total: usageMeter.value })
-      .from(usageMeter)
-      .where(and(eq(usageMeter.tenantId, p.tenantId), gte(usageMeter.ts, monthStart)));
-    const totals: Record<string, number> = {};
-    for (const r of rows) totals[r.metric] = (totals[r.metric] ?? 0) + r.total;
-    return c.json({
-      plan: tenant?.plan ?? "free",
-      limits: tierLimits(tenant?.plan ?? "free"),
-      month: totals,
-      note: "api_calls meter at Redis speed in auth middleware; aggregates land here via the queue",
-    });
-  });
-});
+// // GET /v1/usage — meters for the current month vs tier limits. — commented out
+// govRoutes.get("/usage", async (c) => {
+//   const p = c.get("principal");
+//   return inTenant(c, async (tx) => {
+//     const tenant = await tx.query.tenants.findFirst({ where: (t, { eq: e }) => e(t.id, p.tenantId) });
+//     const monthStart = new Date();
+//     monthStart.setDate(1);
+//     monthStart.setHours(0, 0, 0, 0);
+//     const rows = await tx
+//       .select({ metric: usageMeter.metric, total: usageMeter.value })
+//       .from(usageMeter)
+//       .where(and(eq(usageMeter.tenantId, p.tenantId), gte(usageMeter.ts, monthStart)));
+//     const totals: Record<string, number> = {};
+//     for (const r of rows) totals[r.metric] = (totals[r.metric] ?? 0) + r.total;
+//     return c.json({
+//       plan: tenant?.plan ?? "free",
+//       limits: tierLimits(tenant?.plan ?? "free"),
+//       month: totals,
+//       note: "api_calls meter at Redis speed in auth middleware; aggregates land here via the queue",
+//     });
+//   });
+// });

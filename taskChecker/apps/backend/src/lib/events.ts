@@ -34,11 +34,11 @@ export async function emitEvent(event: DomainEvent): Promise<void> {
   await Promise.all([
     enqueue("notify", envelope),
     enqueue("webhook", envelope),
-    enqueue("usage", {
-      tenantId: event.tenantId,
-      metric: "events",
-      value: 1,
-      ts: new Date().toISOString(),
-    }),
+    // enqueue("usage", { // usage commented out
+    //   tenantId: event.tenantId,
+    //   metric: "events",
+    //   value: 1,
+    //   ts: new Date().toISOString(),
+    // }),
   ]);
 }

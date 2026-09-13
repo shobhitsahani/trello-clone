@@ -211,7 +211,6 @@ describe.skipIf(!redisUp)("realtime gateway", () => {
       await waitForOwnSubscription(sock, TENANT_A);
       const marker = `gateway-test-${Date.now()}`;
       const published = await probe!.publish(`org:${TENANT_A}`, JSON.stringify({ tenantId: TENANT_A, type: "task.created", marker }));
-      console.log(`[realtime-test] published, receivers=${published}, sinks=${realtimeSinkCount()}, frames=${JSON.stringify(sock.frames.map((f) => f.type))}`);
       const event = await nextFrame(sock, "task.created");
       expect(event.marker).toBe(marker);
     } finally {

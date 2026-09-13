@@ -1,8 +1,9 @@
 /** Usage metering + subscription tier limits (docs §4: webhooks/usage limits).
  * API-call quotas ride a Redis daily counter so the hot path stays off Postgres;
  * aggregate meters go through the event queue into usage_meter for reporting. */
-import { redis } from "./redis.js";
-import { enqueue } from "./queue.js";
+// import { redis } from "./redis.js";
+// import { enqueue } from "./queue.js";
+// usage metering disabled — kept tierLimits for seat/storage limits, metering commented out
 
 export const TIER_LIMITS = {
   free: { apiCallsPerDay: 1_000, seats: 10, storageGb: 5, eventsPerDay: 5_000, activeProjects: 2 },
@@ -18,32 +19,40 @@ export function tierLimits(plan: string): (typeof TIER_LIMITS)[Plan] {
 
 const dayKey = (): string => new Date().toISOString().slice(0, 10);
 
-/**
- * Meters one API call for the tenant; returns whether the tier still allows it.
- * Redis-degraded => fail OPEN for the meter (call granted) — a quota blowout is
- * a billing/policy issue, not an availability one; the audit row still records.
- */
-export async function meterApiCall(tenantId: string, plan: string): Promise<{ allowed: boolean; count: number; limit: number }> {
-  const limit = tierLimits(plan).apiCallsPerDay;
-  const key = `usage:api:${tenantId}:${dayKey()}`;
-  try {
-    const pipe = redis().pipeline();
-    pipe.incr(key);
-    pipe.expire(key, 86_400);
-    const res = await pipe.exec();
-    const count = Number(res?.[0]?.[1] ?? 1);
-    return { allowed: count <= limit, count, limit };
-  } catch {
-    return { allowed: true, count: 0, limit };
-  }
-}
+// /**
+//  * Meters one API call for the tenant; returns whether the tier still allows it.
+//  * Redis-degraded => fail OPEN for the meter (call granted) — a quota blowout is
+//  * a billing/policy issue, not an availability one; the audit row still records.
+//  */
+// export async function meterApiCall(tenantId: string, plan: string): Promise<{ allowed: boolean; count: number; limit: number }> {
+//   const limit = tierLimits(plan).apiCallsPerDay;
+//   const key = `usage:api:${tenantId}:${dayKey()}`;
+//   try {
+//     const pipe = redis().pipeline();
+//     pipe.incr(key);
+//     pipe.expire(key, 86_400);
+//     const res = await pipe.exec();
+//     const count = Number(res?.[0]?.[1] ?? 1);
+//     return { allowed: count <= limit, count, limit };
+//   } catch {
+//     return { allowed: true, count: 0, limit };
+//   }
+// }
 
-/** Fire-and-forget aggregate meter rows (consumed at GET /v1/usage). */
-export function recordUsage(tenantId: string, metric: string, value = 1): void {
-  void enqueue("usage", {
-    tenantId,
-    metric,
-    value,
-    ts: new Date().toISOString(),
-  });
+// /** Fire-and-forget aggregate meter rows (consumed at GET /v1/usage). */
+// export function recordUsage(tenantId: string, metric: string, value = 1): void {
+//   void enqueue("usage", {
+//     tenantId,
+//     metric,
+//     value,
+//     ts: new Date().toISOString(),
+//   });
+// }
+
+// --- usage commented out: stubs to keep imports working ---
+export async function meterApiCall(_tenantId: string, _plan: string): Promise<{ allowed: boolean; count: number; limit: number }> {
+  return { allowed: true, count: 0, limit: 999999 };
+}
+export function recordUsage(_tenantId: string, _metric: string, _value = 1): void {
+  // no-op — usage metering disabled
 }

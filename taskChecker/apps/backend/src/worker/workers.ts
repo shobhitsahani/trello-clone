@@ -5,7 +5,8 @@ import { Worker, type Job } from "bullmq";
 import { QUEUE_NAME } from "../lib/queue.js";
 import { blockingRedis } from "../lib/redis.js";
 import { withTenant } from "../lib/tenant.js";
-import { notifications, memberships, webhooks, deliveries, usageMeter } from "../db/schema.js";
+import { notifications, memberships, webhooks, deliveries } from "../db/schema.js";
+// import { usageMeter } from "../db/schema.js"; // usage commented out
 import { and, eq } from "drizzle-orm";
 import { decryptSecret, signPayload } from "../lib/password.js";
 import { deterministicUuid } from "../lib/ids.js";
@@ -124,15 +125,19 @@ export async function handleWebhookEvent(job: Job, event: EventJob): Promise<voi
   }
 }
 
-export async function handleUsage(jobData: UsageJob): Promise<void> {
-  await withTenant(jobData.tenantId, async (tx) => {
-    await tx.insert(usageMeter).values({
-      tenantId: jobData.tenantId,
-      metric: jobData.metric,
-      ts: new Date(jobData.ts),
-      value: jobData.value,
-    });
-  });
+// export async function handleUsage(jobData: UsageJob): Promise<void> {
+//   await withTenant(jobData.tenantId, async (tx) => {
+//     await tx.insert(usageMeter).values({
+//       tenantId: jobData.tenantId,
+//       metric: jobData.metric,
+//       ts: new Date(jobData.ts),
+//       value: jobData.value,
+//     });
+//   });
+// }
+// usage handler commented out
+export async function handleUsage(_jobData: UsageJob): Promise<void> {
+  // no-op — usage commented out
 }
 
 /** AI job seam (docs §6 fan-out). Deterministic, provider-agnostic: tasks like
@@ -151,8 +156,8 @@ export function startWorkers(): Worker[] {
           return handleNotify(job.data as unknown as EventJob);
         case "webhook":
           return handleWebhookEvent(job, job.data as unknown as EventJob);
-        case "usage":
-          return handleUsage(job.data as unknown as UsageJob);
+        // case "usage": // usage commented out
+        //   return handleUsage(job.data as unknown as UsageJob);
         case "deadline-sweep": {
           const moved = await sweepOverdueTasks();
           if (moved > 0) console.log(`[worker:deadlines] moved ${moved} overdue task(s) to backlog`);

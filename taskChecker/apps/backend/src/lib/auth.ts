@@ -15,7 +15,7 @@ import { forbidden, unauthorized } from "./errors.js";
 import { hashSecret } from "./password.js";
 import { verifyAccessToken } from "./tokens.js";
 import type { Role } from "./rbac.js";
-import { meterApiCall } from "./usage.js";
+// import { meterApiCall } from "./usage.js"; // usage commented out
 
 export interface Principal {
   tokenType: "user" | "api";
@@ -97,27 +97,31 @@ export const authenticate: MiddlewareHandler = async (c, next) => {
   } else if (apiKey) {
     const row = await resolveApiKey(hashSecret(apiKey));
     if (!row || row.revoked_at) throw unauthorized("Invalid or revoked API key.");
-    // Usage limits: API-key calls draw from the tenant's daily quota.
+    // // Usage limits: API-key calls draw from the tenant's daily quota. — commented out
+    // const orgRow = await sql<{ plan: string; status: string }[]>`select plan, status from tenants where id = ${row.tenant_id}`;
+    // const org = orgRow[0];
+    // // Disabled orgs must reject every credential kind, including keys (the user
+    // // path is already locked out by requireActiveMembership + deactivated rows).
+    // if (org && org.status !== "active") throw unauthorized("Organization is disabled.");
+    // const plan = org?.plan ?? "free";
+    // const meter = await meterApiCall(row.tenant_id, plan);
+    // if (!meter.allowed) {
+    //   return c.json(
+    //     {
+    //       error: {
+    //         code: "usage_limit_exceeded",
+    //         message: `Daily API call limit (${meter.limit}) exceeded for this organization.`,
+    //         request_id: c.get("requestId"),
+    //         retryable: false,
+    //       },
+    //     },
+    //     429 as 429,
+    //   );
+    // }
+    // usage check disabled — keep org disabled check minimal
     const orgRow = await sql<{ plan: string; status: string }[]>`select plan, status from tenants where id = ${row.tenant_id}`;
     const org = orgRow[0];
-    // Disabled orgs must reject every credential kind, including keys (the user
-    // path is already locked out by requireActiveMembership + deactivated rows).
     if (org && org.status !== "active") throw unauthorized("Organization is disabled.");
-    const plan = org?.plan ?? "free";
-    const meter = await meterApiCall(row.tenant_id, plan);
-    if (!meter.allowed) {
-      return c.json(
-        {
-          error: {
-            code: "usage_limit_exceeded",
-            message: `Daily API call limit (${meter.limit}) exceeded for this organization.`,
-            request_id: c.get("requestId"),
-            retryable: false,
-          },
-        },
-        429 as 429,
-      );
-    }
     principal = { tokenType: "api", userId: "", tenantId: row.tenant_id, role: "member", scopes: row.scopes ?? ["read", "write"] };
   }
 

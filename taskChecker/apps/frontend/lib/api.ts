@@ -620,9 +620,9 @@ export const api = {
     },
   },
 
-  usage: {
-    get: () => request<Usage>("/usage"),
-  },
+  // usage: { // usage commented out
+  //   get: () => request<Usage>("/usage"),
+  // },
 };
 
 /**

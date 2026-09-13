@@ -185,13 +185,13 @@ export function useAuditLogs(limit?: number, cursor?: string) {
   );
 }
 
-export function useUsage() {
-  return useSWR<Usage>(
-    "/usage",
-    () => api.usage.get(),
-    { refreshInterval: 60000 }
-  );
-}
+// export function useUsage() { // usage commented out
+//   return useSWR<Usage>(
+//     "/usage",
+//     () => api.usage.get(),
+//     { refreshInterval: 60000 }
+//   );
+// }
 
 export function useSearch(q: string, type?: "task" | "comment" | "all", limit?: number) {
   const key = q.length >= 2 ? `/search?q=${encodeURIComponent(q)}&type=${type ?? "all"}&limit=${limit ?? 20}` : null;
@@ -291,10 +291,10 @@ export function useOrgSettings(orgId: string | null) {
     () => api.apiKeys.list?.() ?? Promise.resolve({ apiKeys: [] })
   );
   
-  const usage = useSWR<Usage>(
-    orgId ? `/usage` : null,
-    () => api.usage.get()
-  );
+  // const usage = useSWR<Usage>( // usage commented out
+  //   orgId ? `/usage` : null,
+  //   () => api.usage.get()
+  // );
   
   const auditLogs = useSWR<PaginatedResponse<AuditLog>>(
     orgId ? `/audit-logs?limit=50` : null,
@@ -302,25 +302,25 @@ export function useOrgSettings(orgId: string | null) {
   );
 
   const isLoading = useMemo(() => 
-    members.isLoading || webhooks.isLoading || apiKeys.isLoading || usage.isLoading || auditLogs.isLoading, 
-    [members.isLoading, webhooks.isLoading, apiKeys.isLoading, usage.isLoading, auditLogs.isLoading]
+    members.isLoading || webhooks.isLoading || apiKeys.isLoading || auditLogs.isLoading, 
+    [members.isLoading, webhooks.isLoading, apiKeys.isLoading, auditLogs.isLoading]
   );
   
   const isValidating = useMemo(() => 
-    members.isValidating || webhooks.isValidating || apiKeys.isValidating || usage.isValidating || auditLogs.isValidating, 
-    [members.isValidating, webhooks.isValidating, apiKeys.isValidating, usage.isValidating, auditLogs.isValidating]
+    members.isValidating || webhooks.isValidating || apiKeys.isValidating || auditLogs.isValidating, 
+    [members.isValidating, webhooks.isValidating, apiKeys.isValidating, auditLogs.isValidating]
   );
-
+ 
   const error = useMemo(() => 
-    members.error || webhooks.error || apiKeys.error || usage.error || auditLogs.error, 
-    [members.error, webhooks.error, apiKeys.error, usage.error, auditLogs.error]
+    members.error || webhooks.error || apiKeys.error || auditLogs.error, 
+    [members.error, webhooks.error, apiKeys.error, auditLogs.error]
   );
 
   return {
     members: members.data?.members ?? [],
     webhooks: webhooks.data?.webhooks ?? [],
     apiKeys: apiKeys.data?.apiKeys ?? [],
-    usage: usage.data,
+    // usage: usage.data, // usage commented out
     auditLogs: auditLogs.data?.data ?? [],
     isLoading,
     isValidating,
@@ -329,7 +329,7 @@ export function useOrgSettings(orgId: string | null) {
       members: members.mutate,
       webhooks: webhooks.mutate,
       apiKeys: apiKeys.mutate,
-      usage: usage.mutate,
+      // usage: usage.mutate, // usage commented out
       auditLogs: auditLogs.mutate,
     },
   };
