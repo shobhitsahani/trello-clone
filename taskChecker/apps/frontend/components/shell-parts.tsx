@@ -587,10 +587,6 @@ export function ScopeStrip({
             <span className="st-key-chip">{project.key}</span>
             <span style={{ color: "var(--slate-400)" }}>/</span>
             <span className="st-desc">{project.teamId ? "Team project" : "Workspace board"}</span>
-            <span className="st-risk">
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#f43f5e" }} />
-              At risk
-            </span>
           </span>
         ) : (
           <span className="scope-stamp">
