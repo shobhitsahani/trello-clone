@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { useToast } from "@/components/overlay";
-import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash } from "@/components/icons";
+import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash, IconX } from "@/components/icons";
 import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { Button } from "@heroui/react";
 import { useAuth } from "@/lib/auth";
@@ -128,61 +128,64 @@ const TaskCard = memo(function TaskCard({
       </h3>
       <div className="st-card-foot">
         {editingDue ? (
-          <span className="board-card-due-edit" onPointerDown={stop} onClick={stop} role="group" aria-label="Set deadline">
+          <span className="board-card-due-edit board-card-due-edit--heroui" onPointerDown={stop} onClick={stop} role="group" aria-label="Set deadline">
             {[
               { days: 1, label: "1d" },
               { days: 3, label: "3d" },
               { days: 7, label: "7d" },
             ].map((o) => (
-              <button
+              <Button
                 key={o.days}
-                type="button"
-                className="btn btn-ghost btn-xs"
-                onClick={(e) => {
-                  stop(e);
-                  saveDueInDays(o.days);
-                }}
-                onPointerDown={stop}
+                size="sm"
+                variant="secondary"
+                onPress={() => saveDueInDays(o.days)}
                 aria-label={`Deadline in ${o.days} day${o.days === 1 ? "" : "s"}`}
+                className="board-due-chip"
               >
                 {o.label}
-              </button>
+              </Button>
             ))}
-            <input
-              type="number"
-              min={1}
-              max={365}
-              value={customDueDays}
-              onChange={(e) => setCustomDueDays(e.target.value)}
-              onPointerDown={stop}
-              onClick={stop}
-              placeholder="N days"
-              aria-label="Custom deadline in days"
-            />
+            <span className="due-custom-heroui due-custom-heroui--compact">
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={customDueDays}
+                onChange={(e) => setCustomDueDays(e.target.value)}
+                onPointerDown={stop}
+                onClick={stop}
+                placeholder="N"
+                aria-label="Custom deadline in days"
+                className="due-custom-input due-custom-input--sm"
+              />
+              <span className="due-custom-suffix">days</span>
+              <Button
+                size="sm"
+                variant="primary"
+                onPress={() => {
+                  const n = Math.floor(Number(customDueDays));
+                  if (Number.isFinite(n) && n >= 1 && n <= 365) saveDueInDays(n);
+                }}
+                aria-label="Save custom deadline"
+                isIconOnly
+                className="board-due-apply"
+              >
+                <IconClock size={14} />
+              </Button>
+            </span>
             <Button
               size="sm"
               variant="ghost"
               onPress={() => {
-                const n = Math.floor(Number(customDueDays));
-                if (Number.isFinite(n) && n >= 1 && n <= 365) saveDueInDays(n);
-              }}
-              aria-label="Save custom deadline"
-            >
-              ✓
-            </Button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-xs"
-              onClick={(e) => {
-                stop(e);
                 onSetDue(task.id, null);
                 setEditingDue(false);
               }}
-              onPointerDown={stop}
               aria-label="Clear deadline"
+              isIconOnly
+              className="board-due-clear"
             >
-              ✕
-            </button>
+              <IconX size={14} />
+            </Button>
           </span>
         ) : task.dueAt ? (
           <button
@@ -300,6 +303,7 @@ function BoardPage() {
     };
   }, []);
   const [showNewTask, setShowNewTask] = useState(false);
+  const [newTaskStatus, setNewTaskStatus] = useState<Task["status"]>("backlog");
   const [newTitle, setNewTitle] = useState("");
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
@@ -521,18 +525,23 @@ function BoardPage() {
     [touchDrag, statusFromPoint, performDrop],
   );
 
+  const openNewTask = useCallback((status: Task["status"] = "backlog") => {
+    setNewTaskStatus(status);
+    setShowNewTask(true);
+  }, []);
+
   const handleCreateTask = useCallback(async () => {
     if (!newTitle.trim() || !orgId || !selectedProjectId) return;
     try {
-      await api.tasks.create({ projectId: selectedProjectId, title: newTitle.trim() });
+      await api.tasks.create({ projectId: selectedProjectId, title: newTitle.trim(), status: newTaskStatus });
       setNewTitle("");
       setShowNewTask(false);
       await tasksQ.mutate();
-      toast({ title: "Task created", msg: "Added to the board." });
+      toast({ title: "Task created", msg: `Added to ${STATUS_LABELS[newTaskStatus]}.` });
     } catch (err) {
       toast({ title: "Create failed", msg: err instanceof Error ? err.message : "Try again." });
     }
-  }, [newTitle, orgId, selectedProjectId, tasksQ, toast]);
+  }, [newTitle, orgId, selectedProjectId, newTaskStatus, tasksQ, toast]);
 
   const handleCreateProject = useCallback(async () => {
     if (!newProjectName.trim() || !newProjectKey.trim() || !orgId) return;
@@ -710,7 +719,7 @@ function BoardPage() {
                 <button
                   className="st-col-add"
                   title={`Add task to ${STATUS_LABELS[col.status]}`}
-                  onClick={() => setShowNewTask(true)}
+                  onClick={() => openNewTask(col.status as Task["status"])}
                   disabled={!selectedProjectId || !user}
                 >
                   <IconPlus size={16} />
@@ -745,7 +754,7 @@ function BoardPage() {
                 )}
                 <button
                   className="st-add"
-                  onClick={() => setShowNewTask(true)}
+                  onClick={() => openNewTask(col.status as Task["status"])}
                   disabled={!selectedProjectId || !user}
                 >
                   <span>+</span> Add Task
@@ -792,7 +801,7 @@ function BoardPage() {
               <div className="modal-head">
                 <div>
                   <div className="modal-title">New task in {selectedProject?.name}</div>
-                  <div className="modal-sub">Added to Backlog — drag it anywhere.</div>
+                  <div className="modal-sub">Added to {STATUS_LABELS[newTaskStatus]} — drag it anywhere.</div>
                 </div>
               </div>
               <div className="modal-body">
@@ -809,6 +818,21 @@ function BoardPage() {
                       if (e.key === "Enter") void handleCreateTask();
                     }}
                   />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="task-status">Status</label>
+                  <select
+                    id="task-status"
+                    value={newTaskStatus}
+                    onChange={(e) => setNewTaskStatus(e.target.value as Task["status"])}
+                    className="select"
+                  >
+                    {STATUS_ORDER.map((s) => (
+                      <option key={s} value={s}>
+                        {STATUS_LABELS[s]}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="modal-foot">

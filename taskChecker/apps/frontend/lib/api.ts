@@ -550,23 +550,25 @@ export const api = {
   },
 
   activity: {
-    list: (params?: { entityType?: string; entityId?: string; limit?: number; cursor?: string }) => {
+    list: async (params?: { entityType?: string; entityId?: string; limit?: number; cursor?: string }) => {
       const searchParams = new URLSearchParams();
       if (params?.entityType) searchParams.set("entityType", params.entityType);
       if (params?.entityId) searchParams.set("entityId", params.entityId);
       if (params?.limit) searchParams.set("limit", String(params.limit));
       if (params?.cursor) searchParams.set("cursor", params.cursor);
-      return request<PaginatedResponse<ActivityEvent>>(`/activity?${searchParams}`);
+      const raw = await request<unknown>(`/activity?${searchParams}`);
+      return normalizePage<ActivityEvent>(raw, "activity");
     },
   },
 
   notifications: {
-    list: (params?: { unread?: boolean; limit?: number; cursor?: string }) => {
+    list: async (params?: { unread?: boolean; limit?: number; cursor?: string }) => {
       const searchParams = new URLSearchParams();
       if (params?.unread) searchParams.set("unread", "true");
       if (params?.limit) searchParams.set("limit", String(params.limit));
       if (params?.cursor) searchParams.set("cursor", params.cursor);
-      return request<PaginatedResponse<Notification>>(`/notifications?${searchParams}`);
+      const raw = await request<unknown>(`/notifications?${searchParams}`);
+      return normalizePage<Notification>(raw, "notifications");
     },
 
     markRead: (notificationId: string) =>
@@ -623,6 +625,22 @@ export const api = {
   },
 };
 
+/**
+ * Normalize cursor-paginated envelopes. Current backends return
+ * `{ data, nextCursor, hasMore }`; older builds used a resource-named key
+ * (`{ activity, ... }`, `{ notifications, ... }`). Accept both so a stale
+ * server can never silently empty (or crash) the feed — `page.data` would
+ * otherwise come back `undefined` and poison downstream state.
+ */
+function normalizePage<T>(raw: unknown, legacyKey: string): PaginatedResponse<T> {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const rows = (r.data ?? r[legacyKey] ?? r.items) as T[] | undefined;
+  return {
+    data: Array.isArray(rows) ? rows : [],
+    nextCursor: (r.nextCursor as string | null) ?? null,
+    hasMore: (r.hasMore as boolean) ?? false,
+  };
+}
 export function getWsUrl(): string {
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
   const base = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:4002/v1";

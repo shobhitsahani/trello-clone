@@ -745,11 +745,61 @@ mark { background: var(--brand-100); color: var(--brand-800); padding: 0 2px; bo
 .invite-link-row input { padding-right: 86px !important; font-family: var(--stack-mono); font-size: 11.5px; }
 .invite-preview { padding: 10px 12px; border-radius: 8px; background: var(--slate-50); border: 1px solid var(--slate-200); font-size: 13px; color: var(--slate-700); margin-bottom: 14px; }
 .invite-preview.is-expired { background: #fef2f2; border-color: #fecaca; }
-/* edit-modal deadline presets */
-.due-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+/* edit-modal deadline presets — HeroUI */
+.due-presets { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
 .due-custom { display: inline-flex; align-items: center; gap: 6px; border: 1px dashed transparent; border-radius: 8px; padding: 1px 2px; }
 .due-custom.is-on { border-color: var(--brand-300); background: var(--brand-50); }
 .due-custom input[type="number"] { width: 64px; font-size: 12px; border: 1px solid var(--slate-300); border-radius: 6px; padding: 3px 6px; background: #fff; color: var(--slate-800); }
+
+/* HeroUI custom deadline — task modal */
+.due-custom-heroui {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 4px 3px 3px; border-radius: 9999px;
+  border: 1px solid var(--slate-200); background: #fff;
+  box-shadow: var(--shadow-xs); transition: all var(--anim-fast);
+}
+.due-custom-heroui--active {
+  border-color: var(--brand-300); background: var(--brand-50);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.12);
+}
+.due-custom-heroui .due-custom-input {
+  width: 72px; font-size: 13px; font-weight: 500; text-align: center;
+  border: 1px solid var(--slate-200); border-radius: 9999px;
+  padding: 5px 8px; background: var(--slate-50); color: var(--slate-800);
+  outline: none; transition: all var(--anim-fast);
+}
+.due-custom-heroui .due-custom-input:focus {
+  border-color: var(--brand-400); background: #fff;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+.due-custom-heroui .due-custom-input::placeholder { color: var(--slate-400); }
+.due-custom-heroui--compact {
+  border-radius: 9999px; padding: 2px; gap: 4px;
+  background: #fff; border: 1px solid var(--slate-200);
+}
+.due-custom-heroui--compact .due-custom-input--sm {
+  width: 48px; font-size: 12px; font-family: var(--stack-mono);
+  padding: 2px 6px; border-radius: 9999px; text-align: center;
+  border: 1px solid transparent; background: var(--slate-50);
+}
+.due-custom-heroui--compact .due-custom-suffix {
+  font-size: 11px; font-weight: 600; color: var(--slate-500);
+  font-family: var(--stack-mono); padding-right: 2px;
+}
+.board-card-due-edit--heroui {
+  display: inline-flex; align-items: center; gap: 5px; flex-wrap: wrap;
+  padding: 4px; border-radius: 12px; background: #fff;
+  border: 1px solid var(--slate-200); box-shadow: var(--shadow-xs);
+}
+.board-card-due-edit--heroui .board-due-chip {
+  font-weight: 600; letter-spacing: 0.02em;
+}
+.board-card-due-edit--heroui .board-due-apply {
+  border-radius: 9999px;
+}
+.board-card-due-edit--heroui .board-due-clear {
+  border-radius: 9999px; color: var(--slate-500);
+}
 .board-card-due-edit input[type="number"] { width: 70px; font-size: 11px; font-family: var(--stack-mono); color: var(--slate-700); border: 1px solid var(--slate-300); border-radius: 6px; padding: 1px 4px; background: #fff; }
 .pop { position: fixed; z-index: 50; min-width: 320px; max-width: 380px; padding: 14px; }
 .pop-org { top: 64px; left: 66px; }

@@ -115,10 +115,14 @@ export default function ActivityPage() {
         const token = reset ? undefined : cursorRef.current ?? undefined;
         if (token) params.cursor = token;
         const page: Page = await api.activity.list(params);
+        // normalizePage() in lib/api already coerces legacy `{ activity }`
+        // envelopes to `{ data }`, but never trust the wire blindly — an
+        // undefined list here used to poison state and blank the feed.
+        const rows = page.data ?? [];
         setActivities((prev) => {
-          if (reset) return page.data;
+          if (reset) return rows;
           const seen = new Set(prev.map((a) => a.id));
-          return [...prev, ...page.data.filter((a) => !seen.has(a.id))];
+          return [...prev, ...rows.filter((a) => !seen.has(a.id))];
         });
         cursorRef.current = page.nextCursor;
         setCursor(page.nextCursor);
@@ -230,7 +234,7 @@ export default function ActivityPage() {
               <IconPulse size={48} className="dim" />
               <h3>Couldn't load activity</h3>
               <p>{loadError}</p>
-              <button className="btn btn-secondary btn-sm" onClick={() => void fetchActivities(true)}>
+              <button className="btn btn-primary btn-sm" onClick={() => void fetchActivities(true)}>
                 Retry
               </button>
             </div>

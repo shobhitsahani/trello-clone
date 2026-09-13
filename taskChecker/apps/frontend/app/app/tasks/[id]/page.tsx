@@ -594,26 +594,37 @@ export default function TaskDetailPage() {
                       { preset: "3", label: "3 days" },
                       { preset: "7", label: "7 days" },
                     ].map((o) => (
-                      <button
+                      <Button
                         key={o.preset}
-                        type="button"
-                        className={cx("btn btn-sm", duePreset === o.preset ? "btn-primary" : "btn-ghost")}
+                        size="sm"
+                        variant={duePreset === o.preset ? "primary" : "secondary"}
+                        onPress={() => applyDueInDays(Number(o.preset), o.preset as "1" | "3" | "7")}
                         aria-pressed={duePreset === o.preset}
-                        onClick={() => applyDueInDays(Number(o.preset), o.preset as "1" | "3" | "7")}
+                        className={cx(duePreset === o.preset && "shadow-sm ring-1 ring-[var(--brand-300)]")}
                       >
                         {o.label}
-                      </button>
+                      </Button>
                     ))}
-                    <span className={cx("due-custom", duePreset === "custom" && "is-on")}>
+                    <span
+                      className={cx(
+                        "due-custom-heroui",
+                        duePreset === "custom" && "due-custom-heroui--active",
+                      )}
+                    >
                       <Button
                         size="sm"
-                        variant={duePreset === "custom" ? "primary" : "ghost"}
+                        variant={duePreset === "custom" ? "primary" : "secondary"}
                         onPress={() => {
                           const n = Math.max(1, Math.min(365, Math.floor(Number(customDays) || 0)));
                           if (n > 0) applyDueInDays(n, "custom");
                           else setDuePreset("custom");
                         }}
+                        className={cx(
+                          "due-custom-btn",
+                          duePreset === "custom" && "shadow-sm",
+                        )}
                       >
+                        <IconClock size={14} />
                         Custom
                       </Button>
                       <input
@@ -629,19 +640,22 @@ export default function TaskDetailPage() {
                         }}
                         placeholder="days"
                         aria-label="Custom deadline in days"
+                        className="due-custom-input"
                       />
                     </span>
-                    <button
-                      type="button"
-                      className={cx("btn btn-sm", duePreset === "none" ? "btn-primary" : "btn-ghost")}
-                      aria-pressed={duePreset === "none"}
-                      onClick={() => {
+                    <Button
+                      size="sm"
+                      variant={duePreset === "none" ? "primary" : "ghost"}
+                      onPress={() => {
                         setEditDueAt("");
                         setDuePreset("none");
                       }}
+                      aria-pressed={duePreset === "none"}
+                      className={duePreset === "none" ? "shadow-sm" : ""}
                     >
+                      <IconX size={14} />
                       No deadline
-                    </button>
+                    </Button>
                   </div>
                   {editDueAt && !Number.isNaN(Date.parse(editDueAt)) ? (
                     isOverdue(new Date(editDueAt).toISOString(), editStatus) ? (
