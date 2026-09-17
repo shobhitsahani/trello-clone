@@ -9,6 +9,9 @@ import { IconSearch, IconFile, IconMessageSquare, IconFilter, IconChevronRight, 
 import { api, getCurrentTenantId, type SearchResult } from "@/lib/api";
 import { useSWR } from "@/lib/swr";
 import { cx, timeAgo, hueFrom } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 const RESULT_TYPES = [
   { value: "all", label: "All", icon: IconSearch },
@@ -147,22 +150,26 @@ function SearchPageContent() {
         </header>
 
         <div className="search-container">
-          <div className="search-input-wrapper">
-            <IconSearch size={20} />
-            <input
-              type="text"
-              value={query}
-              onChange={handleQueryChange}
-              placeholder="Search tasks, comments… (minimum 2 characters)"
-              autoFocus
-              className="search-input-large"
-            />
-            {query && (
-              <button className="btn btn-ghost btn-icon" onClick={() => setQuery("")} aria-label="Clear search">
-                <IconChevronRight size={18} />
-              </button>
-            )}
-          </div>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void performSearch();
+            }}
+          >
+            <Field orientation="horizontal">
+              <Input
+                type="search"
+                value={query}
+                onChange={handleQueryChange}
+                placeholder="Search tasks, comments… (minimum 2 characters)"
+                autoFocus
+                aria-label="Search tasks and comments"
+              />
+              <Button type="submit" disabled={loading}>
+                <IconSearch size={14} /> Search
+              </Button>
+            </Field>
+          </form>
 
           <div className="search-filters" role="group" aria-label="Result type">
             {RESULT_TYPES.map((t) => (
