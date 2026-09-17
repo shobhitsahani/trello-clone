@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { useTenant } from "@/components/store";
-import { IconSearch, IconFile, IconMessageSquare, IconFilter, IconChevronRight, IconClock, IconArrowLeft } from "@/components/icons";
+import { IconSearch, IconFile, IconMessageSquare } from "@/components/icons";
 import { api, getCurrentTenantId, type SearchResult } from "@/lib/api";
 import { useSWR } from "@/lib/swr";
 import { cx, timeAgo, hueFrom } from "@/lib/utils";
