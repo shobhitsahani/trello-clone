@@ -1,0 +1,448 @@
+/* ================================================================
+   Trello skin — classic Trello board look on top of the app shell.
+   Lists (#f1f2f4 · 272px), white cards with Trello shadow, label bars,
+   due badges, "+ Add a card" composer. Board logic untouched.
+   Loaded after globals.css so these rules win on conflicts.
+   ================================================================ */
+
+/* ---------- board canvas: purplish tone ---------- */
+.st-board {
+  background-color: #6d28d9;
+  background-image: linear-gradient(180deg, #7e5aef 0%, #5b21b6 100%);
+  padding: 12px;
+}
+
+/* board toolbar (filter row) reads as Trello's board header: white on blue */
+.trello-board-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 32px;
+  color: #fff;
+  white-space: nowrap;
+  margin: 0;
+}
+.trello-star {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 3px;
+  color: #fff;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  flex: none;
+}
+.trello-star:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.trello-star.is-on {
+  color: #f5cd47;
+}
+.trello-star.is-on:hover {
+  color: #e2b203;
+  background: rgba(255, 255, 255, 0.2);
+}
+.st-board .faint,
+.st-board .mono {
+  color: rgba(255, 255, 255, 0.85);
+}
+.st-board .st-search {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: none;
+}
+.st-board .st-search input {
+  color: #fff;
+}
+.st-board .st-search input::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+.st-board .st-search:focus-within {
+  background: #fff;
+  border-color: transparent;
+  box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+}
+.st-board .st-search:focus-within input {
+  color: #172b4d;
+}
+.st-board .st-search svg {
+  color: rgba(255, 255, 255, 0.85);
+}
+.st-board .st-search:focus-within svg {
+  color: #44546f;
+}
+/* shadcn project picker on the blue bar */
+.st-board [data-slot="select-trigger"] {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: transparent;
+  color: #fff;
+}
+.st-board [data-slot="select-trigger"]:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+.st-board [data-slot="select-trigger"] svg {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* ---------- lists: Trello 272px troughs ---------- */
+.st-board .st-cols {
+  gap: 12px;
+}
+.st-board .st-col {
+  flex: 0 0 auto;
+  width: 272px;
+  min-width: 272px;
+  max-width: 272px;
+  max-height: 100%;
+  background: #f1f2f4;
+  border: 0;
+  border-radius: 12px;
+  padding: 8px;
+  gap: 4px;
+  box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  animation: none;
+}
+.st-board .st-col.is-lit {
+  background: #f1f2f4;
+  border: 0;
+}
+
+/* list header */
+.st-board .st-col-head {
+  padding: 6px 4px 8px 8px;
+  margin: 0;
+}
+.st-board .st-col-dot {
+  display: none;
+}
+.st-board .bcol-name {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #172b4d;
+}
+.st-board .st-col-count {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  color: #626f86;
+  font-weight: 400;
+  padding: 0 4px;
+}
+.st-board .st-col-add {
+  color: #44546f;
+  border-radius: 8px;
+  margin-left: auto;
+}
+.st-board .st-col-add:hover {
+  background: rgba(9, 30, 66, 0.14);
+  color: #172b4d;
+}
+
+/* list body scrolls internally like Trello */
+.st-board .st-drop {
+  gap: 8px;
+  padding: 0 4px 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(9, 30, 66, 0.25) transparent;
+}
+.st-board .st-drop.drag-over {
+  background: transparent;
+  border: 0;
+}
+.st-board .st-empty {
+  height: 56px;
+  border: 1px dashed #8590a2;
+  background: transparent;
+  color: #626f86;
+  font-size: 12px;
+}
+.st-board .st-empty.drag-over-target {
+  border-color: #0c66e4;
+  background: #e9f2ff;
+  color: #0c66e4;
+}
+
+/* ---------- cards: Trello white cards ---------- */
+.st-board .st-card {
+  background: #fff;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  padding: 8px 12px;
+  cursor: pointer;
+  animation: none;
+}
+.st-board .st-card:hover {
+  background: #fff;
+  border: 0;
+  box-shadow: 0 4px 8px -2px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  transform: none;
+}
+.st-board .st-card.dragging {
+  opacity: 0.9;
+  transform: rotate(3deg);
+  box-shadow: 0 8px 16px -4px rgba(9, 30, 66, 0.35), 0 0 1px rgba(9, 30, 66, 0.31);
+  cursor: grabbing;
+}
+
+/* Trello label bars (priority) */
+.trello-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.trello-labels:empty {
+  display: none;
+}
+.trello-label {
+  height: 8px;
+  width: 40px;
+  border-radius: 4px;
+  flex: none;
+}
+
+/* title: Trello regular 14px ink */
+.st-board .st-card-title {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #172b4d;
+  margin: 0 0 4px;
+}
+
+/* badges row (due date, key) */
+.st-board .st-card-foot {
+  border: 0;
+  padding: 0;
+  margin-top: 2px;
+  min-height: 0;
+}
+.trello-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+.trello-badges:empty {
+  display: none;
+}
+.trello-key {
+  font-size: 11px;
+  font-family: var(--stack-mono);
+  color: #626f86;
+}
+.trello-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 20px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: #44546f;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font-family: var(--stack-sans);
+}
+button.trello-due:hover {
+  background: rgba(9, 30, 66, 0.14);
+  color: #172b4d;
+}
+.trello-due.is-overdue {
+  background: #ffedeb;
+  color: #ae2e24;
+  font-weight: 600;
+}
+.trello-due.is-done {
+  background: #dcfff1;
+  color: #1f8455;
+  font-weight: 600;
+}
+.trello-due.is-empty {
+  color: #626f86;
+}
+button.trello-due.is-empty:hover {
+  color: #172b4d;
+}
+
+/* due-date editor chips inside the card */
+.st-board .board-card-due-edit {
+  background: #f1f2f4;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px;
+}
+
+/* hover quick actions (Trello pencil-style): icon buttons on hover */
+.trello-card-actions {
+  display: flex;
+  gap: 2px;
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+.st-board .st-card:hover .trello-card-actions,
+.st-board .st-card:focus-within .trello-card-actions {
+  opacity: 1;
+}
+/* touch devices have no hover — always show actions */
+@media (hover: none) {
+  .trello-card-actions {
+    opacity: 1;
+  }
+}
+
+/* ---------- "+ Add a card" (Trello composer trigger) ---------- */
+.st-board .st-add {
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: #44546f;
+  justify-content: flex-start;
+  height: auto;
+  min-height: 32px;
+  padding: 6px 8px;
+  margin: 4px 0 0;
+  font-size: 14px;
+  font-weight: 400;
+}
+.st-board .st-add:hover {
+  background: rgba(9, 30, 66, 0.14);
+  color: #172b4d;
+  border: 0;
+}
+
+/* inline quick-add composer */
+.trello-composer {
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trello-composer textarea {
+  border: 0;
+  outline: none;
+  resize: none;
+  box-shadow: none;
+  background: transparent;
+  font-size: 14px;
+  line-height: 20px;
+  color: #172b4d;
+  min-height: 56px;
+  padding: 0;
+}
+.trello-composer textarea:focus {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.trello-composer textarea::placeholder {
+  color: #8590a2;
+}
+.trello-composer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ---------- task detail page: Trello card-modal look ---------- */
+.task-detail-page {
+  background: #f1f2f4;
+}
+.task-detail-page .task-main {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.trello-detail-title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 24px;
+  color: #172b4d;
+}
+.trello-detail-sub {
+  font-size: 14px;
+  color: #44546f;
+}
+.trello-detail-sub a {
+  text-decoration: underline;
+}
+.trello-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #172b4d;
+  margin-bottom: 8px;
+}
+.trello-section-head svg {
+  color: #44546f;
+}
+/* Trello sidebar action buttons: full-width gray */
+.trello-side-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  justify-content: flex-start;
+  background: rgba(9, 30, 66, 0.06);
+  color: #172b4d;
+  font-size: 14px;
+  font-weight: 400;
+  border-radius: 3px;
+  padding: 6px 12px;
+  height: 32px;
+  box-shadow: none;
+  border: 0;
+}
+.trello-side-btn:hover {
+  background: rgba(9, 30, 66, 0.14);
+  color: #172b4d;
+}
+.trello-side-btn.danger:hover {
+  background: #ffedeb;
+  color: #ae2e24;
+}
+/* Trello comment composer */
+.trello-comment-box {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  padding: 8px 12px;
+}
+.trello-comment-box textarea {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  resize: vertical;
+}
+.trello-comment-box textarea:focus {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* ---------- topbar: subtle Trello tightening ---------- */
+.st-topbar {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+}
+
+/* command palette + sheets sit above the blue board */
+.cmdk,
+.sheet {
+  box-shadow: 0 8px 24px -4px rgba(9, 30, 66, 0.35), 0 0 1px rgba(9, 30, 66, 0.31);
+}
