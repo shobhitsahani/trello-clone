@@ -22,6 +22,7 @@ import {
   IconBoard,
   IconChevronDown,
   IconChevronRight,
+  IconEdit,
   IconFlowMark,
   IconLogout,
   IconMessageSquare,
@@ -228,6 +229,9 @@ export function ContextBar() {
   const [projMenu, setProjMenu] = useState<{ x: number; y: number; project: ApiProject } | null>(null);
   const [deletingProj, setDeletingProj] = useState<ApiProject | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [renamingProj, setRenamingProj] = useState<ApiProject | null>(null);
+  const [renameName, setRenameName] = useState("");
+  const [renaming, setRenaming] = useState(false);
 
   const projectsQ = useSWR<{ projects: ApiProject[] }>(
     orgId ? `ctx-projects-${orgId}` : null,
@@ -295,6 +299,32 @@ export function ContextBar() {
       toast({ title: "Delete failed", msg: err instanceof Error ? err.message : "Try again.", kind: "err" });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const openRenameProject = (project: ApiProject) => {
+    setRenamingProj(project);
+    setRenameName(project.name);
+    setProjMenu(null);
+  };
+
+  const handleRenameProject = async () => {
+    const name = renameName.trim();
+    if (!renamingProj || !name || renaming) return;
+    if (name === renamingProj.name) {
+      setRenamingProj(null);
+      return;
+    }
+    setRenaming(true);
+    try {
+      await api.projects.update(renamingProj.id, { name });
+      setRenamingProj(null);
+      await projectsQ.mutate();
+      toast({ title: "Project renamed", msg: `Renamed to ${name}.` });
+    } catch (err) {
+      toast({ title: "Rename failed", msg: err instanceof Error ? err.message : "Try again.", kind: "err" });
+    } finally {
+      setRenaming(false);
     }
   };
 
@@ -557,6 +587,14 @@ export function ContextBar() {
               <button
                 className="menu-item"
                 role="menuitem"
+                onClick={() => openRenameProject(projMenu.project)}
+              >
+                <IconEdit size={14} />
+                Rename project
+              </button>
+              <button
+                className="menu-item"
+                role="menuitem"
                 style={{ color: "#be123c", fontWeight: 600 }}
                 onClick={() => {
                   setDeletingProj(projMenu.project);
@@ -568,6 +606,42 @@ export function ContextBar() {
               </button>
             </div>
           ) : null}
+          <Modal
+            open={renamingProj !== null}
+            onClose={() => (renaming ? null : setRenamingProj(null))}
+            title="Rename project"
+            sub="Shown in the sidebar, projects list, and on the board."
+            footer={
+              <>
+                <button className="btn btn-ghost" onClick={() => setRenamingProj(null)} disabled={renaming}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => void handleRenameProject()}
+                  disabled={renaming || !renameName.trim() || renameName.trim() === renamingProj?.name}
+                >
+                  <IconEdit size={14} /> {renaming ? "Renaming…" : "Rename project"}
+                </button>
+              </>
+            }
+          >
+            <div className="form-field">
+              <label htmlFor="rename-project-name">Project name</label>
+              <input
+                id="rename-project-name"
+                type="text"
+                value={renameName}
+                onChange={(e) => setRenameName(e.target.value)}
+                placeholder="Project name"
+                autoFocus
+                maxLength={100}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleRenameProject();
+                }}
+              />
+            </div>
+          </Modal>
           <Modal
             open={deletingProj !== null}
             onClose={() => (deleting ? null : setDeletingProj(null))}
