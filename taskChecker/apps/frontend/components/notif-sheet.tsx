@@ -1,13 +1,27 @@
 "use client";
 
 /* Notification sheet — live notifications from GET /v1/notifications.
-   Payload shape is event-specific; derive a title/href defensively. */
+   shadcn Sheet + Badge + Button + Empty. Payload shape is event-specific;
+   derive a title/href defensively. */
 
 import { useRouter } from "next/navigation";
 import { useTenant } from "./store";
-import { IconCheck, IconFlowMark, IconMessageSquare, IconUser, IconX } from "./icons";
-import { cx, timeAgo } from "../lib/utils";
+import { IconCheck, IconFlowMark, IconMessageSquare, IconUser } from "./icons";
+import { timeAgo } from "../lib/utils";
 import type { Notification } from "../lib/api";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "./ui/sheet";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Empty, EmptyDescription, EmptyTitle } from "./ui/empty";
+import { Separator } from "./ui/separator";
+import { cn } from "@/lib/utils";
 
 function notifTitle(n: Notification): string {
   const t = String((n.payload as { title?: string })?.title ?? "");
@@ -49,70 +63,82 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
   const router = useRouter();
   const { notifications, unread, markRead, markAllRead } = useTenant();
 
-  if (!open) return null;
-
   return (
-    <div className="sheet" role="dialog" aria-modal aria-label="Notifications">
-      <div className="sheet-head">
-        <span className="sheet-title">Notifications</span>
-        {unread > 0 ? (
-          <span className="badge" style={{ color: "var(--accent-hi)" }}>
-            {unread} new
-          </span>
-        ) : null}
-        <div className="row" style={{ marginLeft: "auto" }}>
-          <button className="btn btn-ghost btn-xs" onClick={markAllRead}>
+    <Sheet
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <SheetContent className="gap-0 p-0 sm:max-w-sm">
+        <SheetHeader className="flex-row items-center gap-2 border-b p-4 text-left">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <SheetTitle>Notifications</SheetTitle>
+            {unread > 0 ? (
+              <Badge variant="default">{unread} new</Badge>
+            ) : null}
+          </div>
+          <Button variant="ghost" size="xs" onClick={markAllRead}>
             <IconCheck size={12} /> Mark all read
-          </button>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} aria-label="Close">
-            <IconX size={14} />
-          </button>
-        </div>
-      </div>
-      <div className="sheet-body">
-        <div className="notif-list">
+          </Button>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto p-2">
           {notifications.length === 0 ? (
-            <div className="empty" style={{ padding: "24px 16px" }}>
-              <div className="empty-title">No notifications</div>
-              <p className="empty-msg">You are all caught up.</p>
-            </div>
-          ) : null}
-          {notifications.map((n) => (
-            <button
-              key={n.id}
-              className={cx("notif-item", !n.readAt && "notif-unread")}
-              style={{ textAlign: "left" }}
-              onClick={() => {
-                markRead(n.id);
-                onClose();
-                router.push(notifHref(n));
-              }}
-            >
-              <span className="notif-ico">
-                <NotifIcon type={n.type} />
-              </span>
-              <span className="grow">
-                <span className="notif-title" style={{ display: "block" }}>
-                  {notifTitle(n)}
-                </span>
-                {notifMsg(n) ? (
-                  <span className="notif-msg" style={{ display: "block" }}>
-                    {notifMsg(n)}
+            <Empty className="py-10">
+              <EmptyTitle>No notifications</EmptyTitle>
+              <EmptyDescription>You are all caught up.</EmptyDescription>
+            </Empty>
+          ) : (
+            <div className="flex flex-col">
+              {notifications.map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => {
+                    markRead(n.id);
+                    onClose();
+                    router.push(notifHref(n));
+                  }}
+                  className={cn(
+                    "flex w-full items-start gap-3 rounded-lg p-3 text-left transition-colors",
+                    "hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                    !n.readAt && "bg-primary/[0.04]"
+                  )}
+                >
+                  <span className="mt-0.5 grid size-7 flex-none place-items-center rounded-full bg-muted text-muted-foreground">
+                    <NotifIcon type={n.type} />
                   </span>
-                ) : null}
-                <span className="notif-time" style={{ display: "block" }}>
-                  {timeAgo(n.createdAt)} ago
-                </span>
-              </span>
-              {!n.readAt ? <span className="notif-unread-dot" aria-label="Unread" /> : null}
-            </button>
-          ))}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[13px] font-semibold text-foreground">
+                      {notifTitle(n)}
+                    </span>
+                    {notifMsg(n) ? (
+                      <span className="mt-0.5 block line-clamp-2 text-xs text-muted-foreground">
+                        {notifMsg(n)}
+                      </span>
+                    ) : null}
+                    <span className="mt-1 block font-mono text-[11px] text-muted-foreground">
+                      {timeAgo(n.createdAt)} ago
+                    </span>
+                  </span>
+                  {!n.readAt ? (
+                    <span className="mt-1.5 size-2 flex-none rounded-full bg-primary" aria-label="Unread" />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      </div>
-      <div className="sheet-foot">
-        Missed something while offline? Realtime catch-up replays from your last cursor — nothing is
-        lost.
-      </div>
-    </div>
+
+        <Separator />
+        <SheetFooter className="mt-0 block border-0 bg-transparent p-4">
+          <SheetDescription>
+            Missed something while offline? Realtime catch-up replays from your last cursor — nothing is
+            lost.
+          </SheetDescription>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }

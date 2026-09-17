@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode } from "react";
+import { MotionConfig } from "framer-motion";
 import { AuthProvider } from "@/lib/auth";
 import { TenantProvider } from "@/components/store";
 import { ToastProvider } from "@/components/overlay";
@@ -23,12 +24,14 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
-      <TenantProvider>
-        <RealtimeProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </RealtimeProvider>
-      </TenantProvider>
-    </AuthProvider>
+    <MotionConfig reducedMotion="user">
+      <AuthProvider>
+        <TenantProvider>
+          <RealtimeProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </RealtimeProvider>
+        </TenantProvider>
+      </AuthProvider>
+    </MotionConfig>
   );
 }

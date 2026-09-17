@@ -1,8 +1,7 @@
-/* HeroUI (Tailwind v4) — must stay first: tailwind, then heroui theme,
+/* Tailwind v4 + shadcn/base-nova — tailwind first, then animate theme,
    then the app's own stylesheet so Stitch classes win on conflicts. */
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@heroui/styles";
 
 @custom-variant dark (&:is(.dark *));
 

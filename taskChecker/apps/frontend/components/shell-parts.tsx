@@ -10,6 +10,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTenant } from "./store";
 import { useToast, Dropdown, MenuItem, Modal } from "./overlay";
 import { Kbd } from "./ui";
+import { Button, buttonVariants } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { Avatar as ShadcnAvatar, AvatarFallback } from "./ui/avatar";
 import { useAuth } from "../lib/auth";
 import { api, getCurrentTenantId, type ChatMessage, type PaginatedResponse } from "../lib/api";
@@ -413,20 +416,19 @@ export function ContextBar() {
             sub="Create a new workspace. You'll become its owner and switch to it immediately."
             footer={
               <>
-                <button className="btn btn-ghost" onClick={() => setShowNewOrg(false)}>Cancel</button>
-                <button
-                  className="btn btn-primary"
+                <Button variant="ghost" onClick={() => setShowNewOrg(false)}>Cancel</Button>
+                <Button
                   onClick={() => void handleCreateOrg()}
                   disabled={!newOrgName.trim() || creatingOrg}
                 >
                   <IconPlus size={14} /> {creatingOrg ? "Creating…" : "Create organization"}
-                </button>
+                </Button>
               </>
             }
           >
-            <div className="form-field">
-              <label htmlFor="new-org-name">Organization name</label>
-              <input
+            <div className="grid gap-2">
+              <Label htmlFor="new-org-name">Organization name</Label>
+              <Input
                 id="new-org-name"
                 type="text"
                 value={newOrgName}
@@ -501,20 +503,19 @@ export function ContextBar() {
             sub="Shown in the sidebar and on the board. Pick a short key for task cards."
             footer={
               <>
-                <button className="btn btn-ghost" onClick={() => setShowNewProject(false)}>Cancel</button>
-                <button
-                  className="btn btn-primary"
+                <Button variant="ghost" onClick={() => setShowNewProject(false)}>Cancel</Button>
+                <Button
                   onClick={() => void handleCreateProject()}
                   disabled={!newProjectName.trim() || !(keyTouched ? newProjectKey.trim() : suggestKey(newProjectName)) || creatingProject}
                 >
                   <IconPlus size={14} /> {creatingProject ? "Creating…" : "Create project"}
-                </button>
+                </Button>
               </>
             }
           >
-            <div className="form-field">
-              <label htmlFor="new-project-name">Project name</label>
-              <input
+            <div className="grid gap-2">
+              <Label htmlFor="new-project-name">Project name</Label>
+              <Input
                 id="new-project-name"
                 type="text"
                 value={newProjectName}
@@ -527,9 +528,9 @@ export function ContextBar() {
                 }}
               />
             </div>
-            <div className="form-field">
-              <label htmlFor="new-project-key">Key (short code)</label>
-              <input
+            <div className="grid gap-2">
+              <Label htmlFor="new-project-key">Key (short code)</Label>
+              <Input
                 id="new-project-key"
                 type="text"
                 value={keyTouched ? newProjectKey : suggestKey(newProjectName)}
@@ -613,22 +614,21 @@ export function ContextBar() {
             sub="Shown in the sidebar, projects list, and on the board."
             footer={
               <>
-                <button className="btn btn-ghost" onClick={() => setRenamingProj(null)} disabled={renaming}>
+                <Button variant="ghost" onClick={() => setRenamingProj(null)} disabled={renaming}>
                   Cancel
-                </button>
-                <button
-                  className="btn btn-primary"
+                </Button>
+                <Button
                   onClick={() => void handleRenameProject()}
                   disabled={renaming || !renameName.trim() || renameName.trim() === renamingProj?.name}
                 >
                   <IconEdit size={14} /> {renaming ? "Renaming…" : "Rename project"}
-                </button>
+                </Button>
               </>
             }
           >
-            <div className="form-field">
-              <label htmlFor="rename-project-name">Project name</label>
-              <input
+            <div className="grid gap-2">
+              <Label htmlFor="rename-project-name">Project name</Label>
+              <Input
                 id="rename-project-name"
                 type="text"
                 value={renameName}
@@ -649,12 +649,12 @@ export function ContextBar() {
             sub="This removes the project from the sidebar and board. Tasks inside it will no longer be listed. This can't be undone."
             footer={
               <>
-                <button className="btn btn-ghost" onClick={() => setDeletingProj(null)} disabled={deleting}>
+                <Button variant="ghost" onClick={() => setDeletingProj(null)} disabled={deleting}>
                   Cancel
-                </button>
-                <button className="btn btn-danger" onClick={() => void handleDeleteProject()} disabled={deleting}>
+                </Button>
+                <Button variant="destructive" onClick={() => void handleDeleteProject()} disabled={deleting}>
                   <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete project"}
-                </button>
+                </Button>
               </>
             }
           >
@@ -762,7 +762,7 @@ export function ScopeStrip({
       </button>
 
       <div className="topbar-right">
-        <Link href="/app/board" className="btn btn-primary btn-sm">
+        <Link href="/app/board" className={buttonVariants({ variant: "default", size: "sm" })}>
           <IconPlus size={14} /> New task
         </Link>
         <motion.button
@@ -1254,7 +1254,7 @@ function ChatInput({
           ))}
         </div>
       ) : null}
-      <input
+      <Input
         ref={inputRef}
         type="text"
         value={value}

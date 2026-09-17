@@ -733,7 +733,7 @@ function BoardPage() {
                   {p.name} ({p.key})
                 </SelectItem>
               ))}
-              {projects.length === 0 ? <SelectItem value="">No projects yet</SelectItem> : null}
+              {projects.length === 0 ? <SelectItem value="none" disabled>No projects yet</SelectItem> : null}
             </SelectContent>
           </Select>
           <span className="faint mono" style={{ fontSize: 11 }}>

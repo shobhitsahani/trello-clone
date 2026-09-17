@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useToast } from "@/components/overlay";
 import { AppShell } from "@/components/app-shell";
 import {
   IconArrowLeft,
@@ -29,6 +28,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { buttonVariants } from "@/components/ui/button";
 import { cx, timeAgo, hueFrom, isOverdue, initials } from "@/lib/utils";
 import { AnimatePresence, motion, backdropFade, popIn, PageEnter } from "@/components/motion";
 
@@ -99,9 +99,9 @@ function CommentItem({
         </p>
         {canDelete ? (
           <div className="comment-actions">
-            <button className="btn btn-ghost btn-xs" onClick={onDelete}>
+            <Button variant="ghost" size="xs" onClick={onDelete}>
               Delete
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>
@@ -341,7 +341,7 @@ export default function TaskDetailPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.25 }}
         >
-          <Link href="/app/work" className="btn btn-ghost btn-icon" aria-label="Back">
+          <Link href="/app/work" className={buttonVariants({ variant: "ghost", size: "icon" })} aria-label="Back">
             <IconArrowLeft size={18} />
           </Link>
           <div className="task-header-main">
@@ -374,27 +374,31 @@ export default function TaskDetailPage() {
           <div className="task-header-actions">
             {canWrite ? (
               <>
-                <button className="btn btn-ghost btn-sm" onClick={openEdit}>
+                <Button variant="ghost" size="sm" onClick={openEdit}>
                   <IconEdit size={14} /> Edit
-                </button>
-                <button className="btn btn-ghost btn-sm" onClick={() => setShowDeleteConfirm(true)}>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setShowDeleteConfirm(true)}>
                   <IconTrash size={14} /> Delete
-                </button>
+                </Button>
               </>
             ) : null}
           </div>
-        </header>
+        </motion.header>
 
         <div className="task-detail-grid">
-          <main className="task-main">
+          <motion.main
+            className="task-main"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, delay: 0.05 }}
+          >
             <section className="task-section">
               <h3>Description</h3>
               <div className="task-description">
                 {task.description ? (
                   <p>{task.description}</p>
                 ) : (
-                  <textarea
-                    className="textarea"
+                  <Textarea
                     rows={3}
                     placeholder="No description yet. Write one here…"
                     disabled={!canWrite}
@@ -407,9 +411,9 @@ export default function TaskDetailPage() {
                 )}
               </div>
               {canWrite && task.description ? (
-                <button className="btn btn-ghost btn-sm" onClick={openEdit}>
+                <Button variant="ghost" size="sm" onClick={openEdit}>
                   <IconEdit size={14} /> Edit description
-                </button>
+                </Button>
               ) : null}
             </section>
 
@@ -421,16 +425,18 @@ export default function TaskDetailPage() {
                 ) : comments.length === 0 ? (
                   <p className="empty-text">No comments yet. Be the first to comment!</p>
                 ) : (
-                  comments.map((c) => (
-                    <CommentItem
-                      key={c.id}
-                      comment={c}
-                      authorName={nameById.get(c.authorId) ?? null}
-                      canDelete={canDeleteComment(c)}
-                      isOwn={c.authorId === user?.id}
-                      onDelete={() => void handleDeleteComment(c.id)}
-                    />
-                  ))
+                  <AnimatePresence initial={false} mode="popLayout">
+                    {comments.map((c) => (
+                      <CommentItem
+                        key={c.id}
+                        comment={c}
+                        authorName={nameById.get(c.authorId) ?? null}
+                        canDelete={canDeleteComment(c)}
+                        isOwn={c.authorId === user?.id}
+                        onDelete={() => void handleDeleteComment(c.id)}
+                      />
+                    ))}
+                  </AnimatePresence>
                 )}
                 {canWrite ? (
                   <form
@@ -440,7 +446,7 @@ export default function TaskDetailPage() {
                       void handleComment();
                     }}
                   >
-                    <textarea
+                    <Textarea
                       value={commentBody}
                       onChange={(e) => setCommentBody(e.target.value)}
                       onKeyDown={(e) => {
@@ -451,13 +457,12 @@ export default function TaskDetailPage() {
                       disabled={postingComment}
                     />
                     <div className="comment-form-actions">
-                      <button
+                      <Button
                         type="submit"
-                        className="btn btn-primary"
                         disabled={!commentBody.trim() || postingComment}
                       >
                         <IconMessageSquare size={14} /> {postingComment ? "Posting…" : "Add comment"}
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 ) : (
@@ -465,54 +470,65 @@ export default function TaskDetailPage() {
                 )}
               </div>
             </section>
-          </main>
+          </motion.main>
 
-          <aside className="task-sidebar">
+          <motion.aside
+            className="task-sidebar"
+            initial={{ opacity: 0, x: 12 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
             <SidebarCard>
               <h3 style={{ marginBottom: 12 }}>Details</h3>
-              <div className="form-field">
-                <label htmlFor="task-status">Status</label>
-                <select
-                  id="task-status"
+              <div className="grid gap-2">
+                <Label htmlFor="task-status">Status</Label>
+                <Select
                   value={task.status}
                   disabled={!canWrite}
-                  onChange={(e) => handleStatusChange(e.target.value)}
-                  className="select"
+                  onValueChange={(v) => { if (v) handleStatusChange(v); }}
                 >
-                  {STATUSES.map((s) => (
-                    <option key={s} value={s}>
-                      {STATUS_LABELS[s]}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="task-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUSES.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {STATUS_LABELS[s]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="form-field">
-                <label htmlFor="task-priority">Priority</label>
-                <select
-                  id="task-priority"
+              <div className="grid gap-2">
+                <Label htmlFor="task-priority">Priority</Label>
+                <Select
                   value={task.priority}
                   disabled={!canWrite}
-                  onChange={(e) => handlePriorityChange(e.target.value)}
-                  className="select"
+                  onValueChange={(v) => { if (v) handlePriorityChange(v); }}
                 >
-                  {PRIORITIES.map((p) => (
-                    <option key={p} value={p}>
-                      {p.charAt(0).toUpperCase() + p.slice(1)}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="task-priority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PRIORITIES.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p.charAt(0).toUpperCase() + p.slice(1)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="form-field">
-                <label>Assignee</label>
+              <div className="grid gap-2">
+                <Label>Assignee</Label>
                 <span className="faint" style={{ fontSize: 13 }}>{assignee?.name ?? "Unassigned"}</span>
               </div>
-              <div className="form-field">
-                <label>Reporter</label>
+              <div className="grid gap-2">
+                <Label>Reporter</Label>
                 <span className="faint" style={{ fontSize: 13 }}>{reporter?.name ?? "Unknown"}</span>
               </div>
               {task.dueAt ? (
-                <div className="form-field">
-                  <label>Due</label>
+                <div className="grid gap-2">
+                  <Label>Due</Label>
                   <span className="faint" style={{ fontSize: 13 }}>
                     <IconClock size={12} /> {new Date(task.dueAt).toLocaleString()}
                   </span>
@@ -522,106 +538,116 @@ export default function TaskDetailPage() {
                 </div>
               ) : null}
               {canWrite ? (
-                <button className="btn btn-ghost btn-sm" onClick={openEdit} style={{ marginTop: 4 }}>
+                <Button variant="ghost" size="sm" onClick={openEdit} style={{ marginTop: 4 }}>
                   <IconEdit size={14} /> Edit all fields
-                </button>
+                </Button>
               ) : null}
             </SidebarCard>
-            <Link href="/app/work" className="btn btn-primary">
+            <Link href="/app/work" className={buttonVariants({ variant: "default" })}>
               Back to your work
             </Link>
             {canWrite ? (
-              <button className="btn btn-danger" onClick={() => setShowDeleteConfirm(true)}>
+              <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
                 <IconTrash size={14} /> Delete task
-              </button>
+              </Button>
             ) : null}
-          </aside>
+          </motion.aside>
         </div>
 
-        {showEdit ? (
-          <div className="modal-backdrop" onClick={() => setShowEdit(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Edit task">
-              <div className="modal-head">
-                <div>
-                  <div className="modal-title">Edit task</div>
-                  <div className="modal-sub">Update any field. Changes are saved to the server.</div>
-                </div>
-                <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setShowEdit(false)} aria-label="Close">
-                  <IconX size={14} />
-                </button>
-              </div>
-              <div className="modal-body">
-                <div className="form-field">
-                  <label htmlFor="edit-title">Title</label>
-                  <input
-                    id="edit-title"
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    maxLength={200}
-                    autoFocus
-                  />
-                </div>
-                <div className="form-field">
-                  <label htmlFor="edit-description">Description</label>
-                  <textarea
-                    id="edit-description"
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    rows={4}
-                    placeholder="Add more detail…"
-                  />
-                </div>
+        <Modal
+          open={showEdit}
+          onClose={() => setShowEdit(false)}
+          title="Edit task"
+          sub="Update any field. Changes are saved to the server."
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowEdit(false)} disabled={saving}>
+                Cancel
+              </Button>
+              <Button onClick={() => void handleSaveEdit()} disabled={!editTitle.trim() || saving}>
+                {saving ? "Saving…" : "Save changes"}
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                maxLength={200}
+                autoFocus
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={4}
+                placeholder="Add more detail…"
+              />
+            </div>
                 <div style={{ display: "flex", gap: 12 }}>
-                  <div className="form-field" style={{ flex: 1 }}>
-                    <label htmlFor="edit-status">Status</label>
-                    <select
-                      id="edit-status"
+                  <div className="grid flex-1 gap-2">
+                    <Label htmlFor="edit-status">Status</Label>
+                    <Select
                       value={editStatus}
-                      onChange={(e) => setEditStatus(e.target.value as Task["status"])}
-                      className="select"
+                      onValueChange={(v) => setEditStatus(v as Task["status"])}
                     >
-                      {STATUSES.map((s) => (
-                        <option key={s} value={s}>
-                          {STATUS_LABELS[s]}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger id="edit-status">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUSES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {STATUS_LABELS[s]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="form-field" style={{ flex: 1 }}>
-                    <label htmlFor="edit-priority">Priority</label>
-                    <select
-                      id="edit-priority"
+                  <div className="grid flex-1 gap-2">
+                    <Label htmlFor="edit-priority">Priority</Label>
+                    <Select
                       value={editPriority}
-                      onChange={(e) => setEditPriority(e.target.value as Task["priority"])}
-                      className="select"
+                      onValueChange={(v) => setEditPriority(v as Task["priority"])}
                     >
-                      {PRIORITIES.map((p) => (
-                        <option key={p} value={p}>
-                          {p.charAt(0).toUpperCase() + p.slice(1)}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger id="edit-priority">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PRIORITIES.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {p.charAt(0).toUpperCase() + p.slice(1)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
-                <div className="form-field">
-                  <label htmlFor="edit-assignee">Assignee</label>
-                  <select
-                    id="edit-assignee"
-                    value={editAssigneeId}
-                    onChange={(e) => setEditAssigneeId(e.target.value)}
-                    className="select"
-                  >
-                    <option value="">Unassigned</option>
-                    {(membersQ.data?.members ?? []).map((m) => (
-                      <option key={m.userId} value={m.userId}>
-                        {m.name ?? m.userId}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-assignee">Assignee</Label>
+                  <Select value={editAssigneeId || "unassigned"} onValueChange={(v) => setEditAssigneeId(!v || v === "unassigned" ? "" : v)}>
+                    <SelectTrigger id="edit-assignee">
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {(membersQ.data?.members ?? []).map((m) => (
+                        <SelectItem key={m.userId} value={m.userId}>
+                          {m.name ?? m.userId}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="form-field">
-                  <label>Deadline</label>
+                <div className="grid gap-2">
+                  <Label>Deadline</Label>
                   <div className="due-presets" role="group" aria-label="Deadline">
                     {[
                       { preset: "1", label: "1 day" },
@@ -631,8 +657,8 @@ export default function TaskDetailPage() {
                       <Button
                         key={o.preset}
                         size="sm"
-                        variant={duePreset === o.preset ? "primary" : "secondary"}
-                        onPress={() => applyDueInDays(Number(o.preset), o.preset as "1" | "3" | "7")}
+                        variant={duePreset === o.preset ? "default" : "secondary"}
+                        onClick={() => applyDueInDays(Number(o.preset), o.preset as "1" | "3" | "7")}
                         aria-pressed={duePreset === o.preset}
                         className={cx(duePreset === o.preset && "shadow-sm ring-1 ring-[var(--brand-300)]")}
                       >
@@ -647,8 +673,8 @@ export default function TaskDetailPage() {
                     >
                       <Button
                         size="sm"
-                        variant={duePreset === "custom" ? "primary" : "secondary"}
-                        onPress={() => {
+                        variant={duePreset === "custom" ? "default" : "secondary"}
+                        onClick={() => {
                           const n = Math.max(1, Math.min(365, Math.floor(Number(customDays) || 0)));
                           if (n > 0) applyDueInDays(n, "custom");
                           else setDuePreset("custom");
@@ -661,7 +687,7 @@ export default function TaskDetailPage() {
                         <IconClock size={14} />
                         Custom
                       </Button>
-                      <input
+                      <Input
                         type="number"
                         min={1}
                         max={365}
@@ -679,8 +705,8 @@ export default function TaskDetailPage() {
                     </span>
                     <Button
                       size="sm"
-                      variant={duePreset === "none" ? "primary" : "ghost"}
-                      onPress={() => {
+                      variant={duePreset === "none" ? "default" : "ghost"}
+                      onClick={() => {
                         setEditDueAt("");
                         setDuePreset("none");
                       }}
@@ -706,42 +732,29 @@ export default function TaskDetailPage() {
                   )}
                 </div>
               </div>
-              <div className="modal-foot">
-                <button className="btn btn-ghost" onClick={() => setShowEdit(false)} disabled={saving}>
-                  Cancel
-                </button>
-                <button className="btn btn-primary" onClick={() => void handleSaveEdit()} disabled={!editTitle.trim() || saving}>
-                  {saving ? "Saving…" : "Save changes"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+            </Modal>
 
-        {showDeleteConfirm ? (
-          <div className="modal-backdrop" onClick={() => setShowDeleteConfirm(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Delete task">
-              <div className="modal-head">
-                <div>
-                  <div className="modal-title">Delete task?</div>
-                  <div className="modal-sub">“{task.title}” will be moved to trash.</div>
-                </div>
-                <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setShowDeleteConfirm(false)} aria-label="Close">
-                  <IconX size={14} />
-                </button>
-              </div>
-              <div className="modal-foot">
-                <button className="btn btn-ghost" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>
-                  Cancel
-                </button>
-                <button className="btn btn-danger" onClick={() => void handleDelete()} disabled={deleting}>
-                  <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete task"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </div>
+        <Modal
+          open={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          title="Delete task?"
+          sub={`“${task.title}” will be moved to trash.`}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={() => void handleDelete()} disabled={deleting}>
+                <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete task"}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-muted-foreground">
+            This moves the task to trash.
+          </p>
+        </Modal>
+      </PageEnter>
     </AppShell>
   );
 }

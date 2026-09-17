@@ -9,19 +9,27 @@ export function Card({
   className?: string;
   title: string;
   children: React.ReactNode;
-  href: string;
+  href?: string;
 }): JSX.Element {
   return (
-    <a
-      className={className}
-      href={`${href}?utm_source=create-turbo&utm_medium=basic&utm_campaign=create-turbo"`}
-      rel="noopener noreferrer"
-      target="_blank"
+    <div
+      data-slot="card"
+      className={["ui-card", className].filter(Boolean).join(" ")}
     >
-      <h2>
-        {title} <span>-&gt;</span>
-      </h2>
-      <p>{children}</p>
-    </a>
+      <div data-slot="card-header" className="ui-card-header">
+        <div data-slot="card-title" className="ui-card-title">
+          {href ? (
+            <a href={href} rel="noopener noreferrer" target="_blank">
+              {title}
+            </a>
+          ) : (
+            title
+          )}
+        </div>
+      </div>
+      <div data-slot="card-content" className="ui-card-content">
+        {children}
+      </div>
+    </div>
   );
 }
