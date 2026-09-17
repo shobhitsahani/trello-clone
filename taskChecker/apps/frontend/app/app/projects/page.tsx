@@ -3,9 +3,20 @@
 import { useMemo, memo, useState, useEffect, startTransition } from "react";
 import Link from "next/link";
 import { useTenant } from "@/components/store";
-import { useToast } from "@/components/overlay";
+import { useToast, Modal } from "@/components/overlay";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { AppShell } from "@/components/app-shell";
-import { IconPlus, IconSearch, IconFolder, IconUsers, IconFile, IconTrash, IconEdit } from "@/components/icons";
+import { IconPlus, IconSearch, IconLayers, IconUsers, IconFile, IconTrash, IconEdit } from "@/components/icons";
 import { api, getCurrentTenantId, type Project, type Team, type Task } from "@/lib/api";
 import { useSWR } from "@/lib/swr";
 import { cx, hueFrom } from "@/lib/utils";
@@ -33,34 +44,34 @@ const ProjectCard = memo(function ProjectCard({
   return (
     <Link
       href={`/app/board?project=${project.id}`}
-      className="project-card"
+      className="project-card trello-tile"
       onContextMenu={onContextMenu}
       title={`${project.name} — right-click for options`}
     >
-      <div className="project-card-header">
-        <div className="project-icon" style={{ background: `linear-gradient(150deg, hsl(${hue} 90% 62%), hsl(${hue} 75% 45%))` }}>
-          <IconFolder size={20} />
-        </div>
-        <div className="project-info">
-          <h3>{project.name}</h3>
-          <span className="project-key">{project.key}</span>
-        </div>
+      <div
+        className="trello-tile-cover"
+        style={{ background: `linear-gradient(135deg, hsl(${hue} 65% 52%), hsl(${(hue + 45) % 360} 60% 36%))` }}
+      >
+        <span className="trello-tile-key">{project.key}</span>
       </div>
-      <div className="project-progress">
-        <div className="progress-bar">
-          <div className="progress-fill" style={{ width: `${progress}%`, background: `hsl(${hue} 75% 45%)` }} />
+      <div className="trello-tile-body">
+        <h3>{project.name}</h3>
+        <div className="project-progress">
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: `${progress}%`, background: `hsl(${hue} 75% 45%)` }} />
+          </div>
+          <span className="progress-text">{doneCount}/{totalCount} tasks · {progress}% complete</span>
         </div>
-        <span className="progress-text">{doneCount}/{totalCount} tasks · {progress}% complete</span>
-      </div>
-      <div className="project-meta">
-        {team ? (
-          <span className="project-team">
-            <IconUsers size={13} /> {team.name}
+        <div className="project-meta">
+          {team ? (
+            <span className="project-team">
+              <IconUsers size={13} /> {team.name}
+            </span>
+          ) : null}
+          <span className="project-stats">
+            <IconFile size={13} /> {openCount} open
           </span>
-        ) : null}
-        <span className="project-stats">
-          <IconFile size={13} /> {openCount} open
-        </span>
+        </div>
       </div>
     </Link>
   );
@@ -232,7 +243,7 @@ export default function ProjectsPage() {
           </div>
           <div className="view-toggle" role="group">
             <button className={cx("btn btn-ghost btn-sm", view === "grid" ? "active" : "")} onClick={() => handleViewChange("grid")} aria-label="Grid view">
-              <IconFolder size={14} />
+              <IconLayers size={14} />
             </button>
             <button className={cx("btn btn-ghost btn-sm", view === "list" ? "active" : "")} onClick={() => handleViewChange("list")} aria-label="List view">
               <IconFile size={14} />
@@ -244,14 +255,22 @@ export default function ProjectsPage() {
           {projectsQ.isLoading ? (
             <div className="loading">Loading…</div>
           ) : filteredProjects.length === 0 ? (
-            <div className="empty-state">
-              <IconFolder size={48} className="dim" />
-              <h3>No projects found</h3>
-              <p>{search ? "Try a different search term" : "Create your first project to get started"}</p>
-              <button className="btn btn-primary" onClick={() => setShowNew(true)}>
-                <IconPlus size={14} /> New project
-              </button>
-            </div>
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <IconLayers />
+                </EmptyMedia>
+                <EmptyTitle>No projects found</EmptyTitle>
+                <EmptyDescription>
+                  {search ? "Try a different search term" : "Create your first project to get started"}
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button onClick={() => setShowNew(true)}>
+                  <IconPlus size={14} /> New project
+                </Button>
+              </EmptyContent>
+            </Empty>
           ) : (
             filteredProjects.map((project, i) => (
               <ProjectCard
@@ -265,32 +284,38 @@ export default function ProjectsPage() {
           )}
         </div>
 
-        {showNew ? (
-          <div className="modal-backdrop" onClick={() => setShowNew(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Create project">
-              <div className="modal-header">
-                <h3>New project</h3>
-              </div>
-              <div className="modal-body">
-                <div className="form-field">
-                  <label htmlFor="proj-name">Name</label>
-                  <input id="proj-name" type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Launch" autoFocus />
-                </div>
-                <div className="form-field">
-                  <label htmlFor="proj-key">Key (short code)</label>
-                  <input id="proj-key" type="text" value={newKey} onChange={(e) => setNewKey(e.target.value)} placeholder="LAU" maxLength={10} />
-                  <p className="field-hint">Shown on task cards — 1-10 letters.</p>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-ghost" onClick={() => setShowNew(false)}>Cancel</button>
-                <button className="btn btn-primary" onClick={() => void handleCreate()} disabled={!newName.trim() || !newKey.trim()}>
-                  <IconPlus size={14} /> Create project
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <Modal
+          open={showNew}
+          onClose={() => setShowNew(false)}
+          title="New project"
+          sub="Shown in the sidebar and on the board. Pick a short key for task cards."
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowNew(false)}>Cancel</Button>
+              <Button onClick={() => void handleCreate()} disabled={!newName.trim() || !newKey.trim()}>
+                <IconPlus size={14} /> Create project
+              </Button>
+            </>
+          }
+        >
+          <Field>
+            <FieldLabel htmlFor="proj-name">Name</FieldLabel>
+            <Input id="proj-name" type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Launch" autoFocus />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="proj-key">Key (short code)</FieldLabel>
+            <Input
+              id="proj-key"
+              type="text"
+              value={newKey}
+              onChange={(e) => setNewKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
+              placeholder="LAU"
+              maxLength={10}
+              className="mono"
+            />
+            <FieldDescription>Shown on task cards — 1-10 letters.</FieldDescription>
+          </Field>
+        </Modal>
         {projMenu ? (
           <div
             className="menu"
@@ -325,68 +350,63 @@ export default function ProjectsPage() {
           </div>
         ) : null}
 
-        {renamingProj ? (
-          <div className="modal-backdrop" onClick={() => (renaming ? null : setRenamingProj(null))}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Rename project">
-              <div className="modal-header">
-                <h3>Rename project</h3>
-              </div>
-              <div className="modal-body">
-                <div className="form-field">
-                  <label htmlFor="proj-rename">Name</label>
-                  <input
-                    id="proj-rename"
-                    type="text"
-                    value={renameName}
-                    onChange={(e) => setRenameName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleRename();
-                    }}
-                    placeholder="Project name"
-                    maxLength={100}
-                    autoFocus
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-ghost" onClick={() => setRenamingProj(null)} disabled={renaming}>
-                  Cancel
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => void handleRename()}
-                  disabled={renaming || !renameName.trim() || renameName.trim() === renamingProj.name}
-                >
-                  <IconEdit size={14} /> {renaming ? "Renaming…" : "Rename project"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <Modal
+          open={renamingProj !== null}
+          onClose={() => (renaming ? null : setRenamingProj(null))}
+          title="Rename project"
+          sub="Shown in the sidebar, projects list, and on the board."
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setRenamingProj(null)} disabled={renaming}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => void handleRename()}
+                disabled={renaming || !renameName.trim() || renameName.trim() === renamingProj?.name}
+              >
+                <IconEdit size={14} /> {renaming ? "Renaming…" : "Rename project"}
+              </Button>
+            </>
+          }
+        >
+          <Field>
+            <FieldLabel htmlFor="proj-rename">Name</FieldLabel>
+            <Input
+              id="proj-rename"
+              type="text"
+              value={renameName}
+              onChange={(e) => setRenameName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleRename();
+              }}
+              placeholder="Project name"
+              maxLength={100}
+              autoFocus
+            />
+          </Field>
+        </Modal>
 
-        {deletingProj ? (
-          <div className="modal-backdrop" onClick={() => (deleting ? null : setDeletingProj(null))}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Delete project">
-              <div className="modal-header">
-                <h3>Delete {deletingProj.name}?</h3>
-              </div>
-              <div className="modal-body">
-                <p style={{ fontSize: 13, color: "var(--slate-600)" }}>
-                  Project key <span className="mono" style={{ fontWeight: 700 }}>{deletingProj.key}</span> will be
-                  permanently removed from this workspace. This can&apos;t be undone.
-                </p>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-ghost" onClick={() => setDeletingProj(null)} disabled={deleting}>
-                  Cancel
-                </button>
-                <button className="btn btn-danger" onClick={() => void handleDelete()} disabled={deleting}>
-                  <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete project"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <Modal
+          open={deletingProj !== null}
+          onClose={() => (deleting ? null : setDeletingProj(null))}
+          title={`Delete ${deletingProj?.name ?? "project"}?`}
+          sub="This removes the project from the sidebar and board. Tasks inside it will no longer be listed. This can't be undone."
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setDeletingProj(null)} disabled={deleting}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={() => void handleDelete()} disabled={deleting}>
+                <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete project"}
+              </Button>
+            </>
+          }
+        >
+          <p style={{ fontSize: 13, color: "var(--slate-600)" }}>
+            Project key <span className="mono" style={{ fontWeight: 700 }}>{deletingProj?.key}</span> will be
+            permanently removed from this workspace.
+          </p>
+        </Modal>
       </div>
     </AppShell>
   );
