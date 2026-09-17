@@ -217,16 +217,20 @@ taskRoutes.patch("/tasks/:id", async (c) => {
       await tx.update(tasks).set(patch).where(and(eq(tasks.tenantId, p.tenantId), eq(tasks.id, taskId)));
     }
     const action = parsed.data.status !== undefined && parsed.data.status !== before.status ? "status_changed" : "updated";
+    const statusChanged = action === "status_changed";
     await tx.insert(activityEvents).values({
       tenantId: p.tenantId, id: uuidv7(), actorId: p.userId || null,
-      entityType: "task", entityId: taskId, action, meta: { changes: patch },
+      entityType: "task", entityId: taskId, action,
+      meta: statusChanged
+        ? { title: before.title, projectId: before.projectId, from: before.status, to: parsed.data.status, changes: patch }
+        : { title: before.title, projectId: before.projectId, changes: patch },
     });
     await audit(tx, {
       tenantId: p.tenantId, actorId: p.userId, action, entityType: "task", entityId: taskId,
       before: { status: before.status, title: before.title }, after: { ...patch },
     });
     await invalidatePrefix(cacheKey("boards", N.tenant, p.tenantId, before.projectId));
-    void emitEvent({ tenantId: p.tenantId, actorId: p.userId || undefined, type: `task.${action}`, entityType: "task", entityId: taskId, meta: { changes: patch } });
+    void emitEvent({ tenantId: p.tenantId, actorId: p.userId || undefined, type: `task.${action}`, entityType: "task", entityId: taskId, meta: statusChanged ? { title: before.title, taskTitle: before.title, taskId, projectId: before.projectId, from: before.status, to: parsed.data.status, changes: patch } : { changes: patch } });
     if (
       parsed.data.assigneeId !== undefined &&
       parsed.data.assigneeId !== null &&
@@ -271,9 +275,24 @@ taskRoutes.delete("/tasks/:id", async (c) => {
     requireRole(p.role, Rbac.write);
     const before = await tx.query.tasks.findFirst({ where: (t, { and: a, eq: e }) => a(e(t.tenantId, p.tenantId), e(t.id, taskId)) });
     if (!before) throw notFound("Task not found.");
-    await tx.update(tasks).set({ deletedAt: new Date() }).where(and(eq(tasks.tenantId, p.tenantId), eq(tasks.id, taskId)));
+    const deletedAt = new Date();
+    if (!before.deletedAt) {
+      await tx.update(tasks).set({ deletedAt }).where(and(eq(tasks.tenantId, p.tenantId), eq(tasks.id, taskId)));
+      await tx.insert(activityEvents).values({
+        tenantId: p.tenantId, id: uuidv7(), actorId: p.userId || null,
+        entityType: "task", entityId: taskId, action: "deleted",
+        meta: { title: before.title, status: before.status, projectId: before.projectId, deletedAt: deletedAt.toISOString() },
+      });
+    }
     await audit(tx, { tenantId: p.tenantId, actorId: p.userId, action: "task.deleted", entityType: "task", entityId: taskId, before: { title: before.title } });
     await invalidatePrefix(cacheKey("boards", N.tenant, p.tenantId, before.projectId));
-    return c.json({ ok: true, deletedAt: new Date().toISOString() });
+    if (!before.deletedAt) {
+      void emitEvent({
+        tenantId: p.tenantId, actorId: p.userId || undefined, type: "task.deleted",
+        entityType: "task", entityId: taskId,
+        meta: { title: before.title, taskTitle: before.title, taskId, projectId: before.projectId, status: before.status, deletedAt: deletedAt.toISOString() },
+      });
+    }
+    return c.json({ ok: true, deletedAt: (before.deletedAt ?? deletedAt).toISOString() });
   });
 });

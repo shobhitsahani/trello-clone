@@ -16,6 +16,7 @@ import { api, getCurrentTenantId, type ChatMessage, type PaginatedResponse } fro
 import { useSWR } from "../lib/swr";
 import { useRealtime } from "../lib/realtime";
 import { cx, formatChatTime, hueFrom, initials } from "../lib/utils";
+import { AnimatePresence, motion } from "@/components/motion";
 import {
   IconBell,
   IconBoard,
@@ -115,31 +116,46 @@ export function Rail() {
         <Link href="/app/work" className="st-logo" title="Signal Board home">
           <IconFlowMark size={16} />
         </Link>
-        <button
+        <motion.button
           className={cx("st-rail-btn", pathname.startsWith("/app/board") && "is-on")}
           onClick={() => go("/app/board")}
           aria-label="Board"
           title="Board"
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.92 }}
         >
           <IconBoard size={20} />
-        </button>
-        <button
+        </motion.button>
+        <motion.button
           className="st-rail-btn"
           onClick={() => go("/app/activity")}
           aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
           title="Inbox"
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.92 }}
         >
           <IconBell size={20} />
-          {unread > 0 ? <span className="st-rail-badge">{Math.min(99, unread)}</span> : null}
-        </button>
-        <button
+          {unread > 0 ? (
+            <motion.span
+              className="st-rail-badge"
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              key={unread}
+            >
+              {Math.min(99, unread)}
+            </motion.span>
+          ) : null}
+        </motion.button>
+        <motion.button
           className="st-rail-btn"
           onClick={() => go("/app/search")}
           aria-label="Search"
           title="Search (⌘K)"
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.92 }}
         >
           <IconSearch size={20} />
-        </button>
+        </motion.button>
       </div>
       <div className="st-rail-bottom">
         <button
@@ -640,7 +656,13 @@ export function ScopeStrip({
   const project = projectsQ.data?.projects[0] ?? null;
 
   return (
-    <header className="st-topbar" aria-label="Top navigation">
+    <motion.header
+      className="st-topbar"
+      aria-label="Top navigation"
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+    >
       <div className="st-title">
         <h1>{project?.name ?? org?.name ?? "Board"}</h1>
         {project ? (
@@ -669,15 +691,27 @@ export function ScopeStrip({
         <Link href="/app/board" className="btn btn-primary btn-sm">
           <IconPlus size={14} /> New task
         </Link>
-        <button className="topbar-bell" onClick={onOpenNotifs} aria-label="Notifications">
+        <motion.button
+          className="topbar-bell"
+          onClick={onOpenNotifs}
+          aria-label="Notifications"
+          whileTap={{ scale: 0.9 }}
+        >
           <IconBell size={16} />
-          {unread > 0 ? <span className="bell-badge" /> : null}
-        </button>
+          {unread > 0 ? (
+            <motion.span
+              className="bell-badge"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              key={unread}
+            />
+          ) : null}
+        </motion.button>
         <span className="topbar-me">
           <UserAvatar name={user?.name ?? "You"} tint={hueFrom(user?.id ?? "you")} size="sm" />
         </span>
       </div>
-    </header>
+    </motion.header>
   );
 }
 
@@ -865,16 +899,32 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
 
   if (!open) {
     return (
-      <button className="st-chat-expand" onClick={onToggle} title="Expand chat" aria-label="Expand chat">
+      <motion.button
+        className="st-chat-expand"
+        onClick={onToggle}
+        title="Expand chat"
+        aria-label="Expand chat"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -2 }}
+        whileTap={{ scale: 0.97 }}
+      >
         <IconMessageSquare size={16} />
         <span>Chat</span>
         <span className="pulse-dot" style={{ width: 6, height: 6 }} />
-      </button>
+      </motion.button>
     );
   }
 
   return (
-    <aside className="st-chat" aria-label="Team chat" style={{ width }}>
+    <motion.aside
+      className="st-chat"
+      aria-label="Team chat"
+      style={{ width }}
+      initial={{ opacity: 0, x: 24 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+    >
       <div
         className={cx("st-chat-resize", dragging && "is-dragging")}
         role="separator"
@@ -947,7 +997,7 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
       <div className="st-chat-foot">
         <ChatInput onSend={handleSend} members={membersQ.data?.members ?? []} />
       </div>
-    </aside>
+    </motion.aside>
   );
 }
 
@@ -971,7 +1021,13 @@ function ChatBubble({
   children: React.ReactNode;
 }) {
   return (
-    <div className="st-msg">
+    <motion.div
+      className="st-msg"
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+    >
       <UserAvatar name={who} tint={tint} size="sm" />
       <div className="st-msg-body">
         <div className="st-msg-head">
@@ -994,7 +1050,7 @@ function ChatBubble({
           <p>{typeof children === "string" ? renderMentions(children) : children}</p>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

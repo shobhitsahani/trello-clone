@@ -4,10 +4,20 @@ import { Suspense, memo, useCallback, useDeferredValue, useEffect, useMemo, useR
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { useToast } from "@/components/overlay";
 import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash, IconX, IconDoneAll } from "@/components/icons";
 import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
-import { Button } from "@heroui/react";
+import { Modal, useToast } from "@/components/overlay";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { useUpdateTask } from "@/lib/mutations";
@@ -140,7 +150,7 @@ const TaskCard = memo(function TaskCard({
                 key={o.days}
                 size="sm"
                 variant="secondary"
-                onPress={() => saveDueInDays(o.days)}
+                onClick={() => saveDueInDays(o.days)}
                 aria-label={`Deadline in ${o.days} day${o.days === 1 ? "" : "s"}`}
                 className="board-due-chip"
               >
@@ -148,7 +158,7 @@ const TaskCard = memo(function TaskCard({
               </Button>
             ))}
             <span className="due-custom-heroui due-custom-heroui--compact">
-              <input
+              <Input
                 type="number"
                 min={1}
                 max={365}
@@ -163,13 +173,12 @@ const TaskCard = memo(function TaskCard({
               <span className="due-custom-suffix">days</span>
               <Button
                 size="sm"
-                variant="primary"
-                onPress={() => {
+                variant="default"
+                onClick={() => {
                   const n = Math.floor(Number(customDueDays));
                   if (Number.isFinite(n) && n >= 1 && n <= 365) saveDueInDays(n);
                 }}
                 aria-label="Save custom deadline"
-                isIconOnly
                 className="board-due-apply"
               >
                 <IconClock size={14} />
@@ -178,12 +187,11 @@ const TaskCard = memo(function TaskCard({
             <Button
               size="sm"
               variant="ghost"
-              onPress={() => {
+              onClick={() => {
                 onSetDue(task.id, null);
                 setEditingDue(false);
               }}
               aria-label="Clear deadline"
-              isIconOnly
               className="board-due-clear"
             >
               <IconX size={14} />
@@ -226,9 +234,10 @@ const TaskCard = memo(function TaskCard({
       {canWrite ? (
         <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
           {task.status !== "done" ? (
-            <button
+            <Button
               type="button"
-              className="btn btn-ghost btn-xs st-btn-done"
+              variant="ghost"
+              size="xs"
               aria-label={`Mark ${task.title} as done`}
               title="Mark as done"
               onPointerDown={(e) => e.stopPropagation()}
@@ -238,11 +247,12 @@ const TaskCard = memo(function TaskCard({
               }}
             >
               <IconDoneAll size={12} /> Done
-            </button>
+            </Button>
           ) : null}
-          <button
+          <Button
             type="button"
-            className="btn btn-ghost btn-xs"
+            variant="ghost"
+            size="xs"
             aria-label={`Edit ${task.title}`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
@@ -251,10 +261,11 @@ const TaskCard = memo(function TaskCard({
             }}
           >
             <IconEdit size={12} /> Edit
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn-ghost btn-xs"
+            variant="ghost"
+            size="xs"
             aria-label={`Delete ${task.title}`}
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
@@ -263,7 +274,7 @@ const TaskCard = memo(function TaskCard({
             }}
           >
             <IconTrash size={12} /> Delete
-          </button>
+          </Button>
         </div>
       ) : null}
     </article>
@@ -638,59 +649,56 @@ function BoardPage() {
           <div className="empty-state">
             <h3>No projects yet</h3>
             <p>Create your first project to start adding tasks.</p>
-            <button className="btn btn-primary" onClick={() => setShowNewProject(true)}>
+            <Button onClick={() => setShowNewProject(true)}>
               <IconPlus size={14} /> New project
-            </button>
+            </Button>
           </div>
         </div>
 
-        {showNewProject ? (
-          <div className="modal-backdrop" onClick={() => setShowNewProject(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Create project">
-              <div className="modal-head">
-                <div>
-                  <div className="modal-title">New project</div>
-                  <div className="modal-sub">Tasks live inside a project — pick a short key for its cards.</div>
-                </div>
-              </div>
-              <div className="modal-body">
-                <div className="form-field">
-                  <label htmlFor="project-name">Name</label>
-                  <input
-                    id="project-name"
-                    type="text"
-                    value={newProjectName}
-                    onChange={(e) => setNewProjectName(e.target.value)}
-                    placeholder="Launch"
-                    autoFocus
-                  />
-                </div>
-                <div className="form-field">
-                  <label htmlFor="project-key">Key (short code)</label>
-                  <input
-                    id="project-key"
-                    type="text"
-                    value={newProjectKey}
-                    onChange={(e) => setNewProjectKey(e.target.value)}
-                    placeholder="LAU"
-                    maxLength={10}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleCreateProject();
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="modal-foot">
-                <button className="btn btn-ghost" onClick={() => setShowNewProject(false)}>
-                  Cancel
-                </button>
-                <button className="btn btn-primary" onClick={() => void handleCreateProject()} disabled={!newProjectName.trim() || !newProjectKey.trim()}>
-                  <IconPlus size={14} /> Create project
-                </button>
-              </div>
+        <Modal
+          open={showNewProject}
+          onClose={() => setShowNewProject(false)}
+          title="New project"
+          sub="Tasks live inside a project — pick a short key for its cards."
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowNewProject(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => void handleCreateProject()} disabled={!newProjectName.trim() || !newProjectKey.trim()}>
+                <IconPlus size={14} /> Create project
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="project-name">Name</Label>
+              <Input
+                id="project-name"
+                type="text"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                placeholder="Launch"
+                autoFocus
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="project-key">Key (short code)</Label>
+              <Input
+                id="project-key"
+                type="text"
+                value={newProjectKey}
+                onChange={(e) => setNewProjectKey(e.target.value)}
+                placeholder="LAU"
+                maxLength={10}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleCreateProject();
+                }}
+              />
             </div>
           </div>
-        ) : null}
+        </Modal>
       </AppShell>
     );
   }
@@ -701,23 +709,33 @@ function BoardPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
           <div className="st-search" style={{ marginLeft: 0, width: 280 }}>
             <IconSearch size={16} />
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Filter tasks…" aria-label="Filter tasks" />
+            <Input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filter tasks…"
+              aria-label="Filter tasks"
+              className="border-0 bg-transparent shadow-none focus-visible:ring-0"
+            />
           </div>
-          <select
+          <Select
             value={selectedProjectId}
-            onChange={(e) => {
-              router.push(`/app/board?project=${e.target.value}`);
+            onValueChange={(v) => {
+              router.push(`/app/board?project=${v}`);
             }}
-            className="select"
-            aria-label="Select project"
           >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.key})
-              </option>
-            ))}
-            {projects.length === 0 ? <option value="">No projects yet</option> : null}
-          </select>
+            <SelectTrigger aria-label="Select project" className="w-52">
+              <SelectValue placeholder="Select project" />
+            </SelectTrigger>
+            <SelectContent>
+              {projects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name} ({p.key})
+                </SelectItem>
+              ))}
+              {projects.length === 0 ? <SelectItem value="">No projects yet</SelectItem> : null}
+            </SelectContent>
+          </Select>
           <span className="faint mono" style={{ fontSize: 11 }}>
             {projectTasks.length} tasks · drag cards between columns
           </span>
@@ -823,155 +841,158 @@ function BoardPage() {
             })()
           : null}
 
-        {showNewTask ? (
-          <div className="modal-backdrop" onClick={() => setShowNewTask(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Create task">
-              <div className="modal-head">
-                <div>
-                  <div className="modal-title">New task in {selectedProject?.name}</div>
-                  <div className="modal-sub">Added to {STATUS_LABELS[newTaskStatus]} — drag it anywhere.</div>
-                </div>
-              </div>
-              <div className="modal-body">
-                <div className="form-field">
-                  <label htmlFor="task-title">Title</label>
-                  <input
-                    id="task-title"
-                    type="text"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    placeholder="What needs doing?"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleCreateTask();
-                    }}
-                  />
-                </div>
-                <div className="form-field">
-                  <label htmlFor="task-status">Status</label>
-                  <select
-                    id="task-status"
-                    value={newTaskStatus}
-                    onChange={(e) => setNewTaskStatus(e.target.value as Task["status"])}
-                    className="select"
-                  >
+        <Modal
+          open={showNewTask}
+          onClose={() => setShowNewTask(false)}
+          title={`New task in ${selectedProject?.name ?? "project"}`}
+          sub={`Added to ${STATUS_LABELS[newTaskStatus]} — drag it anywhere.`}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowNewTask(false)}>
+                Cancel
+              </Button>
+              <Button onClick={() => void handleCreateTask()} disabled={!newTitle.trim()}>
+                <IconPlus size={14} /> Create task
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="task-title">Title</Label>
+              <Input
+                id="task-title"
+                type="text"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="What needs doing?"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleCreateTask();
+                }}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="task-status">Status</Label>
+              <Select
+                value={newTaskStatus}
+                onValueChange={(v) => setNewTaskStatus(v as Task["status"])}
+              >
+                <SelectTrigger id="task-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUS_ORDER.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {STATUS_LABELS[s]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </Modal>
+
+        <Modal
+          open={editingTask !== null}
+          onClose={() => setEditingTask(null)}
+          title="Edit task"
+          sub="Update the title, details, status, or priority."
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setEditingTask(null)} disabled={savingEdit}>
+                Cancel
+              </Button>
+              <Button onClick={() => void handleSaveEdit()} disabled={!editTitle.trim() || savingEdit}>
+                {savingEdit ? "Saving…" : "Save changes"}
+              </Button>
+            </>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="edit-task-title">Title</Label>
+              <Input
+                id="edit-task-title"
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Task title"
+                autoFocus
+                maxLength={200}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-task-desc">Description</Label>
+              <Textarea
+                id="edit-task-desc"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Add more detail…"
+                rows={4}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 12 }}>
+              <div className="grid flex-1 gap-2">
+                <Label htmlFor="edit-task-status">Status</Label>
+                <Select
+                  value={editStatus}
+                  onValueChange={(v) => setEditStatus(v as Task["status"])}
+                >
+                  <SelectTrigger id="edit-task-status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
                     {STATUS_ORDER.map((s) => (
-                      <option key={s} value={s}>
+                      <SelectItem key={s} value={s}>
                         {STATUS_LABELS[s]}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="modal-foot">
-                <button className="btn btn-ghost" onClick={() => setShowNewTask(false)}>
-                  Cancel
-                </button>
-                <button className="btn btn-primary" onClick={() => void handleCreateTask()} disabled={!newTitle.trim()}>
-                  <IconPlus size={14} /> Create task
-                </button>
+              <div className="grid flex-1 gap-2">
+                <Label htmlFor="edit-task-priority">Priority</Label>
+                <Select
+                  value={editPriority}
+                  onValueChange={(v) => setEditPriority(v as Task["priority"])}
+                >
+                  <SelectTrigger id="edit-task-priority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="critical">Critical</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
-        ) : null}
+        </Modal>
 
-        {editingTask ? (
-          <div className="modal-backdrop" onClick={() => setEditingTask(null)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Edit task">
-              <div className="modal-head">
-                <div>
-                  <div className="modal-title">Edit task</div>
-                  <div className="modal-sub">Update the title, details, status, or priority.</div>
-                </div>
-              </div>
-              <div className="modal-body">
-                <div className="form-field">
-                  <label htmlFor="edit-task-title">Title</label>
-                  <input
-                    id="edit-task-title"
-                    type="text"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    placeholder="Task title"
-                    autoFocus
-                    maxLength={200}
-                  />
-                </div>
-                <div className="form-field">
-                  <label htmlFor="edit-task-desc">Description</label>
-                  <textarea
-                    id="edit-task-desc"
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    placeholder="Add more detail…"
-                    rows={4}
-                  />
-                </div>
-                <div style={{ display: "flex", gap: 12 }}>
-                  <div className="form-field" style={{ flex: 1 }}>
-                    <label htmlFor="edit-task-status">Status</label>
-                    <select
-                      id="edit-task-status"
-                      value={editStatus}
-                      onChange={(e) => setEditStatus(e.target.value as Task["status"])}
-                      className="select"
-                    >
-                      {STATUS_ORDER.map((s) => (
-                        <option key={s} value={s}>
-                          {STATUS_LABELS[s]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="form-field" style={{ flex: 1 }}>
-                    <label htmlFor="edit-task-priority">Priority</label>
-                    <select
-                      id="edit-task-priority"
-                      value={editPriority}
-                      onChange={(e) => setEditPriority(e.target.value as Task["priority"])}
-                      className="select"
-                    >
-                      <option value="critical">Critical</option>
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
-                      <option value="none">None</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className="modal-foot">
-                <button className="btn btn-ghost" onClick={() => setEditingTask(null)} disabled={savingEdit}>
-                  Cancel
-                </button>
-                <button className="btn btn-primary" onClick={() => void handleSaveEdit()} disabled={!editTitle.trim() || savingEdit}>
-                  {savingEdit ? "Saving…" : "Save changes"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {deletingTask ? (
-          <div className="modal-backdrop" onClick={() => setDeletingTask(null)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Delete task">
-              <div className="modal-head">
-                <div>
-                  <div className="modal-title">Delete task?</div>
-                  <div className="modal-sub">“{deletingTask.title}” will be moved to trash. This can be undone by an admin.</div>
-                </div>
-              </div>
-              <div className="modal-foot">
-                <button className="btn btn-ghost" onClick={() => setDeletingTask(null)} disabled={deleting}>
-                  Cancel
-                </button>
-                <button className="btn btn-danger" onClick={() => void handleConfirmDelete()} disabled={deleting}>
-                  <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete task"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <Modal
+          open={deletingTask !== null}
+          onClose={() => setDeletingTask(null)}
+          title="Delete task?"
+          sub={`“${deletingTask?.title ?? ""}” will be moved to trash. This can be undone by an admin.`}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setDeletingTask(null)} disabled={deleting}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={() => void handleConfirmDelete()} disabled={deleting}>
+                <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete task"}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-muted-foreground">
+            This moves the task to trash. Admins can restore it.
+          </p>
+        </Modal>
       </div>
     </AppShell>
   );

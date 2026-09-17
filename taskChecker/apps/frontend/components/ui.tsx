@@ -1,4 +1,4 @@
-/* Shared UI primitives — no hooks, safe in server & client components. */
+/* Shared UI primitives — shadcn-backed, legacy class API preserved. */
 
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
@@ -11,15 +11,48 @@ import {
   type Priority,
   type TaskStatus,
 } from "../lib/utils";
+import { Button as ShadcnButton, buttonVariants } from "./ui/button";
+import { Badge } from "./ui/badge";
+import {
+  Avatar as ShadcnAvatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+} from "./ui/avatar";
+import { Separator } from "./ui/separator";
+import { Empty, EmptyTitle, EmptyDescription } from "./ui/empty";
 
-/* ---------- button ---------- */
+/* ---------- button (shadcn-backed, legacy API preserved) ---------- */
 
 type ButtonVariant =
   | "primary"
   | "default"
+  | "secondary"
   | "ghost"
   | "danger"
+  | "destructive"
+  | "outline"
+  | "link"
   | "ink";
+
+const LEGACY_VARIANT_MAP: Record<ButtonVariant, "default" | "secondary" | "ghost" | "destructive" | "outline" | "link"> = {
+  primary: "default",
+  default: "secondary",
+  secondary: "secondary",
+  ghost: "ghost",
+  danger: "destructive",
+  destructive: "destructive",
+  outline: "outline",
+  link: "link",
+  ink: "secondary",
+};
+
+const LEGACY_SIZE_MAP = {
+  xs: "xs",
+  sm: "sm",
+  lg: "lg",
+  icon: "icon",
+} as const;
 
 export function Button({
   children,
@@ -36,24 +69,15 @@ export function Button({
   icon?: ReactNode;
 } & Omit<ComponentProps<"button">, "className">) {
   return (
-    <button
-      className={cx(
-        "btn",
-        variant === "primary" && "btn-primary",
-        variant === "ghost" && "btn-ghost",
-        variant === "danger" && "btn-danger",
-        variant === "ink" && "btn-ink",
-        size === "sm" && "btn-sm",
-        size === "xs" && "btn-xs",
-        size === "lg" && "btn-lg",
-        size === "icon" && "btn-icon",
-        className
-      )}
+    <ShadcnButton
+      variant={LEGACY_VARIANT_MAP[variant]}
+      size={size ? LEGACY_SIZE_MAP[size] : "default"}
+      className={className}
       {...rest}
     >
       {icon}
       {children}
-    </button>
+    </ShadcnButton>
   );
 }
 
@@ -76,14 +100,10 @@ export function ButtonLink({
     <Link
       href={href}
       className={cx(
-        "btn",
-        variant === "primary" && "btn-primary",
-        variant === "ghost" && "btn-ghost",
-        variant === "danger" && "btn-danger",
-        variant === "ink" && "btn-ink",
-        size === "sm" && "btn-sm",
-        size === "xs" && "btn-xs",
-        size === "lg" && "btn-lg",
+        buttonVariants({
+          variant: LEGACY_VARIANT_MAP[variant],
+          size: size ? LEGACY_SIZE_MAP[size] : "default",
+        }),
         className
       )}
     >
@@ -93,7 +113,14 @@ export function ButtonLink({
   );
 }
 
-/* ---------- badges ---------- */
+/* ---------- badges (shadcn Badge, project status colors preserved) ---------- */
+
+const STATUS_VARIANT: Record<TaskStatus, "secondary" | "default" | "outline"> = {
+  backlog: "secondary",
+  todo: "outline",
+  in_progress: "default",
+  done: "secondary",
+};
 
 export function StatusBadge({
   status,
@@ -104,44 +131,52 @@ export function StatusBadge({
 }) {
   const meta = STATUS_META[status];
   return (
-    <span
-      className={cx("badge", "status-badge", size === "sm" && "btn-xs")}
-      style={{ ["--pc" as string]: meta.color }}
-    >
-      <span className="badge-dot" />
+    <Badge variant={STATUS_VARIANT[status]}>
+      <span
+        aria-hidden
+        style={{ width: 6, height: 6, borderRadius: 9999, background: meta.color }}
+      />
       {meta.label}
-    </span>
+    </Badge>
   );
 }
+
+const PRIORITY_VARIANT: Record<Priority, "destructive" | "default" | "secondary" | "outline" | "ghost"> = {
+  critical: "destructive",
+  high: "default",
+  medium: "secondary",
+  low: "outline",
+  none: "ghost",
+};
 
 export function PriorityBadge({ priority }: { priority: Priority }) {
   const meta = PRIORITY_META[priority];
   return (
-    <span
-      className="badge prio-badge"
-      style={{ ["--pc" as string]: meta.color }}
-      title={`Priority: ${meta.label}`}
-    >
-      <span className="prio-dot" style={{ background: meta.color }} />
+    <Badge variant={PRIORITY_VARIANT[priority]} title={`Priority: ${meta.label}`}>
+      <span
+        aria-hidden
+        style={{ width: 6, height: 6, borderRadius: 9999, background: "currentColor" }}
+      />
       {meta.label}
-    </span>
+    </Badge>
   );
 }
 
 export function RoleBadge({ role }: { role: string }) {
   const meta = ROLE_META[role as keyof typeof ROLE_META] ?? ROLE_META.member;
+  const elevated = role === "owner" || role === "admin";
   return (
-    <span className="badge role-badge" style={{ color: meta.color }}>
+    <Badge variant={elevated ? "default" : "secondary"}>
       {meta.label}
-    </span>
+    </Badge>
   );
 }
 
 export function Tag({ children }: { children: ReactNode }) {
-  return <span className="tcard-tag">{children}</span>;
+  return <Badge variant="secondary">{children}</Badge>;
 }
 
-/* ---------- avatars ---------- */
+/* ---------- avatars (shadcn Avatar, hue fallback preserved) ---------- */
 
 export function Avatar({
   name,
@@ -157,21 +192,25 @@ export function Avatar({
   title?: string;
 }) {
   return (
-    <span
+    <ShadcnAvatar
       title={title ?? name}
-      className={cx("avatar", `avatar-${size}`, accent && "avatar-accent")}
-      style={
-        accent
-          ? undefined
-          : {
-              background: `hsl(${tint} 45% 20%)`,
-              color: `hsl(${tint} 80% 78%)`,
-              borderColor: `hsl(${tint} 40% 30%)`,
-            }
-      }
+      size={size === "md" ? "default" : size}
+      className={cx(accent && "bg-primary text-primary-foreground")}
     >
-      {initials(name)}
-    </span>
+      <AvatarFallback
+        style={
+          accent
+            ? undefined
+            : {
+                background: `hsl(${tint} 45% 20%)`,
+                color: `hsl(${tint} 80% 78%)`,
+                borderColor: `hsl(${tint} 40% 30%)`,
+              }
+        }
+      >
+        {initials(name)}
+      </AvatarFallback>
+    </ShadcnAvatar>
   );
 }
 
@@ -187,19 +226,23 @@ export function AvatarStack({
   const shown = names.slice(0, max);
   const extra = names.length - shown.length;
   return (
-    <span className="avatar-stack">
+    <AvatarGroup>
       {shown.map((n, i) => (
         <Avatar key={n + i} name={n} tint={tints?.[i] ?? 220} size="sm" />
       ))}
-      {extra > 0 ? <Avatar name={`+${extra}`} size="sm" accent /> : null}
-    </span>
+      {extra > 0 ? <AvatarGroupCount>+{extra}</AvatarGroupCount> : null}
+    </AvatarGroup>
   );
 }
 
 /* ---------- structural bits ---------- */
 
 export function Kbd({ children }: { children: ReactNode }) {
-  return <span className="kbd">{children}</span>;
+  return (
+    <kbd className="pointer-events-none inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground select-none">
+      {children}
+    </kbd>
+  );
 }
 
 export function Meter({
@@ -210,12 +253,17 @@ export function Meter({
   tone?: "accent" | "ok" | "warn" | "err";
 }) {
   const clamped = Math.min(100, Math.max(0, pct));
+  const bar =
+    tone === "ok"
+      ? "bg-emerald-500"
+      : tone === "warn"
+        ? "bg-amber-500"
+        : tone === "err"
+          ? "bg-destructive"
+          : "bg-primary";
   return (
-    <div className="meter">
-      <div
-        className={cx("meter-fill", tone !== "accent" && tone)}
-        style={{ width: `${clamped}%` }}
-      />
+    <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+      <div className={cx("h-full rounded-full transition-all", bar)} style={{ width: `${clamped}%` }} />
     </div>
   );
 }
@@ -232,12 +280,12 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="empty">
-      <div className="empty-ico">{icon}</div>
-      <div className="empty-title">{title}</div>
-      <p className="empty-msg">{msg}</p>
+    <Empty>
+      <span className="text-muted-foreground/50">{icon}</span>
+      <EmptyTitle>{title}</EmptyTitle>
+      <EmptyDescription>{msg}</EmptyDescription>
       {action}
-    </div>
+    </Empty>
   );
 }
 
@@ -253,13 +301,17 @@ export function PageHead({
   eyebrow?: string;
 }) {
   return (
-    <header className="page-head">
-      <div>
-        {eyebrow ? <div className="eyebrow" style={{ marginBottom: 6 }}>{eyebrow}</div> : null}
-        <h1 className="page-title">{title}</h1>
-        {desc ? <p className="page-desc">{desc}</p> : null}
+    <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0">
+        {eyebrow ? <p className="mb-1 text-[11px] font-semibold tracking-widest text-muted-foreground uppercase">{eyebrow}</p> : null}
+        <h1 className="text-xl font-semibold tracking-tight text-foreground" style={{ fontFamily: "var(--stack-display)" }}>{title}</h1>
+        {desc ? <p className="mt-1 text-sm text-muted-foreground">{desc}</p> : null}
       </div>
-      {actions ? <div className="row">{actions}</div> : null}
+      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
     </header>
   );
+}
+
+export function Divider({ className }: { className?: string }) {
+  return <Separator className={className} />;
 }

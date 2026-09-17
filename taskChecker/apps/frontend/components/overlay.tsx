@@ -1,24 +1,45 @@
 "use client";
 
-/* Client overlays: toasts, modal, dropdown menu, switch. */
+/* Client overlays: toasts + shadcn-backed compat for legacy Modal/Dropdown/Switch. */
 
 import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
-  useRef,
-  useState,
   type ReactNode,
 } from "react";
-import { IconAlert, IconCheck, IconX } from "./icons";
-import { cx } from "../lib/utils";
+import { Menu as MenuPrimitive } from "@base-ui/react/menu";
+import { useMenuRootContext } from "@base-ui/react/menu/root/MenuRootContext";
+import { cn } from "../lib/utils";
+import { toast as baseToast } from "@/components/ui/toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CheckIcon } from "lucide-react";
+import { Switch as ShadcnSwitch } from "@/components/ui/switch";
 
-/* ---------- toasts ---------- */
+/* ---------- toasts (compat) ---------- */
+// Legacy `useToast` API kept for existing call sites — forwards to the
+// new Base UI toast manager (`@/components/ui/toast`) so all toasts render
+// through the single `Toaster` in `app/layout.tsx` (base-nova style).
+// New code should `import { toast } from "@/components/ui/toast"` and call
+// `toast.add({ title, description, type, actionProps })` directly.
 
 type ToastKind = "ok" | "err";
-type ToastItem = { id: number; title: string; msg?: string; kind: ToastKind };
-
 const ToastCtx = createContext<(t: { title: string; msg?: string; kind?: ToastKind }) => void>(
   () => undefined
 );
@@ -27,43 +48,22 @@ export function useToast() {
   return useContext(ToastCtx);
 }
 
-let toastSeq = 0;
-
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-
   const push = useCallback(
     ({ title, msg, kind = "ok" }: { title: string; msg?: string; kind?: ToastKind }) => {
-      const id = ++toastSeq;
-      setToasts((prev) => [...prev.slice(-3), { id, title, msg, kind }]);
-      window.setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, 4200);
+      baseToast.add({
+        title,
+        description: msg,
+        type: kind === "err" ? "error" : kind === "ok" ? "success" : "info",
+      });
     },
     []
   );
 
-  return (
-    <ToastCtx.Provider value={push}>
-      {children}
-      <div className="toast-wrap" role="status" aria-live="polite">
-        {toasts.map((t) => (
-          <div key={t.id} className={cx("toast", t.kind === "ok" ? "toast-ok" : "toast-err")}>
-            <span className="toast-ico">
-              {t.kind === "ok" ? <IconCheck size={12} /> : <IconAlert size={12} />}
-            </span>
-            <div>
-              <div className="toast-title">{t.title}</div>
-              {t.msg ? <div className="toast-msg">{t.msg}</div> : null}
-            </div>
-          </div>
-        ))}
-      </div>
-    </ToastCtx.Provider>
-  );
+  return <ToastCtx.Provider value={push}>{children}</ToastCtx.Provider>;
 }
 
-/* ---------- modal ---------- */
+/* ---------- modal (shadcn Dialog, legacy open/onClose/title API) ---------- */
 
 export function Modal({
   open,
@@ -80,42 +80,26 @@ export function Modal({
   footer?: ReactNode;
   children: ReactNode;
 }) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
   return (
-    <div
-      className="modal-backdrop"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
       }}
-      role="presentation"
     >
-      <div className="modal" role="dialog" aria-modal aria-label={title}>
-        <div className="modal-head">
-          <div>
-            <div className="modal-title">{title}</div>
-            {sub ? <div className="modal-sub">{sub}</div> : null}
-          </div>
-          <button className="btn btn-ghost btn-sm btn-icon" onClick={onClose} aria-label="Close">
-            <IconX size={14} />
-          </button>
-        </div>
-        <div className="modal-body">{children}</div>
-        {footer ? <div className="modal-foot">{footer}</div> : null}
-      </div>
-    </div>
+      <DialogContent aria-label={title}>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          {sub ? <DialogDescription>{sub}</DialogDescription> : null}
+        </DialogHeader>
+        <div>{children}</div>
+        {footer ? <DialogFooter>{footer}</DialogFooter> : null}
+      </DialogContent>
+    </Dialog>
   );
 }
 
-/* ---------- dropdown menu ---------- */
+/* ---------- dropdown menu (shadcn Menu, legacy trigger/align API) ---------- */
 
 export function Dropdown({
   trigger,
@@ -129,45 +113,24 @@ export function Dropdown({
   width?: number;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   const close = useCallback(() => setOpen(false), []);
-
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
-      <div onClick={() => setOpen((v) => !v)} role="presentation">
-        {trigger(open)}
-      </div>
-      {open ? (
-        <div
-          className="menu"
-          role="menu"
-          style={{
-            top: "calc(100% + 6px)",
-            ...(align === "right" ? { right: 0 } : { left: 0 }),
-            ...(width ? { width } : undefined),
-          }}
-        >
-          {typeof children === "function" ? children(close) : children}
-        </div>
-      ) : null}
-    </div>
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger
+        render={(props, state) => (
+          <span {...props} style={{ display: "inline-flex" }}>
+            {trigger(state.open)}
+          </span>
+        )}
+      />
+      <DropdownMenuContent
+        align={align === "right" ? "end" : "start"}
+        sideOffset={6}
+        style={width ? { width } : undefined}
+      >
+        {typeof children === "function" ? children(close) : children}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -183,20 +146,29 @@ export function MenuItem({
   hint?: string;
 }) {
   return (
-    <button
-      className="menu-item"
-      role="menuitem"
+    <DropdownMenuItem
+      closeOnClick
       onClick={onSelect}
-      type="button"
+      className={cn(checked && "bg-accent/60")}
     >
-      {children}
-      {hint ? <span className="menu-hint">{hint}</span> : null}
-      {checked ? <span className="menu-check"><IconCheck size={13} /></span> : null}
-    </button>
+      <span className="flex min-w-0 flex-1 items-center gap-2">{children}</span>
+      {hint ? (
+        <span className="ml-auto text-xs text-muted-foreground">{hint}</span>
+      ) : null}
+      {checked ? <CheckIcon className="size-3.5 text-primary" /> : null}
+    </DropdownMenuItem>
   );
 }
 
-/* ---------- switch ---------- */
+export function MenuLabel({ children }: { children: ReactNode }) {
+  return <DropdownMenuLabel>{children}</DropdownMenuLabel>;
+}
+
+export function MenuSeparator() {
+  return <DropdownMenuSeparator />;
+}
+
+/* ---------- switch (shadcn Switch, legacy on/onChange API) ---------- */
 
 export function Switch({
   on,
@@ -208,13 +180,12 @@ export function Switch({
   label: string;
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
+    <ShadcnSwitch
+      checked={on}
+      onCheckedChange={onChange}
       aria-label={label}
-      className={cx("switch", on && "switch-on")}
-      onClick={() => onChange(!on)}
     />
   );
 }
+
+export { Button };

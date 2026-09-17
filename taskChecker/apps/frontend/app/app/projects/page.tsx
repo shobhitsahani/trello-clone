@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTenant } from "@/components/store";
 import { useToast } from "@/components/overlay";
 import { AppShell } from "@/components/app-shell";
-import { IconPlus, IconSearch, IconFolder, IconUsers, IconFile, IconTrash } from "@/components/icons";
+import { IconPlus, IconSearch, IconFolder, IconUsers, IconFile, IconTrash, IconEdit } from "@/components/icons";
 import { api, getCurrentTenantId, type Project, type Team, type Task } from "@/lib/api";
 import { useSWR } from "@/lib/swr";
 import { cx, hueFrom } from "@/lib/utils";
@@ -77,6 +77,9 @@ export default function ProjectsPage() {
   const [projMenu, setProjMenu] = useState<{ x: number; y: number; project: Project } | null>(null);
   const [deletingProj, setDeletingProj] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [renamingProj, setRenamingProj] = useState<Project | null>(null);
+  const [renameName, setRenameName] = useState("");
+  const [renaming, setRenaming] = useState(false);
 
   const orgId = getCurrentTenantId();
   const projectsQ = useSWR<{ projects: Project[] }>(
@@ -135,6 +138,32 @@ export default function ProjectsPage() {
       toast({ title: "Delete failed", msg: err instanceof Error ? err.message : "Try again." });
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const openRename = (project: Project) => {
+    setRenamingProj(project);
+    setRenameName(project.name);
+    setProjMenu(null);
+  };
+
+  const handleRename = async () => {
+    const name = renameName.trim();
+    if (!renamingProj || !name || renaming) return;
+    if (name === renamingProj.name) {
+      setRenamingProj(null);
+      return;
+    }
+    setRenaming(true);
+    try {
+      await api.projects.update(renamingProj.id, { name });
+      setRenamingProj(null);
+      await projectsQ.mutate();
+      toast({ title: "Project renamed", msg: `Renamed to ${name}.` });
+    } catch (err) {
+      toast({ title: "Rename failed", msg: err instanceof Error ? err.message : "Try again." });
+    } finally {
+      setRenaming(false);
     }
   };
 
@@ -276,6 +305,14 @@ export default function ProjectsPage() {
             <button
               className="menu-item"
               role="menuitem"
+              onClick={() => openRename(projMenu.project)}
+            >
+              <IconEdit size={14} />
+              Rename project
+            </button>
+            <button
+              className="menu-item"
+              role="menuitem"
               style={{ color: "#be123c", fontWeight: 600 }}
               onClick={() => {
                 setDeletingProj(projMenu.project);
@@ -285,6 +322,45 @@ export default function ProjectsPage() {
               <IconTrash size={14} />
               Delete project
             </button>
+          </div>
+        ) : null}
+
+        {renamingProj ? (
+          <div className="modal-backdrop" onClick={() => (renaming ? null : setRenamingProj(null))}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Rename project">
+              <div className="modal-header">
+                <h3>Rename project</h3>
+              </div>
+              <div className="modal-body">
+                <div className="form-field">
+                  <label htmlFor="proj-rename">Name</label>
+                  <input
+                    id="proj-rename"
+                    type="text"
+                    value={renameName}
+                    onChange={(e) => setRenameName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") void handleRename();
+                    }}
+                    placeholder="Project name"
+                    maxLength={100}
+                    autoFocus
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button className="btn btn-ghost" onClick={() => setRenamingProj(null)} disabled={renaming}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => void handleRename()}
+                  disabled={renaming || !renameName.trim() || renameName.trim() === renamingProj.name}
+                >
+                  <IconEdit size={14} /> {renaming ? "Renaming…" : "Rename project"}
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
 

@@ -14,11 +14,23 @@ import {
   IconX,
 } from "@/components/icons";
 import { api, getCurrentTenantId, type Comment, type Task } from "@/lib/api";
-import { Button } from "@heroui/react";
+import { Modal, useToast } from "@/components/overlay";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { cx, timeAgo, hueFrom, isOverdue, initials } from "@/lib/utils";
+import { AnimatePresence, motion, backdropFade, popIn, PageEnter } from "@/components/motion";
 
 const STATUSES = ["backlog", "todo", "in_progress", "done"] as const;
 const PRIORITIES = ["critical", "high", "medium", "low", "none"] as const;
@@ -54,7 +66,14 @@ function CommentItem({
 }) {
   const tint = hueFrom(comment.authorId);
   return (
-    <div className="comment-item">
+    <motion.div
+      className="comment-item"
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98 }}
+      transition={{ duration: 0.2 }}
+    >
       <div className="comment-avatar">
         <Avatar size="sm">
           <AvatarFallback
@@ -86,7 +105,7 @@ function CommentItem({
           </div>
         ) : null}
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -315,8 +334,13 @@ export default function TaskDetailPage() {
 
   return (
     <AppShell>
-      <div className="page task-detail-page">
-        <header className="task-header-bar">
+      <PageEnter className="page task-detail-page">
+        <motion.header
+          className="task-header-bar"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
           <Link href="/app/work" className="btn btn-ghost btn-icon" aria-label="Back">
             <IconArrowLeft size={18} />
           </Link>

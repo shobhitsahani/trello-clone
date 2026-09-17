@@ -16,7 +16,10 @@ import * as schema from "./schema.js";
 // pooler/service_role bypasses RLS, but tenant scoping is still enforced in
 // application queries (tenant_id filters).
 const dbUrl = config().databaseUrl;
-const isSupabase = dbUrl.includes("supabase.co") || !!config().supabaseUrl;
+// SSL only when DB host itself is Supabase. SUPABASE_URL alone must not
+// flip local DATABASE_URL to ssl=require — local PG has SSL off, so
+// `postgres` TLS handshake dies with ECONNRESET and every DB call fails.
+const isSupabase = dbUrl.includes("supabase.co");
 
 export const sql = postgres(dbUrl, {
   max: 20,

@@ -10,6 +10,7 @@ import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { cx, timeAgo, hueFrom, isOverdue } from "@/lib/utils";
+import { AnimatePresence, motion, PageEnter } from "@/components/motion";
 
 const STATUS_COLORS: Record<string, string> = {
   backlog: "var(--muted)",
@@ -34,7 +35,15 @@ const TaskCard = memo(function TaskCard({ item }: { item: TaskWithProject }) {
   const { task, project } = item;
   const hue = project ? hueFrom(project.key || project.id) : 0;
   return (
-    <Link href={`/app/tasks/${task.id}`} className="task-card">
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.97 }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -2 }}
+    >
+      <Link href={`/app/tasks/${task.id}`} className="task-card" style={{ display: "block" }}>
       <div className="task-header">
         <span className="task-key">{task.id.slice(0, 8)}</span>
         <span className="task-status" style={{ background: STATUS_COLORS[task.status] }}>
@@ -60,7 +69,8 @@ const TaskCard = memo(function TaskCard({ item }: { item: TaskWithProject }) {
           </span>
         ) : null}
       </div>
-    </Link>
+      </Link>
+    </motion.div>
   );
 });
 
@@ -123,18 +133,28 @@ export default function WorkPage() {
 
   return (
     <AppShell>
-      <div className="page">
-        <header className="page-header">
+      <PageEnter className="page">
+        <motion.header
+          className="page-header"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+        >
           <div>
             <h1 className="page-title">Your work</h1>
             <p className="page-subtitle">Tasks assigned to you or created by you in {org?.name ?? "your organization"}</p>
           </div>
           <div className="page-actions">
-            <button className="btn btn-primary" onClick={() => toast({ title: "Create task", msg: "Open a project board to add tasks." })}>
+            <motion.button
+              className="btn btn-primary"
+              onClick={() => toast({ title: "Create task", msg: "Open a project board to add tasks." })}
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.97 }}
+            >
               <IconPlus size={14} /> New task
-            </button>
+            </motion.button>
           </div>
-        </header>
+        </motion.header>
 
         <div className="work-toolbar">
           <div className="search-box">
@@ -165,16 +185,24 @@ export default function WorkPage() {
           {isLoading ? (
             <div className="loading">Loading…</div>
           ) : filteredTasks.length === 0 ? (
-            <div className="empty-state">
+            <motion.div
+              className="empty-state"
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
               <IconFile size={48} className="dim" />
               <h3>No tasks found</h3>
               <p>{search ? "Try a different search term" : "You're all caught up!"}</p>
-            </div>
+            </motion.div>
           ) : (
-            filteredTasks.map((item) => <TaskCard key={item.task.id} item={item} />)
+            <AnimatePresence initial={false} mode="popLayout">
+              {filteredTasks.map((item) => (
+                <TaskCard key={item.task.id} item={item} />
+              ))}
+            </AnimatePresence>
           )}
         </div>
-      </div>
+      </PageEnter>
     </AppShell>
   );
 }
