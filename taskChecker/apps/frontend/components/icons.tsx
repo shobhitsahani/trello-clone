@@ -534,3 +534,30 @@ export function IconFlowMark({ size = 16, className }: IconProps) {
     </svg>
   );
 }
+
+/** Trello board mark: rounded square with two white bars. */
+export function IconTrello({ size = 18, className }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={className}
+      aria-hidden
+    >
+      <rect x="2" y="2" width="20" height="20" rx="4" />
+      <rect x="6.2" y="6" width="4.4" height="9" rx="1" fill="#026AA7" />
+      <rect x="13.4" y="6" width="4.4" height="12" rx="1" fill="#026AA7" />
+    </svg>
+  );
+}
+
+/** Trello-style star (board favorite). */
+export function IconStar({ size = 16, className }: IconProps) {
+  return (
+    <Ico {...{ size, className }}>
+      <path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8L3.5 9.7l5.9-.9L12 3.5Z" />
+    </Ico>
+  );
+}

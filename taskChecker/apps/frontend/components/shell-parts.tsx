@@ -13,6 +13,7 @@ import { Kbd } from "./ui";
 import { Button, buttonVariants } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Textarea } from "./ui/textarea";
 import { Avatar as ShadcnAvatar, AvatarFallback } from "./ui/avatar";
 import { useAuth } from "../lib/auth";
 import { api, getCurrentTenantId, type ChatMessage, type PaginatedResponse } from "../lib/api";
@@ -33,6 +34,7 @@ import {
   IconSearch,
   IconSend,
   IconTrash,
+  IconTrello,
   IconUsers,
   IconZap,
 } from "./icons";
@@ -731,12 +733,18 @@ export function ScopeStrip({
 
   return (
     <motion.header
-      className="st-topbar"
+      className="st-topbar trello-topbar"
       aria-label="Top navigation"
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
     >
+      <Link href="/app/work" className="trello-brand" aria-label="Trello home">
+        <span className="trello-logo-tile">
+          <IconTrello size={18} />
+        </span>
+        <span className="trello-word">Trello</span>
+      </Link>
       <div className="st-title">
         <h1>{project?.name ?? org?.name ?? "Board"}</h1>
         {project ? (
@@ -762,8 +770,8 @@ export function ScopeStrip({
       </button>
 
       <div className="topbar-right">
-        <Link href="/app/board" className={buttonVariants({ variant: "default", size: "sm" })}>
-          <IconPlus size={14} /> New task
+        <Link href="/app/board" className={buttonVariants({ variant: "default", size: "sm" }) + " trello-create-btn"}>
+          <IconPlus size={14} /> Create
         </Link>
         <motion.button
           className="topbar-bell"
@@ -1139,7 +1147,7 @@ function ChatInput({
   const [sending, setSending] = useState(false);
   const [mention, setMention] = useState<{ at: number; query: string } | null>(null);
   const [mentionIndex, setMentionIndex] = useState(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const canSend = value.trim().length > 0 && !sending;
 
   const filtered = useMemo(() => {

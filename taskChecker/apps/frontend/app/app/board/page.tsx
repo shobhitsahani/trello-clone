@@ -4,10 +4,11 @@ import { Suspense, memo, useCallback, useDeferredValue, useEffect, useMemo, useR
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash, IconX, IconDoneAll } from "@/components/icons";
+import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash, IconX, IconDoneAll, IconStar } from "@/components/icons";
 import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { Modal, useToast } from "@/components/overlay";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +23,7 @@ import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { useUpdateTask } from "@/lib/mutations";
 import { cx, isOverdue } from "@/lib/utils";
+import { AnimatePresence, motion } from "@/components/motion";
 
 const STATUS_ORDER = ["backlog", "todo", "in_progress", "done"] as const;
 const STATUS_LABELS: Record<string, string> = {
@@ -30,19 +32,12 @@ const STATUS_LABELS: Record<string, string> = {
   in_progress: "In progress",
   done: "Done",
 };
-/* Stitch column dots — slate / blue / brand-purple / emerald */
-const STATUS_DOTS: Record<string, string> = {
-  backlog: "#94a3b8",
-  todo: "#2563eb",
-  in_progress: "#7c3aed",
-  done: "#10b981",
-};
-const PRIO_CLASS: Record<string, string> = {
-  critical: "st-prio st-prio-critical",
-  high: "st-prio st-prio-high",
-  medium: "st-prio st-prio-medium",
-  low: "st-prio st-prio-low",
-  none: "st-prio st-prio-none",
+/* Trello label bars — priority as a color bar, like Trello card labels */
+const PRIO_LABEL: Record<string, string> = {
+  critical: "#c9372c",
+  high: "#e56910",
+  medium: "#0c66e4",
+  low: "#22a06b",
 };
 
 /** Stitch task card — key pill + short id, title, priority pill + due.
@@ -103,6 +98,18 @@ const TaskCard = memo(function TaskCard({
     setEditingDue(false);
   };
   return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10, scale: 0.98 }}
+      animate={{
+        opacity: dragging ? 0.45 : 1,
+        y: 0,
+        scale: dragging ? 0.98 : 1,
+      }}
+      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
+      transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={draggable && !dragging ? { y: -2 } : undefined}
+    >
     <article
       className={cx("st-card", dragging && "dragging")}
       draggable={draggable}
@@ -119,14 +126,15 @@ const TaskCard = memo(function TaskCard({
       role="listitem"
       tabIndex={0}
     >
-      <div className="st-card-top">
-        <span className={PRIO_CLASS[task.priority] ?? PRIO_CLASS.none}>
-          {task.priority === "none" ? "NO PRIO" : task.priority.toUpperCase()}
-        </span>
-        <span className="st-card-key">
-          {project ? `${project.key}-${task.id.slice(0, 4).toUpperCase()}` : task.id.slice(0, 8)}
-        </span>
-      </div>
+      {task.priority !== "none" ? (
+        <div className="trello-labels">
+          <span
+            className="trello-label"
+            style={{ background: PRIO_LABEL[task.priority] ?? "#8590a2" }}
+            title={`Priority: ${task.priority}`}
+          />
+        </div>
+      ) : null}
       <h3 className="st-card-title">
         <Link
           href={`/app/tasks/${task.id}`}
@@ -138,7 +146,7 @@ const TaskCard = memo(function TaskCard({
           {task.title}
         </Link>
       </h3>
-      <div className="st-card-foot">
+      <div className="trello-badges">
         {editingDue ? (
           <span className="board-card-due-edit board-card-due-edit--heroui" onPointerDown={stop} onClick={stop} role="group" aria-label="Set deadline">
             {[
@@ -200,84 +208,97 @@ const TaskCard = memo(function TaskCard({
         ) : task.dueAt ? (
           <button
             type="button"
-            className="board-card-due"
-            style={overdue ? { color: "hsl(0 75% 45%)", fontWeight: 700 } : undefined}
+            className={cx(
+              "trello-due",
+              overdue && "is-overdue",
+              task.status === "done" && "is-done"
+            )}
             title={overdue ? "Overdue — moves back to Backlog automatically. Click to change." : `Due ${new Date(task.dueAt).toLocaleString()}${canWrite ? ". Click to change." : ""}`}
             onClick={canWrite ? openDueEditor : undefined}
             onPointerDown={stop}
             disabled={!canWrite}
           >
-            <IconClock size={11} />
-            {new Date(task.dueAt).toLocaleDateString()}
-            {overdue ? " · OVERDUE" : null}
+            {task.status === "done" ? <IconDoneAll size={12} /> : <IconClock size={12} />}
+            {new Date(task.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            {overdue ? " · Overdue" : null}
           </button>
         ) : canWrite ? (
           <button
             type="button"
-            className="board-card-due is-empty"
+            className="trello-due is-empty"
             title="Set a deadline — if it passes, the task moves back to Backlog"
             onClick={openDueEditor}
             onPointerDown={stop}
           >
-            <IconClock size={11} />
-            + Deadline
+            <IconClock size={12} />
           </button>
-        ) : (
-          <span className="board-card-project">{project?.key ?? "TASK"}</span>
-        )}
-        <span
-          className="st-card-dot"
-          style={{ background: STATUS_DOTS[task.status] }}
-          title={STATUS_LABELS[task.status]}
-        />
+        ) : null}
+        <span className="trello-key">
+          {project ? `${project.key}-${task.id.slice(0, 4).toUpperCase()}` : task.id.slice(0, 8)}
+        </span>
       </div>
       {canWrite ? (
-        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <div className="trello-card-actions">
           {task.status !== "done" ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              aria-label={`Mark ${task.title} as done`}
+            <span
+              className="st-card-done"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               title="Mark as done"
               onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                onDone(task);
               }}
             >
-              <IconDoneAll size={12} /> Done
-            </Button>
+              <Checkbox
+                checked={false}
+                onCheckedChange={(checked) => {
+                  if (checked === true) onDone(task);
+                }}
+                aria-label={`Mark ${task.title} as done`}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                aria-label={`Mark ${task.title} as done`}
+                onClick={() => onDone(task)}
+              >
+                <IconDoneAll size={12} /> Done
+              </Button>
+            </span>
           ) : null}
           <Button
             type="button"
             variant="ghost"
-            size="xs"
+            size="icon-xs"
             aria-label={`Edit ${task.title}`}
+            title="Edit"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onEdit(task);
             }}
           >
-            <IconEdit size={12} /> Edit
+            <IconEdit size={13} />
           </Button>
           <Button
             type="button"
             variant="ghost"
-            size="xs"
+            size="icon-xs"
             aria-label={`Delete ${task.title}`}
+            title="Delete"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onDelete(task);
             }}
           >
-            <IconTrash size={12} /> Delete
+            <IconTrash size={13} />
           </Button>
         </div>
       ) : null}
     </article>
+    </motion.div>
   );
 });
 
@@ -333,6 +354,27 @@ function BoardPage() {
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTaskStatus, setNewTaskStatus] = useState<Task["status"]>("backlog");
   const [newTitle, setNewTitle] = useState("");
+  const [composerFor, setComposerFor] = useState<Task["status"] | null>(null);
+  const [composerText, setComposerText] = useState("");
+  // Trello-style starred board — persisted per project.
+  const [starred, setStarred] = useState(false);
+  useEffect(() => {
+    try {
+      setStarred(window.localStorage.getItem(`tf.board.star.${selectedProjectId}`) === "1");
+    } catch {
+      setStarred(false);
+    }
+  }, [selectedProjectId]);
+  const toggleStarred = useCallback(() => {
+    setStarred((v) => {
+      try {
+        window.localStorage.setItem(`tf.board.star.${selectedProjectId}`, v ? "0" : "1");
+      } catch {
+        // storage unavailable — session-only star
+      }
+      return !v;
+    });
+  }, [selectedProjectId]);
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectKey, setNewProjectKey] = useState("");
@@ -568,6 +610,21 @@ function BoardPage() {
     setShowNewTask(true);
   }, []);
 
+  // Trello-style inline quick-add: Enter creates the card in place and the
+  // composer stays open for rapid entry (Esc closes, errors restore text).
+  const handleQuickAdd = useCallback(async () => {
+    const title = composerText.trim();
+    if (!title || !orgId || !selectedProjectId || !composerFor) return;
+    setComposerText("");
+    try {
+      await api.tasks.create({ projectId: selectedProjectId, title, status: composerFor });
+      await tasksQ.mutate();
+    } catch (err) {
+      setComposerText(title);
+      toast({ title: "Create failed", msg: err instanceof Error ? err.message : "Try again." });
+    }
+  }, [composerText, composerFor, orgId, selectedProjectId, tasksQ, toast]);
+
   const handleCreateTask = useCallback(async () => {
     if (!newTitle.trim() || !orgId || !selectedProjectId) return;
     try {
@@ -645,7 +702,12 @@ function BoardPage() {
   if (!projectsQ.isLoading && projects.length === 0) {
     return (
       <AppShell>
-        <div className="page">
+        <motion.div
+          className="page"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        >
           <div className="empty-state">
             <h3>No projects yet</h3>
             <p>Create your first project to start adding tasks.</p>
@@ -653,7 +715,7 @@ function BoardPage() {
               <IconPlus size={14} /> New project
             </Button>
           </div>
-        </div>
+        </motion.div>
 
         <Modal
           open={showNewProject}
@@ -706,7 +768,24 @@ function BoardPage() {
   return (
     <AppShell>
       <div className="st-board" role="region" aria-label="Kanban board">
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <motion.div
+          className="st-board-bar"
+          style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <h1 className="trello-board-title">{selectedProject?.name ?? "Board"}</h1>
+          <button
+            type="button"
+            className={cx("trello-star", starred && "is-on")}
+            onClick={toggleStarred}
+            aria-pressed={starred}
+            aria-label={starred ? "Unstar board" : "Star board"}
+            title={starred ? "Unstar board" : "Star board"}
+          >
+            <IconStar size={16} />
+          </button>
           <div className="st-search" style={{ marginLeft: 0, width: 280 }}>
             <IconSearch size={16} />
             <Input
@@ -744,11 +823,16 @@ function BoardPage() {
               View-only role — ask an admin to move tasks
             </span>
           ) : null}
-        </div>
+        </motion.div>
 
-        <div className="st-cols">
-          {filteredColumns.map((col) => (
-            <section
+        <motion.div
+          className="st-cols"
+          initial="hidden"
+          animate="show"
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } } }}
+        >
+          {filteredColumns.map((col, colIdx) => (
+            <motion.section
               key={col.status}
               data-status={col.status}
               className={cx("st-col", col.status === "in_progress" && "is-lit")}
@@ -756,9 +840,13 @@ function BoardPage() {
               onDragOver={(e) => handleDragOver(e, col.status)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => void handleDrop(e, col.status)}
+              variants={{
+                hidden: { opacity: 0, y: 14 },
+                show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1], delay: colIdx * 0.02 } },
+              }}
+              layout
             >
               <div className="st-col-head">
-                <span className="st-col-dot" style={{ background: STATUS_DOTS[col.status] }} />
                 <h2 className="bcol-name">{STATUS_LABELS[col.status]}</h2>
                 <span className="st-col-count">{col.tasks.length}</span>
                 <button
@@ -776,52 +864,97 @@ function BoardPage() {
                     Drop tasks here
                   </div>
                 ) : (
-                  col.tasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      project={selectedProject}
-                      draggable={canWrite}
-                      dragging={draggedTaskId === task.id || (touchDrag?.active === true && touchDrag.taskId === task.id)}
-                      touchActive={touchDrag?.active === true && touchDrag.taskId === task.id}
-                      canWrite={canWrite}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                      onTouchDragStart={handleTouchDragStart}
-                      onTouchDragMove={handleTouchDragMove}
-                      onTouchDragEnd={handleTouchDragEnd}
-                      onTouchDragCancel={cancelTouchDrag}
-                      onEdit={openEditTask}
-                      onDelete={setDeletingTask}
-                      onDone={handleDone}
-                      onSetDue={handleSetDue}
-                    />
-                  ))
+                  <AnimatePresence initial={false} mode="popLayout">
+                    {col.tasks.map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        task={task}
+                        project={selectedProject}
+                        draggable={canWrite}
+                        dragging={draggedTaskId === task.id || (touchDrag?.active === true && touchDrag.taskId === task.id)}
+                        touchActive={touchDrag?.active === true && touchDrag.taskId === task.id}
+                        canWrite={canWrite}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                        onTouchDragStart={handleTouchDragStart}
+                        onTouchDragMove={handleTouchDragMove}
+                        onTouchDragEnd={handleTouchDragEnd}
+                        onTouchDragCancel={cancelTouchDrag}
+                        onEdit={openEditTask}
+                        onDelete={setDeletingTask}
+                        onDone={handleDone}
+                        onSetDue={handleSetDue}
+                      />
+                    ))}
+                  </AnimatePresence>
                 )}
-                <button
-                  className="st-add"
-                  onClick={() => openNewTask(col.status as Task["status"])}
-                  disabled={!selectedProjectId || !user}
-                >
-                  <span>+</span> Add Task
-                </button>
+                {composerFor === col.status && canWrite ? (
+                  <div className="trello-composer">
+                    <Textarea
+                      autoFocus
+                      rows={2}
+                      value={composerText}
+                      onChange={(e) => setComposerText(e.target.value)}
+                      placeholder="Enter a title or paste a link"
+                      aria-label={`Add a card to ${STATUS_LABELS[col.status]}`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          void handleQuickAdd();
+                        } else if (e.key === "Escape") {
+                          setComposerFor(null);
+                          setComposerText("");
+                        }
+                      }}
+                    />
+                    <div className="trello-composer-actions">
+                      <Button size="sm" onClick={() => void handleQuickAdd()} disabled={!composerText.trim()}>
+                        Add card
+                      </Button>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label="Cancel adding card"
+                        onClick={() => {
+                          setComposerFor(null);
+                          setComposerText("");
+                        }}
+                      >
+                        <IconX size={16} />
+                      </Button>
+                    </div>
+                  </div>
+                ) : canWrite ? (
+                  <button
+                    className="st-add"
+                    onClick={() => {
+                      setComposerText("");
+                      setComposerFor(col.status as Task["status"]);
+                    }}
+                    disabled={!selectedProjectId || !user}
+                  >
+                    <span>+</span> Add a card
+                  </button>
+                ) : null}
               </div>
-            </section>
+            </motion.section>
           ))}
-        </div>
+        </motion.div>
 
         {touchDrag?.active
           ? (() => {
               const ghostTask = projectTasks.find((t) => t.id === touchDrag.taskId);
               if (!ghostTask) return null;
               return (
-                <div
+                <motion.div
                   aria-hidden
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
                   style={{
                     position: "fixed",
                     left: touchDrag.x,
                     top: touchDrag.y,
-                    transform: "translate(-50%, -115%)",
+                    translate: "-50% -115%",
                     zIndex: 200,
                     pointerEvents: "none",
                     minWidth: 180,
@@ -836,7 +969,7 @@ function BoardPage() {
                   }}
                 >
                   {ghostTask.title}
-                </div>
+                </motion.div>
               );
             })()
           : null}
