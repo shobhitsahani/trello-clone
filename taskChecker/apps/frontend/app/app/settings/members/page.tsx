@@ -2,7 +2,9 @@
 
 import { useState, useMemo, memo, startTransition } from "react";
 import { useTenant } from "@/components/store";
-import { useToast } from "@/components/overlay";
+import { Modal, useToast } from "@/components/overlay";
+import { Input } from "@/components/ui/input";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { AppShell } from "@/components/app-shell";
 import {
   IconPlus,
@@ -19,7 +21,27 @@ import {
 import { api, getCurrentTenantId, type Role } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
-import { cx } from "@/lib/utils";
+import { cx, hueFrom } from "@/lib/utils";
+import { PlusIcon } from "lucide-react";
+import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "@/components/ui/item";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Member {
   userId: string;
@@ -37,14 +59,6 @@ const ROLE_LABELS: Record<Role, string> = {
   viewer: "Viewer",
 };
 const ROLE_HIERARCHY: Record<Role, number> = { owner: 4, admin: 3, member: 2, viewer: 1 };
-
-const AVATAR_TONES = ["emerald", "sky", "violet", "rose", "amber", "slate"] as const;
-
-function avatarTone(key: string): (typeof AVATAR_TONES)[number] {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return AVATAR_TONES[h % AVATAR_TONES.length] ?? "slate";
-}
 
 function initials(name: string | null, email: string | null): string {
   const src = (name ?? email ?? "?").trim();
@@ -71,83 +85,75 @@ const MemberRow = memo(function MemberRow({
   const canManage = (ROLE_HIERARCHY[currentUserRole] ?? 0) > (ROLE_HIERARCHY[member.role] ?? 0);
   const canChangeRole = (targetRole: Role) =>
     (ROLE_HIERARCHY[currentUserRole] ?? 0) > (ROLE_HIERARCHY[targetRole] ?? 0);
-  const tone = avatarTone(member.userId + (member.email ?? ""));
+  const tint = hueFrom(member.userId + (member.email ?? ""));
   const online = member.status === "active";
   const elevated = member.role === "owner" || member.role === "admin";
 
   return (
-    <tr className="dir-row">
-      <td className="dir-cell dir-cell-user">
-        <div className="dir-user">
-          <div className="dir-avatar-wrap">
-            <span className={cx("dir-avatar", `dir-av-${tone}`)}>
-              {initials(member.name, member.email)}
-            </span>
-            <span className={cx("dir-presence", online ? "is-on" : "is-off")} />
-          </div>
-          <div className="dir-user-meta">
-            <p className="dir-user-name">
-              {member.name ?? "Unknown"}
-              {isSelf ? <span className="dir-you">You</span> : null}
-            </p>
-            <p className="dir-user-email mono">{member.email ?? "—"}</p>
-          </div>
-        </div>
-      </td>
-      <td className="dir-cell">
-        {canManage && !isSelf ? (
-          <select
-            value={member.role}
-            onChange={(e) => onRoleChange(member.userId, e.target.value as Role)}
-            className={cx("dir-role-select", elevated ? "is-elevated" : "is-staff")}
-            aria-label={`Role for ${member.email ?? member.name}`}
+    <Item variant="outline" size="sm">
+      <ItemMedia>
+        <Avatar>
+          <AvatarFallback
+            style={{
+              background: `hsl(${tint} 45% 20%)`,
+              color: `hsl(${tint} 80% 78%)`,
+            }}
           >
-            {ROLE_VALUES.filter((r) => canChangeRole(r) || r === member.role).map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABELS[r]}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <span className={cx("dir-role", elevated ? "is-elevated" : "is-staff")}>
-            {ROLE_LABELS[member.role]}
-          </span>
-        )}
-      </td>
-      <td className="dir-cell">
-        {member.status === "active" ? (
-          <span className="dir-status is-on">
-            <span className="dir-status-dot" /> Online
-          </span>
-        ) : member.status === "invited" ? (
-          <span className="dir-status is-invited">
-            <span className="dir-status-dot" /> Invited
-          </span>
-        ) : (
-          <span className="dir-status is-off">
-            <span className="dir-status-dot" /> Offline
-          </span>
-        )}
-      </td>
-      <td className="dir-cell">
-        <span className="dir-tasks mono" title="Per-member task counts are not exposed by the API yet">
-          —
+            {initials(member.name, member.email)}
+          </AvatarFallback>
+          {online ? <AvatarBadge className="bg-emerald-500" /> : null}
+        </Avatar>
+      </ItemMedia>
+      <ItemContent className="gap-1">
+        <ItemTitle>
+          {member.name ?? "Unknown"}
+          {isSelf ? <Badge variant="secondary">You</Badge> : null}
+        </ItemTitle>
+        <ItemDescription className="font-mono text-xs">{member.email ?? "—"}</ItemDescription>
+        <span className={cx("dir-status", online ? "is-on" : member.status === "invited" ? "is-invited" : "is-off")}>
+          <span className="dir-status-dot" />
+          {online ? "Online" : member.status === "invited" ? "Invited" : "Offline"}
         </span>
-      </td>
-      <td className="dir-cell dir-cell-actions">
+      </ItemContent>
+      <ItemActions>
+        {canManage && !isSelf ? (
+          <Select
+            value={member.role}
+            onValueChange={(v) => {
+              if (v) onRoleChange(member.userId, v as Role);
+            }}
+          >
+            <SelectTrigger size="sm" aria-label={`Role for ${member.email ?? member.name}`} className="w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLE_VALUES.filter((r) => canChangeRole(r) || r === member.role).map((r) => (
+                <SelectItem key={r} value={r}>
+                  {ROLE_LABELS[r]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Badge variant={elevated ? "default" : "secondary"}>{ROLE_LABELS[member.role]}</Badge>
+        )}
         {!isSelf && member.status === "active" && canManage ? (
-          <button className="dir-action" onClick={() => onDeactivate(member.userId)}>
-            <IconTrash size={13} /> Remove
-          </button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onDeactivate(member.userId)}
+            aria-label={`Remove ${member.email ?? member.name}`}
+            title="Remove from organization"
+          >
+            <IconTrash size={14} />
+          </Button>
         ) : isSelf ? (
           <span className="dim dir-hint">Current user</span>
         ) : !canManage ? (
           <span className="dim dir-hint">No access</span>
-        ) : (
-          <span className="dim dir-hint">—</span>
-        )}
-      </td>
-    </tr>
+        ) : null}
+      </ItemActions>
+    </Item>
   );
 });
 
@@ -295,9 +301,9 @@ export default function MembersPage() {
                 aria-label="Search members"
               />
             </div>
-            <button className="btn btn-primary btn-sm dir-invite" onClick={openInviteModal}>
-              <IconPlus size={14} /> Invite Member
-            </button>
+            <Button size="sm" className="dir-invite" onClick={openInviteModal}>
+              <PlusIcon size={14} /> Invite Member
+            </Button>
           </div>
 
           {/* Directory table */}
@@ -309,35 +315,24 @@ export default function MembersPage() {
                 <IconUsers size={32} className="dim" />
                 <p>{search ? "No matching members" : "No members yet"}</p>
                 {search ? null : (
-                  <button className="btn btn-primary btn-sm" onClick={openInviteModal}>
-                    <IconPlus size={14} /> Invite Member
-                  </button>
+                  <Button size="sm" onClick={openInviteModal}>
+                    <PlusIcon size={14} /> Invite Member
+                  </Button>
                 )}
               </div>
             ) : (
-              <table className="dir-table">
-                <thead>
-                  <tr>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th>Assigned Tasks</th>
-                    <th className="dir-th-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredMembers.map((member) => (
-                    <MemberRow
-                      key={member.userId}
-                      member={member}
-                      currentUserRole={currentUserRole}
-                      currentUserId={currentUserId}
-                      onRoleChange={handleRoleChange}
-                      onDeactivate={handleDeactivate}
-                    />
-                  ))}
-                </tbody>
-              </table>
+              <ItemGroup>
+                {filteredMembers.map((member) => (
+                  <MemberRow
+                    key={member.userId}
+                    member={member}
+                    currentUserRole={currentUserRole}
+                    currentUserId={currentUserId}
+                    onRoleChange={handleRoleChange}
+                    onDeactivate={handleDeactivate}
+                  />
+                ))}
+              </ItemGroup>
             )}
           </div>
 
@@ -351,28 +346,29 @@ export default function MembersPage() {
           </div>
         </div>
 
-        {showInviteModal ? (
-          <div className="modal-backdrop" onClick={() => setShowInviteModal(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Invite member">
-              <div className="modal-header dir-modal-head">
-                <div className="dir-head-left">
-                  <div className="dir-head-icon">
-                    <IconMail size={18} />
-                  </div>
-                  <div>
-                    <h3 className="modal-title">Invite member</h3>
-                    <p className="modal-sub">They join {org?.name ?? "the workspace"} as {inviteRole}.</p>
-                  </div>
-                </div>
-                <button
-                  className="btn btn-ghost btn-sm btn-icon"
-                  onClick={() => setShowInviteModal(false)}
-                  aria-label="Close"
-                >
-                  <IconX size={15} />
-                </button>
-              </div>
-              <div className="modal-body">
+        <Modal
+          open={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          title="Invite member"
+          sub={`They join ${org?.name ?? "the workspace"} as ${inviteRole}.`}
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowInviteModal(false)}>
+                {lastInvite ? "Done" : "Cancel"}
+              </Button>
+              {lastInvite ? (
+                <Button variant="secondary" onClick={() => { setLastInvite(null); setCopied(false); }}>
+                  <IconPlus size={14} /> Invite another
+                </Button>
+              ) : (
+                <Button onClick={handleInvite} disabled={!inviteEmail.trim() || inviting}>
+                  <IconMail size={14} /> {inviting ? "Creating…" : "Create invite link"}
+                </Button>
+              )}
+            </>
+          }
+        >
+          <FieldGroup>
                 {lastInvite ? (
                   <>
                     <div className="invite-success">
@@ -383,30 +379,30 @@ export default function MembersPage() {
                         Invite link ready for <strong>{lastInvite.email}</strong> ({lastInvite.role}).
                       </p>
                     </div>
-                    <div className="form-field">
-                      <label htmlFor="invite-link">Share this link — direct invite</label>
+                    <Field>
+                      <FieldLabel htmlFor="invite-link">Share this link — direct invite</FieldLabel>
                       <div className="input-with-icon invite-link-row">
                         <IconLink size={16} />
-                        <input id="invite-link" type="text" value={lastInvite.url} readOnly onFocus={(e) => e.target.select()} aria-label="Invite link" />
-                        <button className="btn btn-secondary btn-sm" onClick={handleCopyLink} aria-label="Copy invite link">
+                        <Input id="invite-link" type="text" value={lastInvite.url} readOnly onFocus={(e) => e.target.select()} aria-label="Invite link" />
+                        <Button variant="secondary" size="sm" onClick={handleCopyLink} aria-label="Copy invite link">
                           {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
                           {copied ? "Copied" : "Copy"}
-                        </button>
+                        </Button>
                       </div>
-                      <p className="field-hint">
+                      <FieldDescription>
                         <IconClock size={12} /> Expires{" "}
                         {new Date(lastInvite.expiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}{" "}
                         (24 hours). Send it to them however you like — chat, SMS, or your own email.
-                      </p>
-                    </div>
+                      </FieldDescription>
+                    </Field>
                   </>
                 ) : (
                   <>
-                <div className="form-field">
-                  <label htmlFor="invite-email">Email</label>
+                <Field>
+                  <FieldLabel htmlFor="invite-email">Email</FieldLabel>
                   <div className="input-with-icon">
                     <IconMail size={16} />
-                    <input
+                    <Input
                       id="invite-email"
                       type="email"
                       value={inviteEmail}
@@ -418,42 +414,29 @@ export default function MembersPage() {
                       }}
                     />
                   </div>
-                </div>
-                <div className="form-field">
-                  <label htmlFor="invite-role">Role</label>
-                  <select
-                    id="invite-role"
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="invite-role">Role</FieldLabel>
+                  <Select
                     value={inviteRole}
-                    onChange={(e) => setInviteRole(e.target.value as Role)}
-                    className="select"
+                    onValueChange={(v) => setInviteRole(v as Role)}
                   >
-                    {ROLE_VALUES.map((r) => (
-                      <option key={r} value={r}>
-                        {ROLE_LABELS[r]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    <SelectTrigger id="invite-role">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_VALUES.map((r) => (
+                        <SelectItem key={r} value={r}>
+                          {ROLE_LABELS[r]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
                   </>
                 )}
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-ghost" onClick={() => setShowInviteModal(false)}>
-                  {lastInvite ? "Done" : "Cancel"}
-                </button>
-                {lastInvite ? (
-                  <button className="btn btn-secondary" onClick={() => { setLastInvite(null); setCopied(false); }}>
-                    <IconPlus size={14} /> Invite another
-                  </button>
-                ) : (
-                  <button className="btn btn-primary" onClick={handleInvite} disabled={!inviteEmail.trim() || inviting}>
-                    <IconMail size={14} /> {inviting ? "Creating…" : "Create invite link"}
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : null}
+          </FieldGroup>
+        </Modal>
       </div>
     </AppShell>
   );
