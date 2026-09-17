@@ -10,11 +10,27 @@ import { usePathname, useRouter } from "next/navigation";
 import { useTenant } from "./store";
 import { useToast, Dropdown, MenuItem, Modal } from "./overlay";
 import { Kbd } from "./ui";
+import { ThemeToggle } from "./theme-toggle";
 import { Button, buttonVariants } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { Avatar as ShadcnAvatar, AvatarFallback } from "./ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import {
+  BadgeCheckIcon,
+  BellIcon,
+  CreditCardIcon,
+  LogOutIcon,
+} from "lucide-react";
 import { useAuth } from "../lib/auth";
 import { api, getCurrentTenantId, type ChatMessage, type PaginatedResponse } from "../lib/api";
 import { useSWR } from "../lib/swr";
@@ -722,7 +738,9 @@ export function ScopeStrip({
   onOpenNotifs: () => void;
 }) {
   const { org, unread } = useTenant();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const router = useRouter();
+  const toast = useToast();
   const orgId = getCurrentTenantId();
 
   const projectsQ = useSWR<{ projects: ApiProject[] }>(
@@ -770,6 +788,7 @@ export function ScopeStrip({
       </button>
 
       <div className="topbar-right">
+        <ThemeToggle id="topbar-theme-mode" showLabel={false} />
         <Link href="/app/board" className={buttonVariants({ variant: "default", size: "sm" }) + " trello-create-btn"}>
           <IconPlus size={14} /> Create
         </Link>
@@ -790,7 +809,64 @@ export function ScopeStrip({
           ) : null}
         </motion.button>
         <span className="topbar-me">
-          <UserAvatar name={user?.name ?? "You"} tint={hueFrom(user?.id ?? "you")} size="sm" />
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger
+              render={
+                <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
+                  <ShadcnAvatar size="sm">
+                    <AvatarFallback
+                      style={{
+                        background: `hsl(${hueFrom(user?.id ?? "you")} 45% 20%)`,
+                        color: `hsl(${hueFrom(user?.id ?? "you")} 80% 78%)`,
+                      }}
+                    >
+                      {initials(user?.name ?? "You")}
+                    </AvatarFallback>
+                  </ShadcnAvatar>
+                </Button>
+              }
+            />
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <span className="block max-w-full truncate text-sm font-semibold text-foreground">
+                  {user?.name ?? "You"}
+                </span>
+                {user?.email ? (
+                  <span className="block max-w-full truncate text-xs font-normal text-muted-foreground">
+                    {user.email}
+                  </span>
+                ) : null}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem closeOnClick onClick={() => router.push("/app/settings")}>
+                  <BadgeCheckIcon />
+                  Account
+                </DropdownMenuItem>
+                <DropdownMenuItem closeOnClick onClick={() => router.push("/app/settings/usage")}>
+                  <CreditCardIcon />
+                  Billing
+                </DropdownMenuItem>
+                <DropdownMenuItem closeOnClick onClick={onOpenNotifs}>
+                  <BellIcon />
+                  Notifications
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                closeOnClick
+                variant="destructive"
+                onClick={async () => {
+                  await logout();
+                  toast({ title: "Signed out", msg: "Session ended — see you soon." });
+                  router.push("/auth/sign-in");
+                }}
+              >
+                <LogOutIcon />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </span>
       </div>
     </motion.header>
@@ -1195,8 +1271,7 @@ function ChatInput({
     [mention, value],
   );
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
+  const send = async () => {
     const text = value.trim();
     if (!text || sending) return;
     setSending(true);
@@ -1211,7 +1286,12 @@ function ChatInput({
     }
   };
 
-  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    void send();
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (mention && filtered.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -1235,6 +1315,11 @@ function ChatInput({
         setMention(null);
         return;
       }
+    }
+    // Multiline composer: Enter sends, Shift+Enter inserts a newline.
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void send();
     }
   };
 
@@ -1262,9 +1347,9 @@ function ChatInput({
           ))}
         </div>
       ) : null}
-      <Input
+      <Textarea
         ref={inputRef}
-        type="text"
+        rows={1}
         value={value}
         onChange={(e) => {
           const v = e.target.value;
@@ -1272,11 +1357,11 @@ function ChatInput({
           updateMention(v, e.target.selectionStart);
         }}
         onSelect={(e) => {
-          const t = e.target as HTMLInputElement;
+          const t = e.target as HTMLTextAreaElement;
           updateMention(value, t.selectionStart);
         }}
         onKeyUp={(e) => {
-          const t = e.target as HTMLInputElement;
+          const t = e.target as HTMLTextAreaElement;
           if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "Home" || e.key === "End") {
             updateMention(value, t.selectionStart);
           }
@@ -1285,7 +1370,7 @@ function ChatInput({
         onBlur={() => {
           setTimeout(() => setMention(null), 150);
         }}
-        placeholder="Send a message…  @ to mention"
+        placeholder="Type your message here…  @ to mention"
         aria-label="Send a message"
         aria-autocomplete="list"
         aria-expanded={!!mention && filtered.length > 0}
@@ -1293,6 +1378,7 @@ function ChatInput({
         maxLength={2000}
         disabled={sending}
         autoComplete="off"
+        className="max-h-32 min-h-9 resize-none py-2 pr-10 text-xs"
       />
       <button
         className="st-send"
