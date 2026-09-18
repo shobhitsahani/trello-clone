@@ -46,6 +46,11 @@ export interface Project {
   deletedAt: string | null;
 }
 
+export interface ListLabel {
+  status: TaskStatus;
+  label: string;
+}
+
 export interface Task {
   id: string;
   tenantId: string;
@@ -468,6 +473,15 @@ export const api = {
 
     delete: (id: string) =>
       request<{ ok: boolean }>(`/projects/${id}`, { method: "DELETE" }),
+
+    lists: (id: string) =>
+      request<{ lists: ListLabel[] }>(`/projects/${id}/lists`),
+
+    renameList: (id: string, status: TaskStatus, label: string) =>
+      request<{ list: ListLabel }>(`/projects/${id}/lists`, {
+        method: "PUT",
+        body: JSON.stringify({ status, label }),
+      }),
   },
 
   tasks: {

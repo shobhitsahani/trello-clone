@@ -706,12 +706,16 @@ button.board-card-due:disabled { cursor: default; }
 .st-bubble-slate { background: var(--slate-50); border: 1px solid var(--slate-200); }
 .st-task-ref { font-family: var(--stack-mono); font-weight: 600; color: var(--brand-700); }
 .st-chat-foot { padding: 16px; border-top: 1px solid var(--slate-200); background: #fff; flex: none; }
-.st-chat-input { position: relative; display: flex; align-items: center; }
+.st-chat-input { position: relative; display: flex; align-items: flex-end; }
 .st-chat-input input {
   width: 100%; padding: 8px 40px 8px 12px; background: var(--slate-50); border: 1px solid var(--slate-200);
   border-radius: 8px; font-size: 12px; color: var(--slate-800); outline: none;
 }
 .st-chat-input input:focus { background: #fff; border-color: var(--brand-500); box-shadow: 0 0 0 3px rgba(139,92,246,.12); }
+.st-chat-input textarea {
+  width: 100%; padding-right: 40px; font-size: 12px; background: var(--slate-50);
+}
+.st-chat-input textarea:focus { background: #fff; }
 .st-mention-inline { background: var(--brand-50); color: var(--brand-700); font-weight: 700; padding: 0 3px; border-radius: 4px; border: 1px solid var(--brand-200); font-size: 11px; }
 .st-mention-list {
   position: absolute; bottom: calc(100% + 8px); left: 0; right: 0;
@@ -730,7 +734,7 @@ button.board-card-due:disabled { cursor: default; }
 .st-mention-item.is-active { background: var(--brand-50); border: 1px solid var(--brand-200); }
 .st-mention-item-name { font-size: 12px; font-weight: 600; color: var(--slate-800); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-mention-item-handle { font-size: 11px; font-family: var(--stack-mono); color: var(--brand-600); background: var(--brand-50); padding: 1px 6px; border-radius: 9999px; border: 1px solid var(--brand-200); }
-.st-send { position: absolute; right: 4px; width: 28px; height: 28px; background: var(--brand-600); color: #fff; border-radius: 6px; display: grid; place-items: center; box-shadow: var(--shadow-xs); }
+.st-send { position: absolute; right: 4px; bottom: 4px; width: 28px; height: 28px; background: var(--brand-600); color: #fff; border-radius: 6px; display: grid; place-items: center; box-shadow: var(--shadow-xs); }
 .st-send:hover { background: var(--brand-700); }
 .st-chat-expand {
   position: fixed; right: 12px; bottom: 16px; z-index: 20;
@@ -1386,6 +1390,16 @@ mark { background: var(--brand-100); color: var(--brand-800); padding: 0 2px; bo
 .st-board-bar .st-search input::placeholder { color: rgb(255 255 255 / 0.75); }
 .st-board-bar .st-search:focus-within input::placeholder { color: #8590a2; }
 .st-board-bar .st-search svg { color: inherit; }
+
+/* Trello list title inline rename */
+.trello-list-title { flex: 1; min-width: 0; border-radius: 6px; padding: 2px 6px; margin-left: -6px; }
+h2.trello-list-title:hover { background: #091e4224; }
+textarea.trello-list-editor {
+  font-size: 14px; font-weight: 600; color: #172b4d; line-height: 1.4;
+  background: #fff; border: 2px solid #0c66e4; border-radius: 8px;
+  padding: 4px 8px; min-height: 0; resize: none; box-shadow: none;
+}
+textarea.trello-list-editor:focus { border-color: #0c66e4; box-shadow: 0 0 0 1px #0c66e4; background: #fff; outline: none; }
 
 /* Trello card labels/badges/due pills live in trello.css (loads later, wins). */
 

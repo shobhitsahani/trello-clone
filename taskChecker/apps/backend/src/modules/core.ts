@@ -9,7 +9,7 @@ import { badRequest, forbidden, notFound, quotaExceeded } from "../lib/errors.js
 import { uuidv7 } from "../lib/ids.js";
 import { requireRole, Rbac } from "../lib/rbac.js";
 import { audit } from "../lib/audit.js";
-import { teams, projects } from "../db/schema.js";
+import { teams, projects, projectListLabels } from "../db/schema.js";
 import { emitEvent } from "../lib/events.js";
 import { cacheKey, invalidate, N } from "../lib/cache.js";
 import { tierLimits } from "../lib/usage.js";
@@ -177,6 +177,60 @@ coreRoutes.delete("/projects/:id", async (c) => {
     await audit(tx, { tenantId: p.tenantId, actorId: p.userId, action: "project.deleted", entityType: "project", entityId: id, before: { name: before.name, key: before.key } });
     await invalidate(cacheKey("boards", N.tenant, p.tenantId, "projects"));
     return c.json({ ok: true });
+  });
+});
+
+// GET /v1/projects/{id}/lists — custom board list labels. Absent statuses
+// fall back to built-in defaults ("Backlog", "To do", "In progress", "Done").
+coreRoutes.get("/projects/:id/lists", async (c) => {
+  const p = c.get("principal");
+  const id = c.req.param("id");
+  return inTenant(c, async (tx) => {
+    const project = await tx.query.projects.findFirst({
+      where: (pr, { and: a, eq: e, isNull: n }) => a(e(pr.tenantId, p.tenantId), e(pr.id, id), n(pr.deletedAt)),
+    });
+    if (!project) throw notFound("Project not found.");
+    const rows = await tx
+      .select({ status: projectListLabels.status, label: projectListLabels.label })
+      .from(projectListLabels)
+      .where(and(eq(projectListLabels.tenantId, p.tenantId), eq(projectListLabels.projectId, id)));
+    return c.json({ lists: rows });
+  });
+});
+
+// PUT /v1/projects/{id}/lists { status, label } — rename one board list, member+.
+// Cosmetic only: task placement still uses the status enum underneath.
+coreRoutes.put("/projects/:id/lists", async (c) => {
+  const p = c.get("principal");
+  const id = c.req.param("id");
+  const parsed = z
+    .object({ status: z.enum(["backlog", "todo", "in_progress", "done"]), label: z.string().trim().min(1).max(50) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) throw badRequest("status and label (1-50 chars) are required.");
+  return inTenant(c, async (tx) => {
+    requireRole(p.role, Rbac.write);
+    const project = await tx.query.projects.findFirst({
+      where: (pr, { and: a, eq: e, isNull: n }) => a(e(pr.tenantId, p.tenantId), e(pr.id, id), n(pr.deletedAt)),
+    });
+    if (!project) throw notFound("Project not found.");
+    const { status, label } = parsed.data;
+    const before = await tx.query.projectListLabels.findFirst({
+      where: (l, { and: a, eq: e }) => a(e(l.tenantId, p.tenantId), e(l.projectId, id), e(l.status, status)),
+    });
+    await tx
+      .insert(projectListLabels)
+      .values({ tenantId: p.tenantId, projectId: id, status, label })
+      .onConflictDoUpdate({
+        target: [projectListLabels.tenantId, projectListLabels.projectId, projectListLabels.status],
+        set: { label, updatedAt: new Date() },
+      });
+    await audit(tx, {
+      tenantId: p.tenantId, actorId: p.userId, action: "project.list_renamed",
+      entityType: "project", entityId: id,
+      before: before ? { status, label: before.label } : { status, label: null },
+      after: { status, label },
+    });
+    return c.json({ list: { status, label } });
   });
 });
 

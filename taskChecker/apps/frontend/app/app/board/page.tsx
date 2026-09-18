@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash, IconX, IconDoneAll, IconStar } from "@/components/icons";
-import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
+import { api, getCurrentTenantId, type ListLabel, type Task, type Project } from "@/lib/api";
 import { Modal, useToast } from "@/components/overlay";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/components/ui/date-picker";
@@ -323,6 +323,75 @@ const TaskCard = memo(function TaskCard({
   );
 });
 
+/** Trello-style list title — click to rename inline, Enter/blur saves. */
+function ListTitle({
+  status,
+  title,
+  canWrite,
+  onRename,
+}: {
+  status: Task["status"];
+  title: string;
+  canWrite: boolean;
+  onRename: (status: Task["status"], label: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(title);
+  // A teammate's rename arriving mid-edit shouldn't clobber typing.
+  useEffect(() => {
+    if (!editing) setDraft(title);
+  }, [title, editing]);
+
+  if (!editing) {
+    return (
+      <h2
+        className="bcol-name trello-list-title"
+        title={canWrite ? "Rename list" : title}
+        onClick={() => {
+          if (canWrite) {
+            setDraft(title);
+            setEditing(true);
+          }
+        }}
+        style={canWrite ? { cursor: "pointer" } : undefined}
+      >
+        {title}
+      </h2>
+    );
+  }
+
+  const commit = () => {
+    setEditing(false);
+    const next = draft.trim().slice(0, 50);
+    if (next && next !== title) onRename(status, next);
+    else setDraft(title);
+  };
+
+  return (
+    <Textarea
+      autoFocus
+      rows={1}
+      value={draft}
+      maxLength={50}
+      aria-label="List name"
+      className="trello-list-editor"
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={(e) => e.target.select()}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          commit();
+        } else if (e.key === "Escape") {
+          setDraft(title);
+          setEditing(false);
+        }
+      }}
+      onClick={(e) => e.stopPropagation()}
+    />
+  );
+}
+
 function BoardPage() {
   const toast = useToast();
   const router = useRouter();
@@ -353,6 +422,43 @@ function BoardPage() {
     () => api.tasks.list(orgId!, selectedProjectId, { limit: 100 }),
   );
   const projectTasks = tasksQ.data?.data ?? [];
+
+  // Custom list names per project (absent = built-in defaults).
+  const listsQ = useSWR<{ lists: ListLabel[] }>(
+    selectedProjectId ? `board-lists-${selectedProjectId}` : null,
+    () => api.projects.lists(selectedProjectId),
+  );
+  const labelMap = useMemo(
+    () => new Map((listsQ.data?.lists ?? []).map((l) => [l.status, l.label])),
+    [listsQ.data],
+  );
+  const labelFor = useCallback(
+    (status: string) => labelMap.get(status as Task["status"]) ?? STATUS_LABELS[status] ?? status,
+    [labelMap],
+  );
+
+  // Rename one list: optimistic label, PUT as source of truth, rollback on failure.
+  const handleRenameList = useCallback(
+    async (status: Task["status"], label: string) => {
+      const clean = label.trim().slice(0, 50);
+      if (!canWrite || !selectedProjectId || !clean || clean === labelFor(status)) return;
+      await listsQ.mutate(
+        (current) => ({
+          lists: [...(current?.lists ?? []).filter((l) => l.status !== status), { status, label: clean }],
+        }),
+        { revalidate: false },
+      );
+      try {
+        await api.projects.renameList(selectedProjectId, status, clean);
+        toast({ title: "List renamed", msg: `Now called "${clean}".` });
+        await listsQ.mutate();
+      } catch (err) {
+        await listsQ.mutate();
+        toast({ title: "Rename failed", msg: err instanceof Error ? err.message : "Try again." });
+      }
+    },
+    [canWrite, selectedProjectId, listsQ, labelFor, toast],
+  );
 
   const [search, setSearch] = useState("");
   // Defer the expensive 100-card filter so keystrokes stay responsive.
@@ -470,7 +576,7 @@ function BoardPage() {
       );
       try {
         await updateTask(taskId, { status: newStatus as Task["status"] }, selectedProjectId);
-        toast({ title: "Task moved", msg: `Moved to ${STATUS_LABELS[newStatus]}` });
+        toast({ title: "Task moved", msg: `Moved to ${labelFor(newStatus)}` });
         await tasksQ.mutate();
       } catch (err) {
         // Persist failed: re-fetch the server state so the card rolls back.
@@ -478,7 +584,7 @@ function BoardPage() {
         toast({ title: "Move failed", msg: err instanceof Error ? err.message : "Try again." });
       }
     },
-    [projectTasks, updateTask, selectedProjectId, toast, tasksQ],
+    [projectTasks, updateTask, selectedProjectId, toast, tasksQ, labelFor],
   );
 
   // Deadline set/clear from the card: same optimistic pattern as drops —
@@ -653,7 +759,7 @@ function BoardPage() {
       setNewTitle("");
       setShowNewTask(false);
       await tasksQ.mutate();
-      toast({ title: "Task created", msg: `Added to ${STATUS_LABELS[newTaskStatus]}.` });
+      toast({ title: "Task created", msg: `Added to ${labelFor(newTaskStatus)}.` });
     } catch (err) {
       toast({ title: "Create failed", msg: err instanceof Error ? err.message : "Try again." });
     }
@@ -840,7 +946,7 @@ function BoardPage() {
               key={col.status}
               data-status={col.status}
               className={cx("st-col", col.status === "in_progress" && "is-lit")}
-              aria-label={`${STATUS_LABELS[col.status]}, ${col.tasks.length} tasks`}
+              aria-label={`${labelFor(col.status)}, ${col.tasks.length} tasks`}
               onDragOver={(e) => handleDragOver(e, col.status)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => void handleDrop(e, col.status)}
@@ -851,11 +957,16 @@ function BoardPage() {
               layout
             >
               <div className="st-col-head">
-                <h2 className="bcol-name">{STATUS_LABELS[col.status]}</h2>
+                <ListTitle
+                  status={col.status as Task["status"]}
+                  title={labelFor(col.status)}
+                  canWrite={canWrite}
+                  onRename={handleRenameList}
+                />
                 <span className="st-col-count">{col.tasks.length}</span>
                 <button
                   className="st-col-add"
-                  title={`Add task to ${STATUS_LABELS[col.status]}`}
+                  title={`Add task to ${labelFor(col.status)}`}
                   onClick={() => openNewTask(col.status as Task["status"])}
                   disabled={!selectedProjectId || !user}
                 >
@@ -900,7 +1011,7 @@ function BoardPage() {
                       value={composerText}
                       onChange={(e) => setComposerText(e.target.value)}
                       placeholder="Enter a title or paste a link"
-                      aria-label={`Add a card to ${STATUS_LABELS[col.status]}`}
+                      aria-label={`Add a card to ${labelFor(col.status)}`}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
@@ -982,7 +1093,7 @@ function BoardPage() {
           open={showNewTask}
           onClose={() => setShowNewTask(false)}
           title={`New task in ${selectedProject?.name ?? "project"}`}
-          sub={`Added to ${STATUS_LABELS[newTaskStatus]} — drag it anywhere.`}
+          sub={`Added to ${labelFor(newTaskStatus)} — drag it anywhere.`}
           footer={
             <>
               <Button variant="ghost" onClick={() => setShowNewTask(false)}>
@@ -1021,7 +1132,7 @@ function BoardPage() {
                 <SelectContent>
                   {STATUS_ORDER.map((s) => (
                     <SelectItem key={s} value={s}>
-                      {STATUS_LABELS[s]}
+                      {labelFor(s)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1082,7 +1193,7 @@ function BoardPage() {
                   <SelectContent>
                     {STATUS_ORDER.map((s) => (
                       <SelectItem key={s} value={s}>
-                        {STATUS_LABELS[s]}
+                        {labelFor(s)}
                       </SelectItem>
                     ))}
                   </SelectContent>
