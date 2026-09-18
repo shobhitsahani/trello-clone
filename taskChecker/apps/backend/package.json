@@ -32,7 +32,7 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
-    "@repo/typescript-config": "*",
+    "@repo/typescript-config": "workspace:*",
     "@types/bun": "^1.2.0",
     "@types/node": "^26.0.0",
     "@types/ws": "^8.18.1",
