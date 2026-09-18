@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, memo } from "react";
+import { useCallback, useEffect, useMemo, useState, memo } from "react";
 import { useTenant } from "@/components/store";
 import { AppShell } from "@/components/app-shell";
 import { IconFileText, IconSearch, IconFilter, IconChevronRight, IconUser, IconClock, IconArrowLeft, IconArrowRight } from "@/components/icons";
@@ -49,9 +49,12 @@ export default function AuditPage() {
       const params: { limit?: number; cursor?: string } = { limit: 50 };
       if (!reset && cursor) params.cursor = cursor;
       const page = await api.audit.list(params.limit, params.cursor);
-      setLogs((prev) => (reset ? page.data : [...prev, ...page.data]));
-      setCursor(page.nextCursor);
-      setHasMore(page.hasMore);
+      // Backend may return an unexpected shape on error — never let logs
+      // become undefined (that crashes the render below on `.length`).
+      const rows = Array.isArray(page?.data) ? page.data : [];
+      setLogs((prev) => (reset ? rows : [...(prev ?? []), ...rows]));
+      setCursor(page?.nextCursor ?? null);
+      setHasMore(page?.hasMore ?? false);
     } catch (err) {
       console.error("Failed to fetch audit logs:", err);
     } finally {
@@ -59,10 +62,14 @@ export default function AuditPage() {
     }
   }, [orgId, cursor]);
 
-  // Initial load
-  if (logs.length === 0 && !loading) {
-    void fetchLogs(true);
-  }
+  // Initial load (effect, not render — render-time fetch double-fires under
+  // StrictMode and can setState during another component's render).
+  useEffect(() => {
+    if ((logs?.length ?? 0) === 0 && !loading && orgId) {
+      void fetchLogs(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
 
   const filteredLogs = useMemo(() => {
     let result = logs;
@@ -123,7 +130,9 @@ export default function AuditPage() {
               <span className="audit-col-actor">Actor</span>
               <span className="audit-col-details">Details</span>
             </div>
-            {filteredLogs.length === 0 ? (
+            {loading && (logs?.length ?? 0) === 0 ? (
+              <div className="loading" role="status">Loading audit log…</div>
+            ) : filteredLogs.length === 0 ? (
               <div className="empty-state inline">
                 <IconFileText size={32} className="dim" />
                 <p>{search || filterAction ? "No matching entries" : "No audit entries yet"}</p>

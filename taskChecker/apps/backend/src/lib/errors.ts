@@ -20,6 +20,42 @@ export function httpError(c: Context, status: number, code: string, message: str
   return c.json({ error: { code, message, request_id: c.get("requestId") ?? randomToken(8), retryable } }, status as 400);
 }
 
+/** True when the error means a dependency (Postgres/Redis) is unreachable.
+ * Two wrinkles make a plain message-regex insufficient:
+ * - postgres-js reports a refused connection as an AggregateError with an
+ *   EMPTY message — the ECONNREFUSED `code` is the only signal.
+ * - drizzle wraps driver failures as `Failed query: <sql>` with the driver
+ *   error attached as `cause`, so the top-level error has neither the code
+ *   nor the message. Walk the whole `cause`/`errors` chain instead. */
+function isDependencyDown(err: Error): boolean {
+  const seen = new Set<unknown>();
+  const stack: unknown[] = [err];
+  const codes: unknown[] = [];
+  const texts: string[] = [];
+  while (stack.length > 0) {
+    const cur = stack.pop();
+    if (!cur || (typeof cur !== "object" && typeof cur !== "function") || seen.has(cur)) continue;
+    seen.add(cur);
+    const rec = cur as { code?: unknown; message?: unknown; cause?: unknown; errors?: unknown };
+    codes.push(rec.code);
+    if (typeof rec.message === "string") texts.push(rec.message);
+    if (rec.cause !== undefined) stack.push(rec.cause);
+    if (Array.isArray(rec.errors)) {
+      for (const e of rec.errors) stack.push(e);
+    }
+  }
+  if (
+    codes.some(
+      (c) => typeof c === "string" && /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET|ENETUNREACH/.test(c),
+    )
+  ) {
+    return true;
+  }
+  return /ECONNREFUSED|Connection refused|connect ECONNREFUSED|Connection terminated|Connection closed/i.test(
+    texts.join("\n"),
+  );
+}
+
 export async function errorHandler(err: Error, c: Context) {
   const requestId = c.get("requestId") ?? randomToken(8);
   if (err instanceof ApiError) {
@@ -29,7 +65,7 @@ export async function errorHandler(err: Error, c: Context) {
     );
   }
   // Dependency-unavailable: fail fast with retryable 503 (docs §7) rather than hanging.
-  const dbDown = /ECONNREFUSED|Connection refused|connect ECONNREFUSED|Connection terminated/.test(err.message ?? "");
+  const dbDown = isDependencyDown(err);
   const status = dbDown ? 503 : 500;
   console.error(`[error] ${requestId}`, err);
   return c.json(
