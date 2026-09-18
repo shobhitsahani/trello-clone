@@ -920,7 +920,43 @@ button.trello-due.is-empty:hover {
   height: 14px;
 }
 
-/* Search box in toolbar */
+/* Search box in toolbar — single global style so every page matches */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid #dfe1e6;
+  border-radius: 8px;
+  height: 36px;
+  padding: 0 8px 0 12px;
+  color: #8590a2;
+  transition: border-color 120ms ease-out, box-shadow 120ms ease-out;
+  min-width: 0;
+}
+.search-box:hover {
+  border-color: #b6c2cf;
+}
+.search-box:focus-within {
+  border-color: #0c66e4;
+  box-shadow: 0 0 0 3px rgba(12, 102, 228, 0.15);
+}
+.search-box svg {
+  flex: none;
+}
+.search-box input {
+  border: 0;
+  outline: none;
+  background: transparent;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: #172b4d;
+  height: 100%;
+}
+.search-box input::placeholder {
+  color: #8590a2;
+}
 .activity-toolbar .search-box {
   background: #fff;
   border: 1px solid #dfe1e6;

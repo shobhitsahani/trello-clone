@@ -22,9 +22,11 @@ const RESULT_TYPES = [
 const SearchResultItem = memo(function SearchResultItem({
   result,
   query,
+  authorName,
 }: {
   result: SearchResult;
   query: string;
+  authorName?: string | null;
 }) {
   const highlight = (text: string) => {
     if (!query) return <span>{text}</span>;
@@ -53,7 +55,6 @@ const SearchResultItem = memo(function SearchResultItem({
         <div className="result-meta">
           {result.status && <span className="result-status">{result.status}</span>}
           {result.projectId && <span className="result-project">{result.projectId.slice(0, 8)}</span>}
-          <span className="result-score">Score: {result.score?.toFixed(2)}</span>
         </div>
         {result.snippet && <p className="result-snippet">{highlight(result.snippet)}</p>}
       </Link>
@@ -69,8 +70,7 @@ const SearchResultItem = memo(function SearchResultItem({
       <p className="result-comment-body">{highlight(result.snippet ?? "")}</p>
       <div className="result-meta">
         {result.taskId && <span className="result-task">Task: {result.taskId.slice(0, 8)}</span>}
-        {result.authorId && <span className="result-author">By: {result.authorId.slice(0, 8)}</span>}
-        <span className="result-score">Score: {result.score?.toFixed(2)}</span>
+        {authorName ? <span className="result-author">By: {authorName}</span> : null}
       </div>
     </Link>
   );
@@ -171,11 +171,12 @@ function SearchPageContent() {
             </Field>
           </form>
 
-          <div className="search-filters" role="group" aria-label="Result type">
+          <div className="filter-tabs search-filters" role="group" aria-label="Result type">
             {RESULT_TYPES.map((t) => (
               <button
                 key={t.value}
-                className={cx("filter-btn", type === t.value && "active")}
+                className={cx("filter-tab", type === t.value && "active")}
+                aria-pressed={type === t.value}
                 onClick={() => handleTypeChange(t.value as "all" | "task" | "comment")}
               >
                 <t.icon size={14} />
@@ -198,7 +199,12 @@ function SearchPageContent() {
                 <div className="results-list">
                   <p className="results-count">{results.length} result{results.length !== 1 ? "s" : ""} for "{query}"</p>
                   {results.map((result) => (
-                    <SearchResultItem key={result.id} result={result} query={query} />
+                    <SearchResultItem
+                      key={result.id}
+                      result={result}
+                      query={query}
+                      authorName={result.authorId ? nameById.get(result.authorId) ?? undefined : undefined}
+                    />
                   ))}
                 </div>
               )

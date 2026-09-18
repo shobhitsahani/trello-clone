@@ -21,12 +21,17 @@ function FieldIcon({ children }: { children: React.ReactNode }) {
 
 export default function SignInPage() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, loginAsDemo } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const handleDemoAccess = () => {
+    loginAsDemo();
+    router.push("/app/board");
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,10 +39,8 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      // Real backend: POST /v1/auth/login via the shared API client.
-      // Stores the token bundle + active tenant id, then hydrates /v1/me.
       await login(email, password);
-      router.push("/app/work");
+      router.push("/app/board");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
@@ -130,6 +133,24 @@ export default function SignInPage() {
             <Button type="submit" className="mt-1 w-full" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
               <IconArrowRight size={16} />
+            </Button>
+
+            <div className="relative my-2">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">or preview</span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={handleDemoAccess}
+            >
+              Explore Demo Board (Instant Preview)
             </Button>
             </FieldGroup>
           </CardContent>

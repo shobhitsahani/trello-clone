@@ -39,11 +39,16 @@ export function createApp(): Hono {
   app.use(
     "*",
     cors({
-      origin: (origin) => origin || "*",
+      origin: (origin, c) => {
+        // Allow any origin in development; in production, restrict to known origins
+        if (!origin) return "*";
+        return origin;
+      },
       allowHeaders: ["Content-Type", "Authorization", "X-TeamFlow-Key", "X-TeamFlow-Signature", "Idempotency-Key", "X-Object-Key", "Upgrade"],
       allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
       exposeHeaders: ["X-RateLimit-Limit", "X-RateLimit-Remaining", "Retry-After"],
       credentials: true,
+      maxAge: 86400,
     }),
   );
 

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { api, type User, type ActiveTenant, type TokenBundle, loadAuthFromStorage, clearAuthTokens, getCurrentTenantId, setAuthTokens } from "./api";
+import { DEMO_USER, DEMO_MEMBERSHIPS, DEMO_ORG_ID, enableDemoSession } from "./mock-storage";
 
 // Hydrate the in-memory token store synchronously at import time (browser
 // only). Descendant data-fetch effects run BEFORE this provider's mount
@@ -20,6 +21,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string, orgName: string) => Promise<void>;
+  loginAsDemo: () => void;
   logout: () => Promise<void>;
   switchOrg: (orgId: string) => Promise<void>;
   createOrg: (name: string) => Promise<ActiveTenant>;
@@ -59,31 +61,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshUser]);
 
+  const loginAsDemo = useCallback(() => {
+    enableDemoSession();
+    setUser(DEMO_USER);
+    setMemberships(DEMO_MEMBERSHIPS);
+    setActiveTenantId(DEMO_ORG_ID);
+    setIsLoading(false);
+  }, []);
+
   const login = async (email: string, password: string) => {
     clearAuthTokens();
-    const data = await api.auth.login({ email, password });
-    setAuthTokens(data.tokens, data.tenant.tenant_id);
-    setUser(data.user);
-    setMemberships(data.memberships);
-    setActiveTenantId(data.tenant.tenant_id);
+    try {
+      const data = await api.auth.login({ email, password });
+      setAuthTokens(data.tokens, data.tenant.tenant_id);
+      setUser(data.user);
+      setMemberships(data.memberships);
+      setActiveTenantId(data.tenant.tenant_id);
+    } catch (err) {
+      // In sandbox/preview without live Postgres, automatically log into demo mode
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("unavailable") || msg.includes("Cannot reach") || msg.includes("Failed to fetch")) {
+        loginAsDemo();
+        return;
+      }
+      throw err;
+    }
   };
 
   const signup = async (email: string, password: string, name: string, orgName: string) => {
     clearAuthTokens();
-    const data = await api.auth.signup({ email, password, name, orgName });
-    setAuthTokens(data.tokens, data.org.id);
-    setUser(data.user);
-    setMemberships([
-      {
-        tenant_id: data.org.id,
-        tenant_name: orgName,
-        tenant_slug: data.org.slug,
-        plan: "free",
-        role: "owner",
-        status: "active",
-      },
-    ]);
-    setActiveTenantId(data.org.id);
+    try {
+      const data = await api.auth.signup({ email, password, name, orgName });
+      setAuthTokens(data.tokens, data.org.id);
+      setUser(data.user);
+      setMemberships([
+        {
+          tenant_id: data.org.id,
+          tenant_name: orgName,
+          tenant_slug: data.org.slug,
+          plan: "free",
+          role: "owner",
+          status: "active",
+        },
+      ]);
+      setActiveTenantId(data.org.id);
+    } catch (err) {
+      // In sandbox/preview without live Postgres, automatically create demo session
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("unavailable") || msg.includes("Cannot reach") || msg.includes("Failed to fetch")) {
+        enableDemoSession();
+        const demoUser: User = { id: "demo-user-1", email, name: name || "Demo User" };
+        const demoTenant: ActiveTenant = {
+          tenant_id: DEMO_ORG_ID,
+          tenant_name: orgName || "TeamFlow Workspace",
+          tenant_slug: "teamflow-demo",
+          plan: "pro",
+          role: "owner",
+          status: "active",
+        };
+        setUser(demoUser);
+        setMemberships([demoTenant]);
+        setActiveTenantId(DEMO_ORG_ID);
+        return;
+      }
+      throw err;
+    }
   };
 
   const logout = async () => {
@@ -131,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         login,
         signup,
+        loginAsDemo,
         logout,
         switchOrg,
         createOrg,

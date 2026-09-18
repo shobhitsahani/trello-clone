@@ -2,9 +2,10 @@
 
 import { useMemo, memo, startTransition, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTenant } from "@/components/store";
-import { useToast } from "@/components/overlay";
 import { AppShell } from "@/components/app-shell";
+import { Button } from "@/components/ui/button";
 import { IconFile, IconClock, IconUser, IconPulse, IconSearch, IconPlus } from "@/components/icons";
 import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -80,7 +81,7 @@ const TaskCard = memo(function TaskCard({ item }: { item: TaskWithProject }) {
 
 export default function WorkPage() {
   const { org } = useTenant();
-  const toast = useToast();
+  const router = useRouter();
   const { user } = useAuth();
   const [filter, setFilter] = useState<"all" | "assigned" | "reported">("assigned");
   const [search, setSearch] = useState("");
@@ -149,14 +150,9 @@ export default function WorkPage() {
             <p className="page-subtitle">Tasks assigned to you or created by you in {org?.name ?? "your organization"}</p>
           </div>
           <div className="page-actions">
-            <motion.button
-              className="btn btn-primary"
-              onClick={() => toast({ title: "Create task", msg: "Open a project board to add tasks." })}
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: 0.97 }}
-            >
+            <Button onClick={() => router.push("/app/board")}>
               <IconPlus size={14} /> New task
-            </motion.button>
+            </Button>
           </div>
         </motion.header>
 
