@@ -17,7 +17,16 @@ import { audit } from "../lib/audit.js";
 
 export const authRoutes = new Hono();
 
-const json = (c: { req: { json: () => Promise<unknown> } }) => c.req.json().catch(() => null);
+const json = async (c: { req: { json: () => Promise<unknown> } }) => {
+  try {
+    const body = await c.req.json();
+    console.log("[auth] Parsed body:", JSON.stringify(body));
+    return body;
+  } catch (e) {
+    console.error("[auth] JSON parse error:", e);
+    return null;
+  }
+};
 const email = z.string().email();
 const password = z.string().min(8);
 

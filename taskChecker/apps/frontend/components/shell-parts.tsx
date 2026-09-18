@@ -1165,8 +1165,8 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
                 <ChatBubble
                   key={m.id}
                   who={name.split(" ")[0] || "Someone"}
-                  mention={own ? "You" : "@Team"}
-                  time={when.absolute ? `${when.absolute} · ${when.relative}` : when.relative}
+                  isOwn={own}
+                  time={when.relative}
                   dateTime={m.createdAt}
                   timeTitle={when.title || undefined}
                   tint={hueFrom(m.authorId)}
@@ -1189,7 +1189,7 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
 
 function ChatBubble({
   who,
-  mention,
+  isOwn,
   time,
   dateTime,
   timeTitle,
@@ -1199,7 +1199,7 @@ function ChatBubble({
   children,
 }: {
   who: string;
-  mention: string;
+  isOwn?: boolean;
   time: string;
   dateTime?: string;
   timeTitle?: string;
@@ -1221,8 +1221,7 @@ function ChatBubble({
         <div className="st-msg-head">
           <span className="st-msg-who">
             {who}
-            <span style={{ color: "var(--slate-400)", fontWeight: 400 }}>→</span>
-            <span className="st-mention">{mention}</span>
+            {isOwn ? <span className="faint"> · you</span> : null}
           </span>
           <span className="st-msg-time">
             {dateTime ? (

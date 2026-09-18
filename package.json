@@ -4,9 +4,9 @@
   "packageManager": "pnpm@10.34.3",
   "scripts": {
     "predev": "pnpm install",
-    "dev": "pnpm --dir taskChecker/apps/frontend run dev",
+    "dev": "pnpm --dir taskChecker run dev",
     "prebuild": "pnpm install",
-    "build": "pnpm --dir taskChecker/apps/frontend run build",
+    "build": "pnpm --dir taskChecker run build",
     "lint": "pnpm --dir taskChecker run lint",
     "format": "pnpm --dir taskChecker run format",
     "check-types": "pnpm --dir taskChecker run check-types"
