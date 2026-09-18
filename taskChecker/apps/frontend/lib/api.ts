@@ -629,11 +629,13 @@ export const api = {
   },
 
   audit: {
-    list: (limit?: number, cursor?: string) => {
+    list: async (limit?: number, cursor?: string) => {
       const searchParams = new URLSearchParams();
       if (limit) searchParams.set("limit", String(limit));
       if (cursor) searchParams.set("cursor", cursor);
-      return request<PaginatedResponse<AuditLog>>(`/audit-logs?${searchParams}`);
+      const raw = await request<unknown>(`/audit-logs?${searchParams}`);
+      // Backend envelope is `{ logs, nextCursor, hasMore }`, not `{ data, … }`.
+      return normalizePage<AuditLog>(raw, "logs");
     },
   },
 
