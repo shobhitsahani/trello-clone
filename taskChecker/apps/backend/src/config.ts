@@ -40,17 +40,23 @@ function need(name: string, fallback?: string): string {
   return v;
 }
 
+function configured(name: string, alias: string, fallback: string): string {
+  const value = process.env[name];
+  if (value && value !== `process.env.${alias}`) return value;
+  return need(alias, fallback);
+}
+
 export function loadConfig(): Config {
   return {
     port: Number(process.env.PORT ?? 4002),
     nodeEnv: process.env.NODE_ENV ?? "development",
-    // App connects as the NON-superuser RLS-scoped role (docker/init.sql);
-    // migrations/provisioning run as the bootstrap superuser instead.
-    databaseUrl: need("DATABASE_URL", "postgres://teamflow:teamflow@localhost:5432/teamflow"),
-    migrateDatabaseUrl: need("DATABASE_MIGRATE_URL", "postgres://postgres:postgres@localhost:5432/teamflow"),
+    // v0 project variables may be referenced through an indirection such as
+    // process.env.DATABASE_URL_4; resolve that alias before connecting.
+    databaseUrl: configured("DATABASE_URL", "DATABASE_URL_4", "postgres://teamflow:teamflow@localhost:5432/teamflow"),
+    migrateDatabaseUrl: configured("DATABASE_MIGRATE_URL", "DATABASE_URL_4", "postgres://postgres:postgres@localhost:5432/teamflow"),
     databaseReplicaUrl: process.env.DATABASE_REPLICA_URL,
     redisUrl: need("REDIS_URL", "redis://localhost:6379"),
-    jwtSecret: need("JWT_SECRET", "dev-only-change-me-at-least-32-chars-with-randomness"),
+    jwtSecret: configured("JWT_SECRET", "JWT_SECRET_4", "dev-only-change-me-at-least-32-chars-with-randomness"),
     accessTokenTtl: process.env.ACCESS_TOKEN_TTL ?? "15m",
     uploadBackend: (process.env.UPLOAD_BACKEND as "memory" | "s3") ?? "memory",
     s3Endpoint: process.env.S3_ENDPOINT,
