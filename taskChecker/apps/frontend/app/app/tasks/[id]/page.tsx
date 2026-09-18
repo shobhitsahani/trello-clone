@@ -16,7 +16,7 @@ import { api, getCurrentTenantId, type Comment, type Task } from "@/lib/api";
 import { Modal, useToast } from "@/components/overlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -28,7 +28,9 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { buttonVariants } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { cx, timeAgo, hueFrom, isOverdue, initials } from "@/lib/utils";
 import { AnimatePresence, motion, backdropFade, popIn, PageEnter } from "@/components/motion";
 
@@ -54,12 +56,14 @@ function SidebarCard({ children, className }: { children?: React.ReactNode; clas
 function CommentItem({
   comment,
   authorName,
+  nameLoading,
   onDelete,
   canDelete,
   isOwn,
 }: {
   comment: Comment;
   authorName: string | null;
+  nameLoading?: boolean;
   onDelete: () => void;
   canDelete: boolean;
   isOwn: boolean;
@@ -75,23 +79,31 @@ function CommentItem({
       transition={{ duration: 0.2 }}
     >
       <div className="comment-avatar">
-        <Avatar size="sm">
-          <AvatarFallback
-            style={{
-              background: `hsl(${tint} 45% 20%)`,
-              color: `hsl(${tint} 80% 78%)`,
-            }}
-          >
-            {initials(authorName ?? "?")}
-          </AvatarFallback>
-        </Avatar>
+        {nameLoading ? (
+          <Skeleton aria-hidden className="size-6 shrink-0 rounded-full" />
+        ) : (
+          <Avatar size="sm">
+            <AvatarFallback
+              style={{
+                background: `hsl(${tint} 45% 20%)`,
+                color: `hsl(${tint} 80% 78%)`,
+              }}
+            >
+              {initials(authorName ?? "?")}
+            </AvatarFallback>
+          </Avatar>
+        )}
       </div>
       <div className="comment-content">
         <div className="comment-header">
-          <span className="comment-author">
-            {authorName ?? "Unknown"}
-            {isOwn ? <span className="faint"> · you</span> : null}
-          </span>
+          {nameLoading ? (
+            <Skeleton aria-hidden className="h-3 w-24 rounded" />
+          ) : (
+            <span className="comment-author">
+              {authorName ?? "Unknown"}
+              {isOwn ? <span className="faint"> · you</span> : null}
+            </span>
+          )}
           <span className="comment-time">{timeAgo(comment.createdAt)}</span>
         </div>
         <p className="comment-body" style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
@@ -125,9 +137,10 @@ export default function TaskDetailPage() {
   const [editPriority, setEditPriority] = useState<Task["priority"]>("none");
   const [editAssigneeId, setEditAssigneeId] = useState("");
   const [editDueAt, setEditDueAt] = useState("");
-  // Duration-chip selection driving the deadline (no calendar): "none" clears
-  // it, "custom" takes its day count from `customDays`. editDueAt stays the
-  // underlying datetime-local value so saving is unchanged.
+  // Duration-chip selection driving the deadline, plus the calendar picker
+  // below for an absolute date. "none" clears it, "custom" takes its value
+  // from `customDays` or the picked date. editDueAt stays the underlying
+  // datetime-local value so saving is unchanged.
   const [duePreset, setDuePreset] = useState<"none" | "1" | "3" | "7" | "custom">("none");
   const [customDays, setCustomDays] = useState("");
   const [saving, setSaving] = useState(false);
@@ -238,6 +251,23 @@ export default function TaskDetailPage() {
     setDuePreset(preset);
   };
 
+  /** Set the deadline to an absolute calendar date, keeping the current
+   * time of day (or now when none is set yet). */
+  const applyDueDate = (date: Date | undefined) => {
+    if (!date) {
+      setEditDueAt("");
+      setDuePreset("none");
+      return;
+    }
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const base =
+      editDueAt && !Number.isNaN(Date.parse(editDueAt)) ? new Date(editDueAt) : new Date();
+    setEditDueAt(
+      `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(base.getHours())}:${pad(base.getMinutes())}`,
+    );
+    setDuePreset("custom");
+  };
+
   const handleSaveEdit = async () => {
     if (!taskId || !editTitle.trim()) return;
     setSaving(true);
@@ -345,8 +375,16 @@ export default function TaskDetailPage() {
             <IconArrowLeft size={18} />
           </Link>
           <div className="task-header-main">
-            <span className="task-detail-key">{project?.key ?? `ID-${task.id.slice(0, 6)}`}</span>
-            <h1 className="task-detail-title">{task.title}</h1>
+            <h1 className="trello-detail-title">{task.title}</h1>
+            <p className="trello-detail-sub">
+              in list <strong>{STATUS_LABELS[task.status]}</strong>
+              {project ? (
+                <>
+                  {" "}on <Link href={`/app/board?project=${project.id}`}>{project.name}</Link>
+                </>
+              ) : null}{" "}
+              <span className="mono">· {project?.key ?? "ID"}-{task.id.slice(0, 4).toUpperCase()}</span>
+            </p>
             <div className="task-detail-meta">
               {project ? (
                 <Link
@@ -393,7 +431,7 @@ export default function TaskDetailPage() {
             transition={{ duration: 0.3, delay: 0.05 }}
           >
             <section className="task-section">
-              <h3>Description</h3>
+              <h3 className="trello-section-head">Description</h3>
               <div className="task-description">
                 {task.description ? (
                   <p>{task.description}</p>
@@ -418,10 +456,23 @@ export default function TaskDetailPage() {
             </section>
 
             <section className="task-section">
-              <h3>Comments {comments.length > 0 ? <span className="faint">({comments.length})</span> : null}</h3>
+              <h3 className="trello-section-head">Activity {comments.length > 0 ? <span className="faint">({comments.length})</span> : null}</h3>
               <div className="comments-list">
                 {commentsQ.isLoading ? (
-                  <p className="empty-text">Loading comments…</p>
+                  <div role="status" aria-label="Loading comments" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {[0, 1].map((i) => (
+                      <div key={i} className="comment-item" aria-hidden>
+                        <div className="comment-avatar">
+                          <Skeleton className="size-6 shrink-0 rounded-full" />
+                        </div>
+                        <div className="comment-content" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <Skeleton className="h-3 w-28 rounded" />
+                          <Skeleton className="h-3 w-full rounded" />
+                          <Skeleton className="h-3 w-2/3 rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : comments.length === 0 ? (
                   <p className="empty-text">No comments yet. Be the first to comment!</p>
                 ) : (
@@ -431,6 +482,7 @@ export default function TaskDetailPage() {
                         key={c.id}
                         comment={c}
                         authorName={nameById.get(c.authorId) ?? null}
+                        nameLoading={membersQ.isLoading && !nameById.get(c.authorId)}
                         canDelete={canDeleteComment(c)}
                         isOwn={c.authorId === user?.id}
                         onDelete={() => void handleDeleteComment(c.id)}
@@ -440,7 +492,7 @@ export default function TaskDetailPage() {
                 )}
                 {canWrite ? (
                   <form
-                    className="comment-form"
+                    className="comment-form trello-comment-box"
                     onSubmit={(e) => {
                       e.preventDefault();
                       void handleComment();
@@ -479,9 +531,9 @@ export default function TaskDetailPage() {
             transition={{ duration: 0.3, delay: 0.1 }}
           >
             <SidebarCard>
-              <h3 style={{ marginBottom: 12 }}>Details</h3>
-              <div className="grid gap-2">
-                <Label htmlFor="task-status">Status</Label>
+              <h3 className="trello-section-head" style={{ fontSize: 14 }}>Details</h3>
+              <Field>
+                <FieldLabel htmlFor="task-status">Status</FieldLabel>
                 <Select
                   value={task.status}
                   disabled={!canWrite}
@@ -498,9 +550,9 @@ export default function TaskDetailPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="task-priority">Priority</Label>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="task-priority">Priority</FieldLabel>
                 <Select
                   value={task.priority}
                   disabled={!canWrite}
@@ -517,37 +569,37 @@ export default function TaskDetailPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>Assignee</Label>
+              </Field>
+              <Field>
+                <FieldLabel>Assignee</FieldLabel>
                 <span className="faint" style={{ fontSize: 13 }}>{assignee?.name ?? "Unassigned"}</span>
-              </div>
-              <div className="grid gap-2">
-                <Label>Reporter</Label>
+              </Field>
+              <Field>
+                <FieldLabel>Reporter</FieldLabel>
                 <span className="faint" style={{ fontSize: 13 }}>{reporter?.name ?? "Unknown"}</span>
-              </div>
+              </Field>
               {task.dueAt ? (
-                <div className="grid gap-2">
-                  <Label>Due</Label>
+                <Field>
+                  <FieldLabel>Due</FieldLabel>
                   <span className="faint" style={{ fontSize: 13 }}>
                     <IconClock size={12} /> {new Date(task.dueAt).toLocaleString()}
                   </span>
                   {task.status !== "done" && task.status !== "backlog" ? (
-                    <p className="field-hint">If the deadline passes first, this task moves back to Backlog automatically.</p>
+                    <FieldDescription>If the deadline passes first, this task moves back to Backlog automatically.</FieldDescription>
                   ) : null}
-                </div>
+                </Field>
               ) : null}
               {canWrite ? (
-                <Button variant="ghost" size="sm" onClick={openEdit} style={{ marginTop: 4 }}>
+                <Button variant="ghost" size="sm" onClick={openEdit} className="trello-side-btn" style={{ marginTop: 4 }}>
                   <IconEdit size={14} /> Edit all fields
                 </Button>
               ) : null}
             </SidebarCard>
-            <Link href="/app/work" className={buttonVariants({ variant: "default" })}>
+            <Link href="/app/work" className={cx(buttonVariants({ variant: "ghost" }), "trello-side-btn")}>
               Back to your work
             </Link>
             {canWrite ? (
-              <Button variant="destructive" onClick={() => setShowDeleteConfirm(true)}>
+              <Button variant="ghost" onClick={() => setShowDeleteConfirm(true)} className="trello-side-btn danger">
                 <IconTrash size={14} /> Delete task
               </Button>
             ) : null}
@@ -570,9 +622,9 @@ export default function TaskDetailPage() {
             </>
           }
         >
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-title">Title</Label>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="edit-title">Title</FieldLabel>
               <Input
                 id="edit-title"
                 type="text"
@@ -581,9 +633,9 @@ export default function TaskDetailPage() {
                 maxLength={200}
                 autoFocus
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-description">Description</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="edit-description">Description</FieldLabel>
               <Textarea
                 id="edit-description"
                 value={editDescription}
@@ -591,10 +643,10 @@ export default function TaskDetailPage() {
                 rows={4}
                 placeholder="Add more detail…"
               />
-            </div>
+            </Field>
                 <div style={{ display: "flex", gap: 12 }}>
-                  <div className="grid flex-1 gap-2">
-                    <Label htmlFor="edit-status">Status</Label>
+                  <Field className="flex-1">
+                    <FieldLabel htmlFor="edit-status">Status</FieldLabel>
                     <Select
                       value={editStatus}
                       onValueChange={(v) => setEditStatus(v as Task["status"])}
@@ -610,9 +662,9 @@ export default function TaskDetailPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="grid flex-1 gap-2">
-                    <Label htmlFor="edit-priority">Priority</Label>
+                  </Field>
+                  <Field className="flex-1">
+                    <FieldLabel htmlFor="edit-priority">Priority</FieldLabel>
                     <Select
                       value={editPriority}
                       onValueChange={(v) => setEditPriority(v as Task["priority"])}
@@ -628,10 +680,10 @@ export default function TaskDetailPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
+                  </Field>
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="edit-assignee">Assignee</Label>
+                <Field>
+                  <FieldLabel htmlFor="edit-assignee">Assignee</FieldLabel>
                   <Select value={editAssigneeId || "unassigned"} onValueChange={(v) => setEditAssigneeId(!v || v === "unassigned" ? "" : v)}>
                     <SelectTrigger id="edit-assignee">
                       <SelectValue placeholder="Unassigned" />
@@ -645,9 +697,9 @@ export default function TaskDetailPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Deadline</Label>
+                </Field>
+                <Field>
+                  <FieldLabel>Deadline</FieldLabel>
                   <div className="due-presets" role="group" aria-label="Deadline">
                     {[
                       { preset: "1", label: "1 day" },
@@ -717,21 +769,30 @@ export default function TaskDetailPage() {
                       No deadline
                     </Button>
                   </div>
+                  <DatePicker
+                    value={
+                      editDueAt && !Number.isNaN(Date.parse(editDueAt))
+                        ? new Date(editDueAt)
+                        : undefined
+                    }
+                    onSelect={applyDueDate}
+                    placeholder="Pick a specific date…"
+                  />
                   {editDueAt && !Number.isNaN(Date.parse(editDueAt)) ? (
                     isOverdue(new Date(editDueAt).toISOString(), editStatus) ? (
-                      <p className="field-hint" style={{ color: "hsl(0 75% 45%)", fontWeight: 600 }}>
+                      <FieldDescription style={{ color: "hsl(0 75% 45%)", fontWeight: 600 }}>
                         Overdue — if still open, the next sweep moves this task back to Backlog.
-                      </p>
+                      </FieldDescription>
                     ) : (
-                      <p className="field-hint">
+                      <FieldDescription>
                         Due {new Date(editDueAt).toLocaleString()}. Misses move back to Backlog automatically.
-                      </p>
+                      </FieldDescription>
                     )
                   ) : (
-                    <p className="field-hint">No deadline — the task never auto-moves.</p>
+                    <FieldDescription>No deadline — the task never auto-moves.</FieldDescription>
                   )}
-                </div>
-              </div>
+                </Field>
+              </FieldGroup>
             </Modal>
 
         <Modal

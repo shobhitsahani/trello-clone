@@ -7,7 +7,7 @@ import { IconMail, IconLock, IconEye, IconEyeOff, IconFlowMark, IconArrowRight }
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatePresence, motion } from "@/components/motion";
 
@@ -64,7 +64,8 @@ export default function SignInPage() {
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent>
+            <FieldGroup>
             <AnimatePresence mode="wait">
               {error ? (
                 <motion.p
@@ -80,8 +81,8 @@ export default function SignInPage() {
               ) : null}
             </AnimatePresence>
 
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
               <div className="relative">
                 <FieldIcon><IconMail size={16} /></FieldIcon>
                 <Input
@@ -96,10 +97,10 @@ export default function SignInPage() {
                   className="pl-9"
                 />
               </div>
-            </div>
+            </Field>
 
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+            <Field>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
               <div className="relative">
                 <FieldIcon><IconLock size={16} /></FieldIcon>
                 <Input
@@ -124,12 +125,13 @@ export default function SignInPage() {
                   {showPassword ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                 </Button>
               </div>
-            </div>
+            </Field>
 
             <Button type="submit" className="mt-1 w-full" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
               <IconArrowRight size={16} />
             </Button>
+            </FieldGroup>
           </CardContent>
         </form>
 

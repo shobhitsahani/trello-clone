@@ -2,7 +2,10 @@
 
 import { useMemo, useState, startTransition } from "react";
 import { useTenant } from "@/components/store";
-import { useToast } from "@/components/overlay";
+import { Modal, useToast } from "@/components/overlay";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { AppShell } from "@/components/app-shell";
 import { IconPlus, IconSearch, IconUsers } from "@/components/icons";
 import { api, getCurrentTenantId, type Project, type Team } from "@/lib/api";
@@ -97,20 +100,21 @@ export default function TeamsPage() {
             <p className="page-subtitle">All teams in {org?.name ?? "your organization"}</p>
           </div>
           <div className="page-actions">
-            <button className="btn btn-primary" onClick={() => setShowNew(true)}>
+            <Button onClick={() => setShowNew(true)}>
               <IconPlus size={14} /> New team
-            </button>
+            </Button>
           </div>
         </header>
 
         <div className="teams-toolbar">
           <div className="search-box">
             <IconSearch size={16} />
-            <input
+            <Input
               type="text"
               value={search}
               onChange={handleSearchChange}
               placeholder="Search teams…"
+              className="border-0 bg-transparent shadow-none focus-visible:ring-0"
             />
           </div>
         </div>
@@ -123,46 +127,44 @@ export default function TeamsPage() {
               <IconUsers size={48} className="dim" />
               <h3>No teams found</h3>
               <p>{search ? "Try a different search term" : "Create your first team to get started"}</p>
-              <button className="btn btn-primary" onClick={() => setShowNew(true)}>
+              <Button onClick={() => setShowNew(true)}>
                 <IconPlus size={14} /> New team
-              </button>
+              </Button>
             </div>
           ) : (
             filteredTeams.map((team) => <TeamCard key={team.id} team={team} projects={projects} />)
           )}
         </div>
 
-        {showNew ? (
-          <div className="modal-backdrop" onClick={() => setShowNew(false)}>
-            <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Create team">
-              <div className="modal-header">
-                <h3>New team</h3>
-              </div>
-              <div className="modal-body">
-                <div className="form-field">
-                  <label htmlFor="team-name">Team name</label>
-                  <input
-                    id="team-name"
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="Platform"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") void handleCreate();
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button className="btn btn-ghost" onClick={() => setShowNew(false)}>Cancel</button>
-                <button className="btn btn-primary" onClick={() => void handleCreate()} disabled={!newName.trim()}>
-                  <IconPlus size={14} /> Create team
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <Modal
+          open={showNew}
+          onClose={() => setShowNew(false)}
+          title="New team"
+          sub="Group projects under a team."
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setShowNew(false)}>Cancel</Button>
+              <Button onClick={() => void handleCreate()} disabled={!newName.trim()}>
+                <IconPlus size={14} /> Create team
+              </Button>
+            </>
+          }
+        >
+          <Field>
+            <FieldLabel htmlFor="team-name">Team name</FieldLabel>
+            <Input
+              id="team-name"
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Platform"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleCreate();
+              }}
+            />
+          </Field>
+        </Modal>
       </div>
     </AppShell>
   );

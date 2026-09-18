@@ -9,13 +9,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTenant } from "./store";
 import { useToast, Dropdown, MenuItem, Modal } from "./overlay";
-import { Kbd } from "./ui";
 import { ThemeToggle } from "./theme-toggle";
+import { PaletteSearchTrigger } from "./search-trigger";
 import { Button, buttonVariants } from "./ui/button";
 import { Input } from "./ui/input";
-import { Label } from "./ui/label";
+import { Field, FieldDescription, FieldLabel } from "./ui/field";
 import { Textarea } from "./ui/textarea";
 import { Avatar as ShadcnAvatar, AvatarFallback } from "./ui/avatar";
+import { Skeleton } from "./ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -96,16 +97,34 @@ const NAV_RUN = [
   { href: "/app/activity", label: "Flow", icon: IconZap, live: true },
 ] as const;
 
-/* shadcn avatar helper — uses base-ui Avatar with hue-based fallback */
+/* shadcn avatar helper — uses base-ui Avatar with hue-based fallback.
+   Pass `loading` while the person is still resolving (signed out, offline,
+   slow network) to render a pulsing skeleton of the same size instead. */
 function UserAvatar({
   name,
   size = "sm",
   tint = 220,
+  loading,
 }: {
   name: string;
   size?: "sm" | "default" | "lg";
   tint?: number;
+  loading?: boolean;
 }) {
+  if (loading) {
+    return (
+      <Skeleton
+        aria-hidden
+        className={
+          size === "sm"
+            ? "size-6 shrink-0 rounded-full"
+            : size === "lg"
+              ? "size-10 shrink-0 rounded-full"
+              : "size-8 shrink-0 rounded-full"
+        }
+      />
+    );
+  }
   return (
     <ShadcnAvatar size={size}>
       <AvatarFallback
@@ -126,7 +145,7 @@ function UserAvatar({
 export function Rail() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading: authLoading } = useAuth();
   const { unread } = useTenant();
   const toast = useToast();
 
@@ -186,7 +205,12 @@ export function Rail() {
           title={user?.name ?? "Account"}
           onClick={() => go("/app/settings")}
         >
-          <UserAvatar name={user?.name ?? "You"} size="sm" tint={hueFrom(user?.id ?? "you")} />
+          <UserAvatar
+            name={user?.name ?? "You"}
+            size="sm"
+            tint={hueFrom(user?.id ?? "you")}
+            loading={authLoading || !user}
+          />
         </button>
         <button
           className="st-rail-btn"
@@ -237,7 +261,7 @@ function OrgGlyph({ name, hue, size = 28 }: { name: string; hue: number; size?: 
 export function ContextBar() {
   const pathname = usePathname();
   const { org, orgs, setOrg, createOrg, creatingOrg } = useTenant();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const toast = useToast();
   const orgId = getCurrentTenantId();
   const [showNewOrg, setShowNewOrg] = useState(false);
@@ -444,8 +468,8 @@ export function ContextBar() {
               </>
             }
           >
-            <div className="grid gap-2">
-              <Label htmlFor="new-org-name">Organization name</Label>
+            <Field>
+              <FieldLabel htmlFor="new-org-name">Organization name</FieldLabel>
               <Input
                 id="new-org-name"
                 type="text"
@@ -458,8 +482,8 @@ export function ContextBar() {
                   if (e.key === "Enter") void handleCreateOrg();
                 }}
               />
-              <p className="field-hint">2–80 characters. You can invite teammates after.</p>
-            </div>
+              <FieldDescription>2–80 characters. You can invite teammates after.</FieldDescription>
+            </Field>
           </Modal>
         </div>
 
@@ -473,12 +497,19 @@ export function ContextBar() {
               </span>
             </span>
             <span className="avatar-stack">
-              {members.slice(0, 3).map((m, i) => (
-                <UserAvatar key={m.userId} name={m.name ?? `M${i + 1}`} size="sm" tint={hueFrom(m.userId)} />
-              ))}
-              {members.length === 0
-                ? ["PR", "AT", "CC"].map((n) => <UserAvatar key={n} name={n} size="sm" tint={hueFrom(n)} />)
-                : null}
+              {membersQ.isLoading ? (
+                <>
+                  <Skeleton aria-hidden className="size-6 shrink-0 rounded-full" />
+                  <Skeleton aria-hidden className="size-6 shrink-0 rounded-full" />
+                  <Skeleton aria-hidden className="size-6 shrink-0 rounded-full" />
+                </>
+              ) : (
+                members
+                  .slice(0, 3)
+                  .map((m, i) => (
+                    <UserAvatar key={m.userId} name={m.name ?? `M${i + 1}`} size="sm" tint={hueFrom(m.userId)} />
+                  ))
+              )}
             </span>
           </div>
           <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -531,8 +562,8 @@ export function ContextBar() {
               </>
             }
           >
-            <div className="grid gap-2">
-              <Label htmlFor="new-project-name">Project name</Label>
+            <Field>
+              <FieldLabel htmlFor="new-project-name">Project name</FieldLabel>
               <Input
                 id="new-project-name"
                 type="text"
@@ -545,9 +576,9 @@ export function ContextBar() {
                   if (e.key === "Enter") void handleCreateProject();
                 }}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="new-project-key">Key (short code)</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="new-project-key">Key (short code)</FieldLabel>
               <Input
                 id="new-project-key"
                 type="text"
@@ -563,8 +594,8 @@ export function ContextBar() {
                   if (e.key === "Enter") void handleCreateProject();
                 }}
               />
-              <p className="field-hint">Shown on task cards — up to 10 letters or digits.</p>
-            </div>
+              <FieldDescription>Shown on task cards — up to 10 letters or digits.</FieldDescription>
+            </Field>
           </Modal>
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {projects.slice(0, 8).map((p, i) => {
@@ -644,8 +675,8 @@ export function ContextBar() {
               </>
             }
           >
-            <div className="grid gap-2">
-              <Label htmlFor="rename-project-name">Project name</Label>
+            <Field>
+              <FieldLabel htmlFor="rename-project-name">Project name</FieldLabel>
               <Input
                 id="rename-project-name"
                 type="text"
@@ -658,7 +689,7 @@ export function ContextBar() {
                   if (e.key === "Enter") void handleRenameProject();
                 }}
               />
-            </div>
+            </Field>
           </Modal>
           <Modal
             open={deletingProj !== null}
@@ -712,17 +743,27 @@ export function ContextBar() {
       </div>
 
       <div className="ctx-foot">
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <UserAvatar name={me.name} tint={hueFrom(me.name)} size="sm" />
-          <span className="grow" style={{ minWidth: 0 }}>
-            <span style={{ display: "block", fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {me.name}
+        {authLoading || !user ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }} aria-hidden>
+            <Skeleton className="size-6 shrink-0 rounded-full" />
+            <span className="grow" style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+              <Skeleton className="h-3 w-24 rounded" />
+              <Skeleton className="h-2.5 w-32 rounded" />
             </span>
-            <span className="ctx-tenant" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {me.email}
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <UserAvatar name={me.name} tint={hueFrom(me.name)} size="sm" />
+            <span className="grow" style={{ minWidth: 0 }}>
+              <span style={{ display: "block", fontWeight: 600, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {me.name}
+              </span>
+              <span className="ctx-tenant" style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {me.email}
+              </span>
             </span>
-          </span>
-        </div>
+          </div>
+        )}
       </div>
     </aside>
   );
@@ -738,7 +779,7 @@ export function ScopeStrip({
   onOpenNotifs: () => void;
 }) {
   const { org, unread } = useTenant();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const toast = useToast();
   const orgId = getCurrentTenantId();
@@ -779,13 +820,7 @@ export function ScopeStrip({
         )}
       </div>
 
-      <button className="st-search" onClick={onOpenPalette} aria-label="Search tasks, comments, people">
-        <IconSearch size={16} />
-        <span className="grow" style={{ textAlign: "left", fontSize: 12 }}>
-          Search tasks, comments, people…
-        </span>
-        <Kbd>⌘K</Kbd>
-      </button>
+      <PaletteSearchTrigger onOpen={onOpenPalette} />
 
       <div className="topbar-right">
         <ThemeToggle id="topbar-theme-mode" showLabel={false} />
@@ -813,29 +848,34 @@ export function ScopeStrip({
             <DropdownMenuTrigger
               render={
                 <Button variant="ghost" size="icon" className="rounded-full" aria-label="Account menu">
-                  <ShadcnAvatar size="sm">
-                    <AvatarFallback
-                      style={{
-                        background: `hsl(${hueFrom(user?.id ?? "you")} 45% 20%)`,
-                        color: `hsl(${hueFrom(user?.id ?? "you")} 80% 78%)`,
-                      }}
-                    >
-                      {initials(user?.name ?? "You")}
-                    </AvatarFallback>
-                  </ShadcnAvatar>
+                  <UserAvatar
+                    name={user?.name ?? "You"}
+                    size="sm"
+                    tint={hueFrom(user?.id ?? "you")}
+                    loading={authLoading || !user}
+                  />
                 </Button>
               }
             />
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>
-                <span className="block max-w-full truncate text-sm font-semibold text-foreground">
-                  {user?.name ?? "You"}
-                </span>
-                {user?.email ? (
-                  <span className="block max-w-full truncate text-xs font-normal text-muted-foreground">
-                    {user.email}
+                {authLoading || !user ? (
+                  <span className="flex flex-col gap-1.5 py-0.5" aria-hidden>
+                    <Skeleton className="h-3.5 w-28 rounded" />
+                    <Skeleton className="h-3 w-36 rounded" />
                   </span>
-                ) : null}
+                ) : (
+                  <>
+                    <span className="block max-w-full truncate text-sm font-semibold text-foreground">
+                      {user.name}
+                    </span>
+                    {user.email ? (
+                      <span className="block max-w-full truncate text-xs font-normal text-muted-foreground">
+                        {user.email}
+                      </span>
+                    ) : null}
+                  </>
+                )}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
@@ -1125,7 +1165,17 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {chatQ.isLoading ? (
-            <div className="loading">Loading…</div>
+            <div role="status" aria-label="Loading messages" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="st-msg" aria-hidden>
+                  <Skeleton className="size-6 shrink-0 rounded-full" />
+                  <div className="st-msg-body" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <Skeleton className="h-2.5 w-24 rounded" />
+                    <Skeleton className="h-9 w-full rounded-xl" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : items.length === 0 ? (
             <div className="st-empty">No messages yet — say hello.</div>
           ) : (
@@ -1134,6 +1184,10 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
                 names.get(m.authorId) ?? (m.authorId === user?.id ? (user?.name ?? "You") : "Someone");
               const own = m.authorId === user?.id;
               const when = formatChatTime(m.createdAt);
+              // Name still resolving (members slow/offline) and not our own
+              // message → pulse a skeleton avatar instead of a "Someone" bubble.
+              const avatarLoading =
+                membersQ.isLoading && !names.get(m.authorId) && m.authorId !== user?.id;
               return (
                 <ChatBubble
                   key={m.id}
@@ -1144,6 +1198,7 @@ export function ChatRail({ open, onToggle }: { open: boolean; onToggle: () => vo
                   timeTitle={when.title || undefined}
                   tint={hueFrom(m.authorId)}
                   brand={own}
+                  avatarLoading={avatarLoading}
                 >
                   {m.body}
                 </ChatBubble>
@@ -1167,6 +1222,7 @@ function ChatBubble({
   timeTitle,
   tint,
   brand,
+  avatarLoading,
   children,
 }: {
   who: string;
@@ -1176,6 +1232,7 @@ function ChatBubble({
   timeTitle?: string;
   tint: number;
   brand?: boolean;
+  avatarLoading?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -1186,7 +1243,7 @@ function ChatBubble({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
     >
-      <UserAvatar name={who} tint={tint} size="sm" />
+      <UserAvatar name={who} tint={tint} size="sm" loading={avatarLoading} />
       <div className="st-msg-body">
         <div className="st-msg-head">
           <span className="st-msg-who">

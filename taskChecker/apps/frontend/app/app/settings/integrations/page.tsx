@@ -2,7 +2,11 @@
 
 import { useState, useMemo, memo, startTransition, useCallback } from "react";
 import { useTenant } from "@/components/store";
-import { useToast } from "@/components/overlay";
+import { Modal, useToast } from "@/components/overlay";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { AppShell } from "@/components/app-shell";
 import { IconPlus, IconKey, IconWebhook, IconCopy, IconTrash, IconCheck, IconRotateCw, IconExternalLink, IconEye, IconEyeOff, IconChevronRight, IconCheck as IconCheckSmall } from "@/components/icons";
 import { api, getCurrentTenantId, type Webhook, type ApiKey, type Delivery } from "@/lib/api";
@@ -342,91 +346,83 @@ export default function IntegrationsPage() {
             </div>
           </section>
 
-          {showWebhookModal ? (
-            <div className="modal-backdrop" onClick={() => setShowWebhookModal(false)}>
-              <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Create webhook">
-                <div className="modal-header">
-                  <h3>Create webhook</h3>
-                  <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setShowWebhookModal(false)} aria-label="Close">
-                    <IconChevronRight size={14} />
-                  </button>
+          <Modal
+            open={showWebhookModal}
+            onClose={() => setShowWebhookModal(false)}
+            title="Create webhook"
+            footer={
+              <>
+                <Button variant="ghost" onClick={() => setShowWebhookModal(false)}>Cancel</Button>
+                <Button onClick={handleCreateWebhook} disabled={!whName || !whUrl}>
+                  <IconWebhook size={14} /> Create webhook
+                </Button>
+              </>
+            }
+          >
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="wh-name">Name</FieldLabel>
+                <Input id="wh-name" type="text" value={whName} onChange={handleWhNameChange} placeholder="Slack notifications" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="wh-url">URL</FieldLabel>
+                <Input id="wh-url" type="url" value={whUrl} onChange={handleWhUrlChange} placeholder="https://example.com/webhook" />
+              </Field>
+              <Field>
+                <FieldLabel>Events</FieldLabel>
+                <div className="event-checkboxes">
+                  {ALL_EVENTS.map((event) => (
+                    <Field key={event} orientation="horizontal">
+                      <Checkbox
+                        id={`wh-event-${event}`}
+                        checked={whEvents.includes(event)}
+                        onCheckedChange={(v) => handleWhEventsChange(event, v === true)}
+                      />
+                      <FieldLabel htmlFor={`wh-event-${event}`}>{event}</FieldLabel>
+                    </Field>
+                  ))}
                 </div>
-                <div className="modal-body">
-                  <div className="form-field">
-                    <label htmlFor="wh-name">Name</label>
-                    <input id="wh-name" type="text" value={whName} onChange={handleWhNameChange} placeholder="Slack notifications" />
-                  </div>
-                  <div className="form-field">
-                    <label htmlFor="wh-url">URL</label>
-                    <input id="wh-url" type="url" value={whUrl} onChange={handleWhUrlChange} placeholder="https://example.com/webhook" />
-                  </div>
-                  <div className="form-field">
-                    <label>Events</label>
-                    <div className="event-checkboxes">
-                      {ALL_EVENTS.map((event) => (
-                        <label key={event} className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            checked={whEvents.includes(event)}
-                            onChange={(e) => handleWhEventsChange(event, e.target.checked)}
-                          />
-                          <span>{event}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="field-hint">Leave empty to receive all events</p>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button className="btn btn-ghost" onClick={() => setShowWebhookModal(false)}>Cancel</button>
-                  <button className="btn btn-primary" onClick={handleCreateWebhook} disabled={!whName || !whUrl}>
-                    <IconWebhook size={14} /> Create webhook
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
+                <FieldDescription>Leave empty to receive all events</FieldDescription>
+              </Field>
+            </FieldGroup>
+          </Modal>
 
-          {showApiKeyModal ? (
-            <div className="modal-backdrop" onClick={() => setShowApiKeyModal(false)}>
-              <div className="modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal aria-label="Create API key">
-                <div className="modal-header">
-                  <h3>Create API key</h3>
-                  <button className="btn btn-ghost btn-sm btn-icon" onClick={() => setShowApiKeyModal(false)} aria-label="Close">
-                    <IconChevronRight size={14} />
-                  </button>
+          <Modal
+            open={showApiKeyModal}
+            onClose={() => setShowApiKeyModal(false)}
+            title="Create API key"
+            footer={
+              <>
+                <Button variant="ghost" onClick={() => setShowApiKeyModal(false)}>Cancel</Button>
+                <Button onClick={handleCreateApiKey} disabled={!akName}>
+                  <IconKey size={14} /> Create API key
+                </Button>
+              </>
+            }
+          >
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="ak-name">Name</FieldLabel>
+                <Input id="ak-name" type="text" value={akName} onChange={handleAkNameChange} placeholder="Production API" />
+              </Field>
+              <Field>
+                <FieldLabel>Scopes</FieldLabel>
+                <div className="scope-checkboxes">
+                  {["read", "write", "admin"].map((scope) => (
+                    <Field key={scope} orientation="horizontal">
+                      <Checkbox
+                        id={`ak-scope-${scope}`}
+                        checked={akScopes.includes(scope)}
+                        onCheckedChange={(v) => handleAkScopesChange(scope, v === true)}
+                      />
+                      <FieldLabel htmlFor={`ak-scope-${scope}`}>{scope}</FieldLabel>
+                    </Field>
+                  ))}
                 </div>
-                <div className="modal-body">
-                  <div className="form-field">
-                    <label htmlFor="ak-name">Name</label>
-                    <input id="ak-name" type="text" value={akName} onChange={handleAkNameChange} placeholder="Production API" />
-                  </div>
-                  <div className="form-field">
-                    <label>Scopes</label>
-                    <div className="scope-checkboxes">
-                      {["read", "write", "admin"].map((scope) => (
-                        <label key={scope} className="checkbox-label">
-                          <input
-                            type="checkbox"
-                            checked={akScopes.includes(scope)}
-                            onChange={(e) => handleAkScopesChange(scope, e.target.checked)}
-                          />
-                          <span>{scope}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="field-hint">The full key will be shown only once. Store it securely.</p>
-                </div>
-                <div className="modal-footer">
-                  <button className="btn btn-ghost" onClick={() => setShowApiKeyModal(false)}>Cancel</button>
-                  <button className="btn btn-primary" onClick={handleCreateApiKey} disabled={!akName}>
-                    <IconKey size={14} /> Create API key
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
+                <FieldDescription>The full key will be shown only once. Store it securely.</FieldDescription>
+              </Field>
+            </FieldGroup>
+          </Modal>
 
           {showDeliveriesModal && selectedWebhookId ? (
             <div className="modal-backdrop" onClick={() => setShowDeliveriesModal(false)}>

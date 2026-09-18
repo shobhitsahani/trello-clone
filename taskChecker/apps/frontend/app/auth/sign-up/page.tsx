@@ -7,7 +7,7 @@ import { IconMail, IconLock, IconUser, IconBuilding, IconEye, IconEyeOff, IconFl
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnimatePresence, motion } from "@/components/motion";
 
@@ -65,7 +65,8 @@ export default function SignUpPage() {
         </CardHeader>
 
         <form onSubmit={handleSubmit}>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent>
+            <FieldGroup>
             <AnimatePresence mode="wait">
               {error ? (
                 <motion.p
@@ -81,8 +82,8 @@ export default function SignUpPage() {
               ) : null}
             </AnimatePresence>
 
-            <div className="grid gap-2">
-              <Label htmlFor="name">Your name</Label>
+            <Field>
+              <FieldLabel htmlFor="name">Your name</FieldLabel>
               <div className="relative">
                 <FieldIcon><IconUser size={16} /></FieldIcon>
                 <Input
@@ -97,10 +98,10 @@ export default function SignUpPage() {
                   className="pl-9"
                 />
               </div>
-            </div>
+            </Field>
 
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email</Label>
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
               <div className="relative">
                 <FieldIcon><IconMail size={16} /></FieldIcon>
                 <Input
@@ -115,10 +116,10 @@ export default function SignUpPage() {
                   className="pl-9"
                 />
               </div>
-            </div>
+            </Field>
 
-            <div className="grid gap-2">
-              <Label htmlFor="password">Password</Label>
+            <Field>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
               <div className="relative">
                 <FieldIcon><IconLock size={16} /></FieldIcon>
                 <Input
@@ -144,10 +145,10 @@ export default function SignUpPage() {
                   {showPassword ? <IconEyeOff size={16} /> : <IconEye size={16} />}
                 </Button>
               </div>
-            </div>
+            </Field>
 
-            <div className="grid gap-2">
-              <Label htmlFor="orgName">Organization name</Label>
+            <Field>
+              <FieldLabel htmlFor="orgName">Organization name</FieldLabel>
               <div className="relative">
                 <FieldIcon><IconBuilding size={16} /></FieldIcon>
                 <Input
@@ -162,13 +163,14 @@ export default function SignUpPage() {
                   className="pl-9"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">This creates your organization workspace. You can invite teammates after.</p>
-            </div>
+              <FieldDescription>This creates your organization workspace. You can invite teammates after.</FieldDescription>
+            </Field>
 
             <Button type="submit" className="mt-1 w-full" disabled={loading}>
               {loading ? "Creating account…" : "Create account"}
               <IconArrowRight size={16} />
             </Button>
+            </FieldGroup>
           </CardContent>
         </form>
 

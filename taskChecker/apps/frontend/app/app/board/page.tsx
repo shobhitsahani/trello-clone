@@ -8,9 +8,15 @@ import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash, IconX, IconDoneAl
 import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { Modal, useToast } from "@/components/overlay";
 import { Button } from "@/components/ui/button";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -92,9 +98,17 @@ const TaskCard = memo(function TaskCard({
   };
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
-  // Duration chips only — no calendar anywhere. N days from now, same time.
+  // Deadline presets + calendar. N days from now (same time of day), or an
+  // absolute date picked from the calendar (keeps the current time of day).
   const saveDueInDays = (days: number) => {
     onSetDue(task.id, new Date(Date.now() + days * 86_400_000).toISOString());
+    setEditingDue(false);
+  };
+  const saveDueAt = (date: Date | undefined) => {
+    if (!date) return;
+    const now = new Date();
+    date.setHours(now.getHours(), now.getMinutes(), 0, 0);
+    onSetDue(task.id, date.toISOString());
     setEditingDue(false);
   };
   return (
@@ -204,6 +218,13 @@ const TaskCard = memo(function TaskCard({
             >
               <IconX size={14} />
             </Button>
+            <span onPointerDown={stop} onClick={stop}>
+              <DatePicker
+                onSelect={saveDueAt}
+                placeholder="Pick date"
+                className="h-7 px-2 text-[0.8rem]"
+              />
+            </span>
           </span>
         ) : task.dueAt ? (
           <button
@@ -733,9 +754,9 @@ function BoardPage() {
             </>
           }
         >
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="project-name">Name</Label>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="project-name">Name</FieldLabel>
               <Input
                 id="project-name"
                 type="text"
@@ -744,9 +765,9 @@ function BoardPage() {
                 placeholder="Launch"
                 autoFocus
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="project-key">Key (short code)</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="project-key">Key (short code)</FieldLabel>
               <Input
                 id="project-key"
                 type="text"
@@ -758,8 +779,8 @@ function BoardPage() {
                   if (e.key === "Enter") void handleCreateProject();
                 }}
               />
-            </div>
-          </div>
+            </Field>
+          </FieldGroup>
         </Modal>
       </AppShell>
     );
@@ -786,17 +807,18 @@ function BoardPage() {
           >
             <IconStar size={16} />
           </button>
-          <div className="st-search" style={{ marginLeft: 0, width: 280 }}>
-            <IconSearch size={16} />
-            <Input
+          <InputGroup className="st-search" style={{ marginLeft: 0, width: 280 }}>
+            <InputGroupAddon>
+              <IconSearch size={16} aria-hidden />
+            </InputGroupAddon>
+            <InputGroupInput
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Filter tasks…"
               aria-label="Filter tasks"
-              className="border-0 bg-transparent shadow-none focus-visible:ring-0"
             />
-          </div>
+          </InputGroup>
           <Select
             value={selectedProjectId}
             onValueChange={(v) => {
@@ -990,9 +1012,9 @@ function BoardPage() {
             </>
           }
         >
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="task-title">Title</Label>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="task-title">Title</FieldLabel>
               <Input
                 id="task-title"
                 type="text"
@@ -1004,9 +1026,9 @@ function BoardPage() {
                   if (e.key === "Enter") void handleCreateTask();
                 }}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="task-status">Status</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="task-status">Status</FieldLabel>
               <Select
                 value={newTaskStatus}
                 onValueChange={(v) => setNewTaskStatus(v as Task["status"])}
@@ -1022,8 +1044,8 @@ function BoardPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          </div>
+            </Field>
+          </FieldGroup>
         </Modal>
 
         <Modal
@@ -1042,9 +1064,9 @@ function BoardPage() {
             </>
           }
         >
-          <div className="flex flex-col gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-task-title">Title</Label>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="edit-task-title">Title</FieldLabel>
               <Input
                 id="edit-task-title"
                 type="text"
@@ -1054,9 +1076,9 @@ function BoardPage() {
                 autoFocus
                 maxLength={200}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-task-desc">Description</Label>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="edit-task-desc">Description</FieldLabel>
               <Textarea
                 id="edit-task-desc"
                 value={editDescription}
@@ -1064,10 +1086,10 @@ function BoardPage() {
                 placeholder="Add more detail…"
                 rows={4}
               />
-            </div>
+            </Field>
             <div style={{ display: "flex", gap: 12 }}>
-              <div className="grid flex-1 gap-2">
-                <Label htmlFor="edit-task-status">Status</Label>
+              <Field className="flex-1">
+                <FieldLabel htmlFor="edit-task-status">Status</FieldLabel>
                 <Select
                   value={editStatus}
                   onValueChange={(v) => setEditStatus(v as Task["status"])}
@@ -1083,9 +1105,9 @@ function BoardPage() {
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid flex-1 gap-2">
-                <Label htmlFor="edit-task-priority">Priority</Label>
+              </Field>
+              <Field className="flex-1">
+                <FieldLabel htmlFor="edit-task-priority">Priority</FieldLabel>
                 <Select
                   value={editPriority}
                   onValueChange={(v) => setEditPriority(v as Task["priority"])}
@@ -1101,9 +1123,9 @@ function BoardPage() {
                     <SelectItem value="none">None</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
             </div>
-          </div>
+          </FieldGroup>
         </Modal>
 
         <Modal

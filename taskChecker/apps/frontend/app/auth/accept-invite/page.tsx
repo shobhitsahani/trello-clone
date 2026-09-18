@@ -6,6 +6,9 @@ import Link from "next/link";
 import { IconMail, IconLock, IconUser, IconEye, IconEyeOff, IconFlowMark, IconArrowRight, IconCheck, IconAlertCircle } from "@/components/icons";
 import { api } from "@/lib/api";
 import { cx } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 
 type Preview = { email: string; orgName: string; role: string; expiresAt: string };
 
@@ -133,11 +136,12 @@ function AcceptInviteForm() {
         <form onSubmit={handleSubmit} className="auth-form">
           {error && <div className="auth-error">{error}</div>}
 
-          <div className="form-field">
-            <label htmlFor="name">Your name</label>
+          <FieldGroup>
+          <Field>
+            <FieldLabel htmlFor="name">Your name</FieldLabel>
             <div className="input-with-icon">
               <IconUser size={18} />
-              <input
+              <Input
                 id="name"
                 type="text"
                 value={name}
@@ -148,13 +152,13 @@ function AcceptInviteForm() {
                 disabled={loading || expired}
               />
             </div>
-          </div>
+          </Field>
 
-          <div className="form-field">
-            <label htmlFor="password">Password</label>
+          <Field>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
             <div className="input-with-icon">
               <IconLock size={18} />
-              <input
+              <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
@@ -165,16 +169,17 @@ function AcceptInviteForm() {
                 disabled={loading || expired}
                 minLength={8}
               />
-              <button type="button" className="btn btn-ghost btn-icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
+              <Button type="button" variant="ghost" size="icon" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Hide password" : "Show password"}>
                 {showPassword ? <IconEyeOff size={18} /> : <IconEye size={18} />}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Field>
 
-          <button type="submit" className="btn btn-primary btn-block auth-submit" disabled={loading || expired}>
+          <Button type="submit" className="btn-block auth-submit" disabled={loading || expired}>
             {loading ? "Accepting invite…" : "Accept invite"}
             <IconArrowRight size={16} />
-          </button>
+          </Button>
+          </FieldGroup>
         </form>
 
         <p className="auth-footer">
