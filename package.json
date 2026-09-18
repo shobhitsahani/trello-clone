@@ -1,11 +1,17 @@
 {
   "name": "task-checker-root",
   "private": true,
+  "packageManager": "pnpm@10.34.3",
   "scripts": {
-    "dev": "bun --cwd taskChecker dev",
-    "build": "bun --cwd taskChecker build",
-    "lint": "bun --cwd taskChecker lint",
-    "format": "bun --cwd taskChecker format",
-    "check-types": "bun --cwd taskChecker check-types"
+    "predev": "pnpm install",
+    "dev": "pnpm --dir taskChecker run dev",
+    "prebuild": "pnpm install",
+    "build": "pnpm --dir taskChecker run build",
+    "lint": "pnpm --dir taskChecker run lint",
+    "format": "pnpm --dir taskChecker run format",
+    "check-types": "pnpm --dir taskChecker run check-types"
+  },
+  "devDependencies": {
+    "turbo": "^2.11.2"
   }
 }

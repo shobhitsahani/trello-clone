@@ -116,6 +116,10 @@ export function Dropdown({
   return (
     <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
+        // Trigger content is arbitrary (often its own <button>), so don't
+        // force a native <button> wrapper — Base UI adds role + keyboard
+        // handling to the span instead, with no a11y warning.
+        nativeButton={false}
         render={(props, state) => (
           <span {...props} style={{ display: "inline-flex" }}>
             {trigger(state.open)}

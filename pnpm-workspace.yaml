@@ -1,0 +1,4 @@
+packages:
+  - taskChecker
+  - taskChecker/apps/*
+  - taskChecker/packages/*
