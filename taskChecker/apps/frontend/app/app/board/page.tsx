@@ -4,7 +4,7 @@ import { Suspense, memo, useCallback, useDeferredValue, useEffect, useMemo, useR
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
-import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash, IconX, IconDoneAll, IconStar } from "@/components/icons";
+import { IconPlus, IconSearch, IconClock, IconEdit, IconTrash, IconX, IconDoneAll, IconStar, IconCopy } from "@/components/icons";
 import { api, getCurrentTenantId, type ListLabel, type Task, type Project } from "@/lib/api";
 import { Modal, useToast } from "@/components/overlay";
 import { Button } from "@/components/ui/button";
@@ -258,36 +258,26 @@ const TaskCard = memo(function TaskCard({
           {project ? `${project.key}-${task.id.slice(0, 4).toUpperCase()}` : task.id.slice(0, 8)}
         </span>
       </div>
+
       {canWrite ? (
-        <div className="trello-card-actions">
-          {task.status !== "done" ? (
-            <span
-              className="st-card-done"
-              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              title="Mark as done"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-            >
-              <Checkbox
-                checked={false}
-                onCheckedChange={(checked) => {
-                  if (checked === true) onDone(task);
-                }}
-                aria-label={`Mark ${task.title} as done`}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                aria-label={`Mark ${task.title} as done`}
-                onClick={() => onDone(task)}
-              >
-                <IconDoneAll size={12} /> Done
-              </Button>
-            </span>
-          ) : null}
+        <div className="trello-card-quick-actions">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Set deadline for ${task.title}`}
+            title="Deadline"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={openDueEditor}
+          >
+            {task.dueAt ? (
+              <>
+                {task.status === "done" ? <IconDoneAll size={12} /> : <IconClock size={12} />}
+              </>
+            ) : (
+              <IconClock size={12} className="text-muted" />
+            )}
+          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -300,21 +290,50 @@ const TaskCard = memo(function TaskCard({
               onEdit(task);
             }}
           >
-            <IconEdit size={13} />
+            <IconEdit size={12} />
           </Button>
           <Button
             type="button"
             variant="ghost"
             size="icon-xs"
-            aria-label={`Delete ${task.title}`}
-            title="Delete"
+            aria-label={`Copy ${task.title}`}
+            title="Copy"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(task.title);
+            }}
+          >
+            <IconCopy size={12} />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Archive ${task.title}`}
+            title="Archive"
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onDelete(task);
             }}
           >
-            <IconTrash size={13} />
+            <IconTrash size={12} />
+          </Button>
+        </div>
+      ) : null}
+
+      {task.status !== "done" && canWrite ? (
+        <div className="trello-card-done-btn" onPointerDown={stop} onClick={stop}>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            aria-label={`Mark ${task.title} as done`}
+            onClick={() => onDone(task)}
+            className="trello-done-btn"
+          >
+            <IconDoneAll size={12} /> Mark as done
           </Button>
         </div>
       ) : null}

@@ -1,0 +1,330 @@
+<!DOCTYPE html><html lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Signal Board · Relay Systems</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#c4b5fd',
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style data-purpose="custom-scrollbar">
+    /* Subtle custom scrollbars for horizontal board & live feed */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #cbd5e1;
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-900 font-sans antialiased overflow-hidden h-screen flex">
+<!-- BEGIN: UtilityRail (Far Left) -->
+<aside class="w-14 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col items-center justify-between py-3.5 z-20" data-purpose="utility-rail">
+<!-- Top Icons -->
+<div class="flex flex-col items-center gap-5 w-full">
+<!-- Logo Icon -->
+<a class="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center font-bold text-sm tracking-tighter shadow-sm hover:bg-brand-700 transition" href="#">
+<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="3"></circle>
+<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+</svg>
+</a>
+<!-- App Grid Button -->
+<button class="w-9 h-9 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50 flex items-center justify-center transition">
+<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+<path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+</svg>
+</button>
+<!-- Notification with Badge -->
+<div class="relative">
+<button class="w-9 h-9 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50 flex items-center justify-center transition">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+<span class="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 bg-brand-600 text-white font-semibold text-[10px] rounded-full flex items-center justify-center border-2 border-white">
+          6
+        </span>
+</div>
+<!-- Quick Search -->
+<button class="w-9 h-9 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50 flex items-center justify-center transition">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</div>
+<!-- Bottom User Quick Profile -->
+<div class="flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-semibold text-xs flex items-center justify-center">
+        PR
+      </div>
+</div>
+</aside>
+<!-- END: UtilityRail -->
+<!-- BEGIN: MainSidebar -->
+<aside class="w-64 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 flex flex-col justify-between p-4 overflow-y-auto" data-purpose="workspace-navigation">
+<div class="space-y-6">
+<!-- Workspace Selector Card -->
+<div>
+<div class="p-2.5 bg-white border border-slate-200/90 rounded-xl shadow-xs hover:border-brand-300 transition cursor-pointer flex items-center justify-between group">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0 text-white shadow-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+<rect height="7" rx="1.5" width="7" x="3" y="3"></rect>
+<rect height="7" rx="1.5" width="7" x="14" y="3"></rect>
+<rect height="7" rx="1.5" width="7" x="14" y="14"></rect>
+<rect height="7" rx="1.5" width="7" x="3" y="14"></rect>
+</svg>
+</div>
+<div class="truncate">
+<span class="block text-xs font-bold text-slate-900 tracking-wide uppercase">RELAY SYSTEMS</span>
+</div>
+</div>
+<svg class="w-4 h-4 text-slate-400 group-hover:text-brand-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<!-- Plan Badges -->
+<div class="flex items-center gap-1.5 mt-2.5 px-0.5">
+</div>
+</div>
+<!-- TEAMS Section -->
+<div>
+<div class="px-2 mb-2 flex items-center justify-between"><div class="flex items-center gap-1.5"><h3 class="text-[10px] font-bold text-slate-400 tracking-wider uppercase">TEAMS</h3><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>3 online</span></div><div class="flex items-center -space-x-1.5"><div class="relative"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[9px] ring-2 ring-white border border-emerald-300" title="Priya Raman">PR</span><span class="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div class="relative"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-100 text-sky-700 font-bold text-[9px] ring-2 ring-white border border-sky-300" title="Aiko Tanaka">AT</span><span class="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div class="relative"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-bold text-[9px] ring-2 ring-white border border-purple-300" title="Cass Chen">CC</span><span class="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full ring-1 ring-white"></span></div></div></div>
+<nav class="space-y-0.5 font-medium text-xs">
+</nav>
+</div>
+<!-- PROJECTS Section -->
+<div>
+<h3 class="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-2 mb-2">PROJECTS</h3>
+<div>
+<!-- Selected Project item with light purple accent -->
+<a class="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-slate-100 text-slate-700 font-medium text-xs transition" href="#"><span class="flex items-center gap-2"><span class="px-1.5 py-0.5 rounded bg-slate-200 text-slate-700 text-[10px] font-bold font-mono tracking-wide">SIG</span><span class="font-medium text-slate-800">Signal</span></span><span class="text-[11px] font-semibold text-slate-500 bg-white/80 px-1.5 py-0.2 rounded border border-slate-200">1</span></a>
+</div>
+</div>
+<!-- RUN THE TENANT Section -->
+<div>
+<h3 class="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-2 mb-2">RUN THE TENANT</h3>
+<nav class="space-y-0.5 font-medium text-xs text-slate-600">
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-100 transition" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+            Usage
+          </a>
+<button class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition group" id="open-members-btn" onclick="document.getElementById('members-modal').classList.remove('hidden')"><span class="flex items-center gap-2.5"><svg class="w-4 h-4 text-slate-400 group-hover:text-brand-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg><span class="font-medium text-xs text-slate-700 group-hover:text-slate-900">Members</span></span><span class="flex items-center gap-1.5"><span class="px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold font-mono">5 on</span><span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 text-[10px] font-mono border border-slate-200">8</span><svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></span></button>
+<a class="flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-100 text-slate-700 transition font-medium text-xs" href="#"><span class="flex items-center gap-2.5"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg><span class="font-medium text-slate-700">Flow</span></span><span class="inline-flex items-center gap-1 text-[10px] text-emerald-600 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>live</span></a>
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-100 transition" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+            Webhooks &amp; keys
+          </a>
+</nav>
+</div>
+</div>
+</aside>
+<!-- END: MainSidebar -->
+<!-- BEGIN: CenterAndRightContent -->
+<div class="flex-1 flex flex-col min-w-0 bg-white">
+<!-- BEGIN: TopBar -->
+<header class="h-14 border-b border-slate-200 px-5 flex items-center justify-between bg-white flex-shrink-0" data-purpose="top-navigation">
+<!-- Breadcrumb / Title -->
+<div class="flex items-center gap-3 min-w-0">
+<h1 class="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+<span class="">Signal</span>
+</h1>
+<div class="flex items-center gap-2 text-xs font-mono text-slate-500"><span class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded font-semibold text-slate-700">SIG</span><span class="text-slate-400">/</span><span class="text-slate-600 font-sans font-normal">Edge device fleet API</span><span class="text-slate-400">/</span><span class="font-sans font-medium text-slate-900 flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Flow (Task Audit &amp; DAG Pipeline)</span><span class="inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full text-[11px] font-sans font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Realtime sync</span></div>
+</div>
+<!-- Right Header Actions -->
+<div class="flex items-center gap-3">
+<!-- Search Bar -->
+<div class="relative w-64 md:w-72">
+<svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<input class="w-full text-xs pl-9 pr-10 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition" placeholder="Search tasks, comments, people..." type="text">
+<kbd class="absolute right-2.5 top-2 text-[10px] font-mono px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-400 shadow-2xs">⌘K</kbd>
+</div>
+<!-- Notification Bell -->
+<button class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="">New task</span></button><button class="relative p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="absolute top-1 right-1 w-2 h-2 bg-brand-600 rounded-full"></span>
+</button>
+<!-- User Profile Pill -->
+<div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+<div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center border border-emerald-300">
+            PR
+          </div>
+</div>
+</div>
+</header>
+<!-- END: TopBar -->
+<!-- Board Area + Live Flow Container -->
+<div class="flex-1 flex overflow-hidden">
+<!-- BEGIN: KanbanBoardMain -->
+<main class="flex-1 overflow-y-auto bg-slate-50/40 p-5" data-purpose="flow-main"><div class="max-w-6xl mx-auto space-y-5"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs"><div class="flex items-center gap-2"><div class="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200"><button class="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-white text-brand-900 text-xs font-semibold shadow-2xs border border-brand-200/60"><svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"></circle><circle cx="18" cy="18" r="3"></circle><path d="M8.5 8.5l7 7M15 6h3v3M6 15v3h3" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg><span class="">DAG Pipeline Graph</span></button><button class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-slate-600 hover:text-slate-900 text-xs font-medium transition"><svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg><span class="">Audit History (244)</span></button></div><span class="text-slate-300">|</span><span class="text-xs text-slate-500 font-medium">Branch: <span class="font-mono font-semibold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">main@fe7a9</span></span></div><div class="flex items-center gap-2"><div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-600"><span class="text-slate-400">Window:</span><span class="font-semibold text-slate-800">Last 24 hours</span><svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div><div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-600"><span class="text-slate-400">Event:</span><span class="font-semibold text-slate-800">All Statuses</span><svg class="w-3 h-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div><button class="px-2.5 py-1 text-xs font-semibold text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 rounded-lg transition flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>Replay Flow</button></div></div><div class="grid grid-cols-1 sm:grid-cols-3 gap-4"><div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs flex items-center justify-between"><div><p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Tasks Completed (Sprint)</p><div class="flex items-baseline gap-2 mt-1"><h4 class="text-2xl font-bold text-slate-900">38</h4><span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">+14% vs avg</span></div><p class="text-[11px] text-slate-500 mt-1">All 38 verified by tenant CI</p></div><div class="w-10 h-10 rounded-lg bg-brand-50 border border-brand-200 text-brand-600 flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div></div><div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs flex items-center justify-between"><div><p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Avg Lead &amp; Cycle Time</p><div class="flex items-baseline gap-2 mt-1"><h4 class="text-2xl font-bold text-slate-900">1.8 d</h4><span class="text-xs font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">-6.2 hrs</span></div><p class="text-[11px] text-slate-500 mt-1">Creation to stage production</p></div><div class="w-10 h-10 rounded-lg bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-width="2"></circle><path d="M12 6v6l4 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div></div><div class="bg-white p-4 rounded-xl border border-slate-200/90 shadow-2xs flex items-center justify-between"><div><p class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Top Audit Contributors</p><div class="flex items-center gap-2 mt-1.5"><div class="flex items-center -space-x-1.5"><span class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center ring-2 ring-white border border-emerald-300" title="Priya (14 completed)">PR</span><span class="w-7 h-7 rounded-full bg-sky-100 text-sky-700 font-bold text-xs flex items-center justify-center ring-2 ring-white border border-sky-300" title="Aiko (11 completed)">AT</span><span class="w-7 h-7 rounded-full bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center ring-2 ring-white border border-purple-300" title="Cass (8 created)">CC</span><span class="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center ring-2 ring-white border border-slate-200" title="Ben (5 deployed)">BC</span></div><span class="text-xs font-semibold text-slate-700">4 authors active</span></div><p class="text-[11px] text-slate-500 mt-1">0 unassigned blocked tasks</p></div><div class="w-10 h-10 rounded-lg bg-purple-50 border border-purple-200 text-purple-600 flex items-center justify-center"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div></div></div><div class="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden"><div class="p-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-brand-600 animate-pulse"></span><h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">DAG Task Dependency Graph</h3><span class="text-[11px] text-slate-500 font-mono">· 4 nodes, 3 edges (0 cycles)</span></div><div class="flex items-center gap-2"><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1 h-1 rounded-full bg-emerald-500"></span>Pipeline healthy</span><button class="px-2 py-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded bg-white hover:bg-slate-50 transition">Full DAG</button></div></div><div class="p-6 overflow-x-auto bg-gradient-to-b from-white to-slate-50/50 relative"><div class="min-w-[780px] flex items-center justify-between gap-4 relative py-3"><div class="flex-1 max-w-[210px] bg-white rounded-xl border border-slate-200 shadow-2xs p-3.5 hover:border-brand-300 transition relative z-10"><div class="flex items-center justify-between mb-2"><span class="px-1.5 py-0.2 rounded bg-purple-50 border border-purple-200 text-purple-700 font-mono text-[10px] font-bold">SIG-121</span><span class="text-[10px] font-mono text-emerald-600 font-semibold">COMPLETED</span></div><h5 class="text-xs font-semibold text-slate-900 leading-tight mb-2">Ingress Protocol Contract</h5><div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px]"><div class="flex items-center gap-1 text-slate-500"><span class="w-4 h-4 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-[8px]">CC</span><span class="">Cass</span></div><span class="font-mono text-slate-400">1h ago</span></div></div><div class="flex items-center justify-center flex-shrink-0 text-brand-400 px-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div><div class="flex-1 max-w-[210px] bg-white rounded-xl border-2 border-brand-500/80 shadow-xs p-3.5 relative z-10"><div class="flex items-center justify-between mb-2"><span class="px-1.5 py-0.2 rounded bg-brand-50 border border-brand-200 text-brand-700 font-mono text-[10px] font-bold">SIG-104</span><span class="inline-flex items-center gap-1 text-[10px] font-mono text-brand-700 font-bold"><span class="w-1.5 h-1.5 rounded-full bg-brand-600 animate-pulse"></span>IN-FLIGHT</span></div><h5 class="text-xs font-semibold text-slate-900 leading-tight mb-2">Rate-limit 429 response contract</h5><div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px]"><div class="flex items-center gap-1 text-slate-500"><span class="w-4 h-4 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-[8px]">PR</span><span class="">Priya</span></div><span class="font-mono text-brand-600 font-semibold">42m ago</span></div></div><div class="flex items-center justify-center flex-shrink-0 text-brand-400 px-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div><div class="flex-1 max-w-[210px] bg-white rounded-xl border border-slate-200 shadow-2xs p-3.5 hover:border-brand-300 transition relative z-10"><div class="flex items-center justify-between mb-2"><span class="px-1.5 py-0.2 rounded bg-sky-50 border border-sky-200 text-sky-700 font-mono text-[10px] font-bold">SIG-118</span><span class="text-[10px] font-mono text-slate-500 font-medium">BLOCKED ON 104</span></div><h5 class="text-xs font-semibold text-slate-900 leading-tight mb-2">SIMD Enclave Gate Reconnect</h5><div class="flex items-center justify-between pt-2 border-t border-slate-100 text-[10px]"><div class="flex items-center gap-1 text-slate-500"><span class="w-4 h-4 rounded-full bg-sky-100 text-sky-700 font-bold flex items-center justify-center text-[8px]">AT</span><span class="">Aiko</span></div><span class="font-mono text-slate-400">10m ago</span></div></div><div class="flex items-center justify-center flex-shrink-0 text-slate-300 px-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></div><div class="flex-1 max-w-[210px] bg-slate-50/70 rounded-xl border border-dashed border-slate-300 p-3.5 relative z-10"><div class="flex items-center justify-between mb-2"><span class="px-1.5 py-0.2 rounded bg-slate-100 border border-slate-200 text-slate-600 font-mono text-[10px] font-bold">SIG-097</span><span class="text-[10px] font-mono text-slate-400">QUEUED</span></div><h5 class="text-xs font-semibold text-slate-700 leading-tight mb-2">Canary Fleet Deploy (Ring 1)</h5><div class="flex items-center justify-between pt-2 border-t border-slate-200/80 text-[10px]"><div class="flex items-center gap-1 text-slate-400"><span class="w-4 h-4 rounded-full bg-slate-200 text-slate-600 font-bold flex items-center justify-center text-[8px]">BC</span><span class="">Ben</span></div><span class="font-mono text-slate-400">Pending</span></div></div></div></div></div><div class="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden"><div class="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h3 class="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2"><span class="">Task Audit History &amp; Event Log</span><span class="px-2 py-0.2 rounded-full bg-brand-50 text-brand-700 border border-brand-200 text-[10px] font-semibold">Audited Immutable Stream</span></h3><p class="text-xs text-slate-500 mt-0.5">Tracking creation, completions, reassignments, and state promotions.</p></div><div class="flex items-center gap-1.5"><button class="px-2.5 py-1 text-xs font-medium rounded-md bg-brand-50 text-brand-700 border border-brand-200">All Events</button><button class="px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100 border border-transparent transition">Completed</button><button class="px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100 border border-transparent transition">Created</button><button class="px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 hover:bg-slate-100 border border-transparent transition">Reassigned</button></div></div><div class="divide-y divide-slate-100 text-xs"><div class="p-4 hover:bg-slate-50/70 transition flex items-start justify-between gap-4"><div class="flex items-start gap-3"><div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center border border-emerald-300 flex-shrink-0 mt-0.5">PR</div><div class="space-y-1"><div class="flex items-center gap-2 flex-wrap"><span class="font-semibold text-slate-900">Priya Raman</span><span class="text-slate-400">reassigned and approved</span><span class="font-mono font-bold text-brand-700 bg-brand-50 border border-brand-200 px-1.5 py-0.2 rounded text-[11px]">SIG-118</span><span class="font-medium text-slate-900">SIMD Enclave Gate Reconnect</span><span class="px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">COMPLETED</span></div><p class="text-[11px] text-slate-500">Reassigned assignee from <span class="font-medium text-slate-700">Cassian</span> to <span class="font-medium text-slate-700">Aiko Tanaka</span> after passing TLS fuzz tests.</p></div></div><div class="text-right flex-shrink-0"><span class="font-mono text-[11px] text-slate-400 block">10:02 AM</span><span class="text-[10px] font-mono text-emerald-600">Verified</span></div></div><div class="p-4 hover:bg-slate-50/70 transition flex items-start justify-between gap-4"><div class="flex items-start gap-3"><div class="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center border border-slate-200 flex-shrink-0 mt-0.5">BC</div><div class="space-y-1"><div class="flex items-center gap-2 flex-wrap"><span class="font-semibold text-slate-900">Benjamin Cole</span><span class="text-slate-400">promoted state to Done for</span><span class="font-mono font-bold text-brand-700 bg-brand-50 border border-brand-200 px-1.5 py-0.2 rounded text-[11px]">SIG-097</span><span class="font-medium text-slate-900">Rate-limit 429 response contract</span><span class="px-2 py-0.2 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">PROMOTED</span></div><p class="text-[11px] text-slate-500">Merged branch <code class="font-mono text-slate-700 bg-slate-100 px-1 py-0.5 rounded">feat/sig-097-429-contract</code> into staging. Verified zero 5xx regression in shadow traffic.</p></div></div><div class="text-right flex-shrink-0"><span class="font-mono text-[11px] text-slate-400 block">09:22 AM</span><span class="text-[10px] font-mono text-slate-400">Diff #882b</span></div></div><div class="p-4 hover:bg-slate-50/70 transition flex items-start justify-between gap-4"><div class="flex items-start gap-3"><div class="w-7 h-7 rounded-full bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center border border-purple-300 flex-shrink-0 mt-0.5">CC</div><div class="space-y-1"><div class="flex items-center gap-2 flex-wrap"><span class="font-semibold text-slate-900">Cassian Drake</span><span class="text-slate-400">created task</span><span class="font-mono font-bold text-brand-700 bg-brand-50 border border-brand-200 px-1.5 py-0.2 rounded text-[11px]">SIG-121</span><span class="font-medium text-slate-900">Ingress Protocol Contract v3</span><span class="px-2 py-0.2 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">CREATED</span></div><p class="text-[11px] text-slate-500">Specifies protobuf IDL for edge streaming nodes. Added initial test fixtures and SLA requirements.</p></div></div><div class="text-right flex-shrink-0"><span class="font-mono text-[11px] text-slate-400 block">08:45 AM</span><span class="text-[10px] font-mono text-slate-400">Priority: High</span></div></div><div class="p-4 hover:bg-slate-50/70 transition flex items-start justify-between gap-4"><div class="flex items-start gap-3"><div class="w-7 h-7 rounded-full bg-sky-100 text-sky-700 font-bold text-xs flex items-center justify-center border border-sky-300 flex-shrink-0 mt-0.5">AT</div><div class="space-y-1"><div class="flex items-center gap-2 flex-wrap"><span class="font-semibold text-slate-900">Aiko Tanaka</span><span class="text-slate-400">completed review on</span><span class="font-mono font-bold text-brand-700 bg-brand-50 border border-brand-200 px-1.5 py-0.2 rounded text-[11px]">SIG-104</span><span class="font-medium text-slate-900">OTLP exporter for fleet events</span><span class="px-2 py-0.2 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">REVIEW APPROVED</span></div><p class="text-[11px] text-slate-500">Approved telemetry schema buffer batching. Confirmed heap safety under 250k events/sec peak.</p></div></div><div class="text-right flex-shrink-0"><span class="font-mono text-[11px] text-slate-400 block">08:14 AM</span><span class="text-[10px] font-mono text-emerald-600">LGTM +1</span></div></div></div><div class="p-3.5 bg-slate-50/60 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500"><span class="">Showing latest 4 of 244 audit log entries</span><button class="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg text-slate-700 font-medium transition shadow-2xs">Export Audit Trail (.ndjson)</button></div></div></div></main>
+<!-- END: KanbanBoardMain -->
+<!-- BEGIN: LiveActivitySidebar (Right Rail) -->
+<aside class="w-80 flex-shrink-0 bg-white border-l border-slate-200 flex flex-col justify-between" data-purpose="activity-feed">
+<!-- Feed Content Area -->
+<div class="p-5 flex-1 overflow-y-auto">
+<!-- Flow Header -->
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<h3 class="text-xs font-bold tracking-wider text-slate-900 uppercase">FLOW</h3>
+</div>
+<span class="text-[11px] font-mono font-medium text-slate-400">
+              LIVE · &lt;1 s
+            </span>
+</div>
+<!-- Description -->
+<p class="text-[11px] text-slate-500 leading-relaxed mb-6">
+            Every move, comment and delivery, pushed over the socket. A dropped connection replays from its cursor — nothing is missed.
+          </p>
+<!-- Timeline Entries -->
+<div class="space-y-3.5 font-sans text-xs">
+<!-- Entry 1 (Highlighted/Active) -->
+<div class="p-2.5 rounded-lg bg-brand-50 border border-brand-200 shadow-2xs">
+<div class="flex items-center gap-2 text-brand-900 font-medium">
+<span class="font-mono text-[11px] text-brand-600 font-semibold">10:02</span>
+<svg class="w-3.5 h-3.5 text-brand-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="leading-tight text-brand-950 font-semibold">
+                  SIG-118 reassigned to Aiko — Priya
+                </span>
+</div>
+</div>
+<!-- Entry 2 -->
+<div class="flex items-start gap-2.5 px-2 py-1 text-slate-600 hover:text-slate-900 transition">
+<span class="font-mono text-[11px] text-slate-400 pt-0.5">09:55</span>
+<div class="flex items-start gap-2">
+<svg class="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="leading-tight">Cass commented on SIG-104</span>
+</div>
+</div>
+<!-- Entry 3 -->
+<div class="flex items-start gap-2.5 px-2 py-1 text-slate-600 hover:text-slate-900 transition">
+<span class="font-mono text-[11px] text-slate-400 pt-0.5">09:47</span>
+<div class="flex items-start gap-2">
+<svg class="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M14 5l7 7m0 0l-7 7m7-7H3" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="leading-tight">
+                  Webhook identity.events delivered <br>
+<span class="text-slate-400 font-mono text-[10px]">· 202 in 61 ms</span>
+</span>
+</div>
+</div>
+<!-- Entry 4 -->
+<div class="flex items-start gap-2.5 px-2 py-1 text-slate-600 hover:text-slate-900 transition">
+<span class="font-mono text-[11px] text-slate-400 pt-0.5">09:40</span>
+<div class="flex items-start gap-2">
+<svg class="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="leading-tight">API key fleet-read created — Aiko</span>
+</div>
+</div>
+<!-- Entry 5 -->
+<div class="flex items-start gap-2.5 px-2 py-1 text-slate-600 hover:text-slate-900 transition">
+<span class="font-mono text-[11px] text-slate-400 pt-0.5">09:22</span>
+<div class="flex items-start gap-2">
+<svg class="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="leading-tight">SIG-097 moved to Done — Ben</span>
+</div>
+</div>
+<!-- Entry 6 -->
+<div class="flex items-start gap-2.5 px-2 py-1 text-slate-600 hover:text-slate-900 transition">
+<span class="font-mono text-[11px] text-slate-400 pt-0.5">09:03</span>
+<div class="flex items-start gap-2">
+<svg class="w-3.5 h-3.5 text-slate-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="leading-tight">
+                  Priya accepted invitation — role <span class="font-semibold text-slate-800">Admin</span>
+</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer / Online Users & Manage Tenant Link -->
+<div class="p-4 border-t border-slate-200 bg-slate-50/50 space-y-3">
+<div class="flex items-center justify-between">
+<!-- Avatars Group -->
+<div class="flex items-center -space-x-1.5 overflow-hidden">
+<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-100 text-sky-700 font-bold text-[10px] ring-2 ring-white border border-sky-300">
+                AT
+              </span>
+<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[10px] ring-2 ring-white border border-emerald-300">
+                PR
+              </span>
+<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 text-purple-700 font-bold text-[10px] ring-2 ring-white border border-purple-300">
+                BO
+              </span>
+<span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-rose-100 text-rose-700 font-bold text-[10px] ring-2 ring-white border border-rose-300">
+                CR
+              </span>
+</div>
+<!-- Online Counter -->
+<span class="text-[11px] font-mono font-medium text-slate-500">
+              3 ONLINE
+            </span>
+</div>
+<!-- Bottom Tenant Action -->
+<a class="flex items-center justify-end gap-1 text-xs font-semibold text-brand-600 hover:text-brand-800 transition group" href="#">
+<span class="">Manage the tenant</span>
+<svg class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</a>
+</div>
+</aside>
+<!-- END: LiveActivitySidebar -->
+</div>
+</div>
+<!-- END: CenterAndRightContent -->
+<div class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" id="members-modal"><div class="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95"><div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-brand-50 border border-brand-200 flex items-center justify-center text-brand-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg></div><div><div class="flex items-center gap-2"><h2 class="text-base font-bold text-slate-900">Tenant Members &amp; Team Directory</h2><span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200">8 Total</span><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>5 active now</span></div><p class="text-xs text-slate-500 mt-0.5">Manage team access, permissions, seats, and workspace security roles.</p></div></div><div class="flex items-center gap-2"><button class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer" onclick="document.getElementById('members-modal').classList.add('hidden')" title="Close modal"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div></div><div class="p-4 border-b border-slate-200 flex items-center justify-between gap-4 bg-white"><div class="relative flex-1 max-w-sm"><svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><input class="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition" placeholder="Search members by name, role or email..." type="text"></div><div class="flex items-center gap-2.5"><button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg shadow-xs transition cursor-pointer"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="">Invite Member</span></button></div></div><div class="flex-1 overflow-y-auto p-4"><table class="w-full text-left text-xs"><thead class="text-[11px] font-semibold text-slate-400 border-b border-slate-200 uppercase tracking-wider"><tr><th class="pb-3 pl-3 font-semibold">User</th><th class="pb-3 font-semibold">Role</th><th class="pb-3 font-semibold">Status</th><th class="pb-3 font-semibold">Assigned Tasks</th><th class="pb-3 pr-3 text-right font-semibold">Actions</th></tr></thead><tbody class="divide-y divide-slate-100 text-slate-700"><tr class="hover:bg-slate-50/70 transition"><td class="py-3 pl-3"><div class="flex items-center gap-3"><div class="relative flex-shrink-0"><span class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center border border-emerald-300">PR</span><span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div><p class="font-semibold text-slate-900 leading-tight">Priya Raman</p><p class="text-[11px] text-slate-500 font-mono">priya@relaysystems.internal</p></div></div></td><td class=""><span class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 border border-purple-300 font-semibold text-[11px]">Admin</span></td><td class=""><span class="inline-flex items-center gap-1.5 text-emerald-600 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Online</span></td><td class=""><span class="font-mono text-slate-600">6 active</span></td><td class="pr-3 text-right"><button class="text-brand-600 hover:text-brand-800 font-semibold text-xs transition">Edit</button></td></tr><tr class="hover:bg-slate-50/70 transition"><td class="py-3 pl-3"><div class="flex items-center gap-3"><div class="relative flex-shrink-0"><span class="w-8 h-8 rounded-full bg-sky-100 text-sky-700 font-bold text-xs flex items-center justify-center border border-sky-300">AT</span><span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div><p class="font-semibold text-slate-900 leading-tight">Aiko Tanaka</p><p class="text-[11px] text-slate-500 font-mono">aiko@relaysystems.internal</p></div></div></td><td class=""><span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium text-[11px]">Staff Eng</span></td><td class=""><span class="inline-flex items-center gap-1.5 text-emerald-600 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Online</span></td><td class=""><span class="font-mono text-slate-600">4 active</span></td><td class="pr-3 text-right"><button class="text-brand-600 hover:text-brand-800 font-semibold text-xs transition">Edit</button></td></tr><tr class="hover:bg-slate-50/70 transition"><td class="py-3 pl-3"><div class="flex items-center gap-3"><div class="relative flex-shrink-0"><span class="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center border border-purple-300">CC</span><span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div><p class="font-semibold text-slate-900 leading-tight">Cassian Drake</p><p class="text-[11px] text-slate-500 font-mono">cassian@relaysystems.internal</p></div></div></td><td class=""><span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium text-[11px]">Tech Lead</span></td><td class=""><span class="inline-flex items-center gap-1.5 text-emerald-600 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Online</span></td><td class=""><span class="font-mono text-slate-600">2 active</span></td><td class="pr-3 text-right"><button class="text-brand-600 hover:text-brand-800 font-semibold text-xs transition">Edit</button></td></tr><tr class="hover:bg-slate-50/70 transition"><td class="py-3 pl-3"><div class="flex items-center gap-3"><div class="relative flex-shrink-0"><span class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-xs flex items-center justify-center border border-slate-200">BC</span><span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-slate-400 rounded-full ring-1 ring-white"></span></div><div><p class="font-semibold text-slate-700 leading-tight">Benjamin Cole</p><p class="text-[11px] text-slate-400 font-mono">ben@relaysystems.internal</p></div></div></td><td class=""><span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium text-[11px]">DevOps</span></td><td class=""><span class="inline-flex items-center gap-1.5 text-slate-400 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Offline</span></td><td class=""><span class="font-mono text-slate-600">1 active</span></td><td class="pr-3 text-right"><button class="text-brand-600 hover:text-brand-800 font-semibold text-xs transition">Edit</button></td></tr><tr class="hover:bg-slate-50/70 transition"><td class="py-3 pl-3"><div class="flex items-center gap-3"><div class="relative flex-shrink-0"><span class="w-8 h-8 rounded-full bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center border border-rose-300">SC</span><span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div><p class="font-semibold text-slate-900 leading-tight">Sophia Chen</p><p class="text-[11px] text-slate-500 font-mono">sophia@relaysystems.internal</p></div></div></td><td class=""><span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium text-[11px]">Product Designer</span></td><td class=""><span class="inline-flex items-center gap-1.5 text-emerald-600 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Online</span></td><td class=""><span class="font-mono text-slate-600">3 active</span></td><td class="pr-3 text-right"><button class="text-brand-600 hover:text-brand-800 font-semibold text-xs transition">Edit</button></td></tr></tbody></table></div><div class="px-6 py-3 border-t border-slate-200 bg-slate-50/70 flex items-center justify-between text-xs text-slate-500"><span class="">Showing 5 active • 8 tenant members</span><button class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium transition cursor-pointer" onclick="document.getElementById('members-modal').classList.add('hidden')">Close Directory</button></div></div></div>
+
+</body></html>

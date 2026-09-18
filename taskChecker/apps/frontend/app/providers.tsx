@@ -2,6 +2,7 @@
 
 import { ReactNode } from "react";
 import { MotionConfig } from "framer-motion";
+import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/lib/auth";
 import { TenantProvider } from "@/components/store";
 import { ToastProvider } from "@/components/overlay";
@@ -24,14 +25,16 @@ function RealtimeProvider({ children }: { children: ReactNode }) {
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <MotionConfig reducedMotion="user">
-      <AuthProvider>
-        <TenantProvider>
-          <RealtimeProvider>
-            <ToastProvider>{children}</ToastProvider>
-          </RealtimeProvider>
-        </TenantProvider>
-      </AuthProvider>
-    </MotionConfig>
+    <ThemeProvider>
+      <MotionConfig reducedMotion="user">
+        <AuthProvider>
+          <TenantProvider>
+            <RealtimeProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </RealtimeProvider>
+          </TenantProvider>
+        </AuthProvider>
+      </MotionConfig>
+    </ThemeProvider>
   );
 }

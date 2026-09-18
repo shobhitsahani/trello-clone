@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
 import { cx, hueFrom } from "@/lib/utils";
 import { PlusIcon } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarBadge, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -309,7 +310,46 @@ export default function MembersPage() {
           {/* Directory table */}
           <div className="dir-table-wrap">
             {membersQ.isLoading ? (
-              <div className="loading">Loading members…</div>
+              <table className="dir-table" aria-hidden>
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Assigned Tasks</th>
+                    <th className="dir-th-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[0, 1, 2, 3].map((i) => (
+                    <tr key={i} className="dir-row">
+                      <td className="dir-cell dir-cell-user">
+                        <div className="dir-user">
+                          <div className="dir-avatar-wrap">
+                            <Skeleton className="size-8 shrink-0 rounded-full" />
+                          </div>
+                          <div className="dir-user-meta" style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                            <Skeleton className="h-3.5 w-32 rounded" />
+                            <Skeleton className="h-3 w-44 rounded" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="dir-cell">
+                        <Skeleton className="h-6 w-20 rounded-full" />
+                      </td>
+                      <td className="dir-cell">
+                        <Skeleton className="h-6 w-24 rounded-full" />
+                      </td>
+                      <td className="dir-cell">
+                        <Skeleton className="h-4 w-8 rounded" />
+                      </td>
+                      <td className="dir-cell dir-cell-actions">
+                        <Skeleton className="h-7 w-20 rounded-md" />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : filteredMembers.length === 0 ? (
               <div className="empty-state">
                 <IconUsers size={32} className="dim" />

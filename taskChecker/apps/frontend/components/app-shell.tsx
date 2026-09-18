@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "../lib/auth";
 import { ChatRail, ContextBar, Rail, ScopeStrip } from "./shell-parts";
 import { IconFlowMark } from "./icons";
+import { AnimatePresence, motion } from "@/components/motion";
 
 /** Route guard — the whole /app tree requires a live session. */
 function AuthGate({ children }: { children: ReactNode }) {
@@ -102,23 +103,29 @@ export function AppShell({ children }: { children: ReactNode }) {
             onOpenNotifs={() => setNotifOpen(true)}
           />
           <div className="st-body">
-            <div className="content" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+            <motion.div
+              className="content"
+              style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.25 }}
+            >
               {children}
-            </div>
+            </motion.div>
             <ChatRail open={chatOpen} onToggle={() => setChatOpen((v) => !v)} />
           </div>
         </div>
       </div>
-      {paletteOpen ? (
-        <Suspense fallback={<div className="cmdk-loading">Loading…</div>}>
-          <DynamicCommandPalette onClose={() => setPaletteOpen(false)} />
-        </Suspense>
-      ) : null}
-      {notifOpen ? (
-        <Suspense fallback={null}>
-          <DynamicNotifSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
-        </Suspense>
-      ) : null}
+      <AnimatePresence>
+        {paletteOpen ? (
+          <Suspense fallback={<div className="cmdk-loading">Loading…</div>}>
+            <DynamicCommandPalette onClose={() => setPaletteOpen(false)} />
+          </Suspense>
+        ) : null}
+      </AnimatePresence>
+      <Suspense fallback={null}>
+        <DynamicNotifSheet open={notifOpen} onClose={() => setNotifOpen(false)} />
+      </Suspense>
     </AuthGate>
   );
 }

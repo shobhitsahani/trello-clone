@@ -21,6 +21,7 @@ import {
 } from "./ui/avatar";
 import { Separator } from "./ui/separator";
 import { Empty, EmptyTitle, EmptyDescription } from "./ui/empty";
+import { Skeleton } from "./ui/skeleton";
 
 /* ---------- button (shadcn-backed, legacy API preserved) ---------- */
 
@@ -178,19 +179,47 @@ export function Tag({ children }: { children: ReactNode }) {
 
 /* ---------- avatars (shadcn Avatar, hue fallback preserved) ---------- */
 
+/* Pulsing circular placeholder shown while the person behind the avatar is
+   still loading (signed out, offline, or slow network). Sizes match the
+   shadcn Avatar scale (sm = size-6, md = size-8, lg = size-10) so swapping
+   it in never shifts layout. */
+export function AvatarSkeleton({
+  size = "md",
+  className,
+}: {
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
+  return (
+    <Skeleton
+      aria-hidden
+      className={cx(
+        "shrink-0 rounded-full",
+        size === "sm" && "size-6",
+        size === "md" && "size-8",
+        size === "lg" && "size-10",
+        className,
+      )}
+    />
+  );
+}
+
 export function Avatar({
   name,
   tint = 220,
   size = "md",
   accent,
   title,
+  loading,
 }: {
   name: string;
   tint?: number;
   size?: "sm" | "md" | "lg";
   accent?: boolean;
   title?: string;
+  loading?: boolean;
 }) {
+  if (loading) return <AvatarSkeleton size={size} />;
   return (
     <ShadcnAvatar
       title={title ?? name}
@@ -218,11 +247,24 @@ export function AvatarStack({
   names,
   tints,
   max = 4,
+  loading,
+  loadingCount = 3,
 }: {
   names: string[];
   tints?: number[];
   max?: number;
+  loading?: boolean;
+  loadingCount?: number;
 }) {
+  if (loading) {
+    return (
+      <AvatarGroup aria-hidden>
+        {Array.from({ length: loadingCount }).map((_, i) => (
+          <AvatarSkeleton key={i} size="sm" />
+        ))}
+      </AvatarGroup>
+    );
+  }
   const shown = names.slice(0, max);
   const extra = names.length - shown.length;
   return (

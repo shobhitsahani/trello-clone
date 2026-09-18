@@ -1,0 +1,2 @@
+/** Realtime gateway test */
+import { describe, expect, it } from 'bun:test';

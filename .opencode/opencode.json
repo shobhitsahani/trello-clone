@@ -1,0 +1,9 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "references": {
+    "caveman": {
+      "path": "skills/caveman",
+      "description": "Caveman ultra-compressed communication mode skill. Use with @caveman for terse output."
+    }
+  }
+}

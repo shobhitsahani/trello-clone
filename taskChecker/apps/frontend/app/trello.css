@@ -86,6 +86,13 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+/* shadcn input-group used as board/topbar search: addons inherit the
+   bar tint (white icon on blue) instead of muted-foreground */
+.st-topbar [data-slot="input-group-addon"],
+.st-board-bar [data-slot="input-group-addon"] {
+  color: inherit;
+}
+
 /* ---------- lists: Trello 272px troughs ---------- */
 .st-board .st-cols {
   gap: 12px;
@@ -445,4 +452,508 @@ button.trello-due.is-empty:hover {
 .cmdk,
 .sheet {
   box-shadow: 0 8px 24px -4px rgba(9, 30, 66, 0.35), 0 0 1px rgba(9, 30, 66, 0.31);
+}
+
+/* ================================================================
+   PROJECTS PAGE — Trello board-tile style cards
+   ================================================================ */
+.project-card.trello-tile {
+  background: #fff;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  padding: 0;
+  overflow: hidden;
+  transition: box-shadow 120ms ease-out, transform 120ms ease-out;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+}
+.project-card.trello-tile:hover {
+  box-shadow: 0 8px 16px -6px rgba(9, 30, 66, 0.35), 0 0 1px rgba(9, 30, 66, 0.31);
+  transform: translateY(-2px);
+}
+.project-card.trello-tile:focus-visible {
+  outline: 2px solid #0c66e4;
+  outline-offset: 2px;
+}
+
+.trello-tile-cover {
+  height: 96px;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 12px;
+}
+.trello-tile-key {
+  font-size: 11px;
+  font-family: var(--stack-mono);
+  font-weight: 700;
+  color: #fff;
+  background: rgba(9, 30, 66, 0.4);
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.02em;
+}
+
+.trello-tile-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.trello-tile-body h3 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #172b4d;
+  margin: 0;
+}
+.project-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.progress-bar {
+  height: 4px;
+  background: #f1f2f4;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 200ms ease-out;
+}
+.progress-text {
+  font-size: 11px;
+  font-family: var(--stack-mono);
+  color: #626f86;
+}
+.project-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #f1f2f4;
+}
+.project-team {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #626f86;
+}
+.project-team svg {
+  color: #8590a2;
+}
+.project-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #626f86;
+}
+.project-stats svg {
+  color: #8590a2;
+}
+
+/* List view for projects page */
+.projects-grid.list-view .project-card.trello-tile {
+  flex-direction: row;
+  align-items: center;
+  padding: 12px 16px;
+}
+.projects-grid.list-view .trello-tile-cover {
+  height: auto;
+  width: 64px;
+  min-width: 64px;
+  border-radius: 8px;
+  padding: 0;
+  flex: none;
+}
+.projects-grid.list-view .trello-tile-key {
+  font-size: 10px;
+  padding: 2px 5px;
+}
+.projects-grid.list-view .trello-tile-body {
+  padding: 0 0 0 12px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 16px;
+}
+.projects-grid.list-view .project-meta {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  flex-direction: row;
+  gap: 16px;
+}
+.projects-grid.list-view .project-progress {
+  width: 140px;
+  flex: none;
+}
+
+/* ================================================================
+   BOARD CARDS — Trello hover quick actions + done button
+   ================================================================ */
+.trello-card-quick-actions {
+  display: flex;
+  gap: 2px;
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+  justify-content: flex-end;
+}
+.st-board .st-card:hover .trello-card-quick-actions,
+.st-board .st-card:focus-within .trello-card-quick-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .trello-card-quick-actions {
+    opacity: 1;
+  }
+}
+.trello-card-quick-actions button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: #44546f;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.trello-card-quick-actions button:hover {
+  background: rgba(9, 30, 66, 0.14);
+  color: #172b4d;
+}
+.trello-card-quick-actions button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.trello-card-done-btn {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #f1f2f4;
+}
+.trello-done-btn {
+  width: 100%;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: #44546f;
+  font-size: 12px;
+  font-weight: 400;
+  padding: 6px 8px;
+  height: auto;
+}
+.trello-done-btn:hover {
+  background: rgba(9, 30, 66, 0.14);
+  color: #172b4d;
+}
+.trello-done-btn:focus-visible {
+  outline: 2px solid #0c66e4;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ================================================================
+   BOARD LIST HEADERS — Trello exact styling
+   ================================================================ */
+.trello-list-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #172b4d;
+  margin: 0;
+  cursor: pointer;
+}
+.trello-list-title:hover {
+  text-decoration: underline;
+}
+
+.trello-list-editor {
+  border: 0;
+  outline: none;
+  resize: none;
+  box-shadow: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  color: #172b4d;
+  min-height: 28px;
+  padding: 4px 0;
+  font-family: inherit;
+}
+.trello-list-editor:focus {
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* ================================================================
+   WORK PAGE — Trello-style task cards
+   ================================================================ */
+.task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.trello-card {
+  background: #fff;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  padding: 10px 12px;
+  transition: box-shadow 120ms ease-out, transform 120ms ease-out;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trello-card:hover {
+  box-shadow: 0 8px 16px -6px rgba(9, 30, 66, 0.35), 0 0 1px rgba(9, 30, 66, 0.31);
+  transform: translateY(-2px);
+}
+.trello-card:focus-visible {
+  outline: 2px solid #0c66e4;
+  outline-offset: 2px;
+}
+
+.trello-card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.trello-card-labels:empty {
+  display: none;
+}
+.trello-label {
+  height: 8px;
+  width: 40px;
+  border-radius: 4px;
+  flex: none;
+}
+
+.trello-card-title {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: #172b4d;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.trello-card-badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.trello-card-badges:empty {
+  display: none;
+}
+
+.trello-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 20px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: #44546f;
+  background: transparent;
+  border: 0;
+  font-family: var(--stack-sans);
+}
+.trello-due.is-overdue {
+  background: #ffedeb;
+  color: #ae2e24;
+  font-weight: 600;
+}
+.trello-due.is-done {
+  background: #dcfff1;
+  color: #1f8455;
+  font-weight: 600;
+}
+
+.trello-key {
+  font-size: 11px;
+  font-family: var(--stack-mono);
+  color: #626f86;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+}
+
+/* ================================================================
+   ACTIVITY FEED — Trello-style
+   ================================================================ */
+.activity-feed {
+  background: #fff;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 1px 1px rgba(9, 30, 66, 0.25), 0 0 1px rgba(9, 30, 66, 0.31);
+  padding: 0;
+  overflow: hidden;
+}
+.activity-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f2f4;
+  transition: background 120ms ease-out;
+}
+.activity-item:last-child {
+  border-bottom: 0;
+}
+.activity-item:hover {
+  background: #f7f8f9;
+}
+.activity-avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.activity-content {
+  flex: 1;
+  min-width: 0;
+}
+.activity-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+.activity-actor {
+  font-weight: 600;
+  color: #172b4d;
+}
+.activity-action {
+  color: #44546f;
+}
+.activity-target {
+  font-family: var(--stack-mono);
+  font-size: 12px;
+  color: #626f86;
+}
+.activity-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.meta-tag {
+  font-size: 11px;
+  font-family: var(--stack-mono);
+  background: #f1f2f4;
+  border: 1px solid #dfe1e6;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #44546f;
+}
+.activity-time {
+  font-size: 11px;
+  color: #8590a2;
+  font-family: var(--stack-mono);
+}
+
+/* Filter dropdown button */
+.filter-dropdown .btn {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.filter-dropdown .btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Search box in toolbar */
+.activity-toolbar .search-box {
+  background: #fff;
+  border: 1px solid #dfe1e6;
+  border-radius: 8px;
+  height: 36px;
+}
+.activity-toolbar .search-box:focus-within {
+  border-color: #0c66e4;
+  box-shadow: 0 0 0 3px rgba(12, 102, 228, 0.15);
+}
+.activity-toolbar .search-box input {
+  font-size: 13px;
+}
+
+/* Empty state */
+.activity-feed + .empty-state,
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+}
+.empty-state svg {
+  color: #b6c2cf;
+  margin-bottom: 12px;
+}
+.empty-state h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #172b4d;
+  margin-bottom: 8px;
+}
+.empty-state p {
+  font-size: 13px;
+  color: #626f86;
+  margin-bottom: 16px;
+}
+.empty-state .btn {
+  height: 32px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+/* Load more button */
+.load-more {
+  display: block;
+  margin: 16px auto;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid #dfe1e6;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0c66e4;
+  transition: all 120ms ease-out;
+}
+.load-more:hover {
+  border-color: #0c66e4;
+  background: #e9f2ff;
 }

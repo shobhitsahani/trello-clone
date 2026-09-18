@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+
+<html lang="en" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Signal Board · Relay Systems</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#c4b5fd',
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'Menlo', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<style data-purpose="custom-scrollbar">
+    /* Subtle custom scrollbars for horizontal board & live feed */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #e2e8f0;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #cbd5e1;
+    }
+
+    /* Kanban Drag & Drop interactive styling */
+    .task-card {
+      cursor: grab;
+      user-select: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    }
+    .task-card:active {
+      cursor: grabbing;
+    }
+    .task-card.dragging {
+      opacity: 0.45;
+      transform: scale(0.98) rotate(1.5deg);
+      cursor: grabbing;
+    }
+    .column-dropzone.drag-over {
+      background-color: rgba(237, 233, 254, 0.65);
+      border-color: #8b5cf6 !important;
+      outline: 2px dashed #a78bfa;
+      outline-offset: -2px;
+    }
+    .empty-placeholder.drag-over-target {
+      border-color: #7c3aed !important;
+      background-color: #ede9fe !important;
+      color: #6d28d9 !important;
+    }
+  </style>
+</head>
+<body class="bg-white text-slate-900 font-sans antialiased overflow-hidden h-screen flex">
+<!-- BEGIN: UtilityRail (Far Left) -->
+<aside class="w-14 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col items-center justify-between py-3.5 z-20" data-purpose="utility-rail">
+<!-- Top Icons -->
+<div class="flex flex-col items-center gap-5 w-full">
+<!-- Logo Icon -->
+<a class="w-8 h-8 rounded-lg bg-brand-600 text-white flex items-center justify-center font-bold text-sm tracking-tighter shadow-sm hover:bg-brand-700 transition" href="#">
+<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="3"></circle>
+<path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+</svg>
+</a>
+<!-- App Grid Button -->
+<button class="w-9 h-9 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50 flex items-center justify-center transition">
+<svg class="w-5 h-5" fill="currentColor" viewbox="0 0 20 20">
+<path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+</svg>
+</button>
+<!-- Notification with Badge -->
+<div class="relative">
+<button class="w-9 h-9 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50 flex items-center justify-center transition">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+<span class="absolute -top-0.5 -right-0.5 min-w-[17px] h-[17px] px-1 bg-brand-600 text-white font-semibold text-[10px] rounded-full flex items-center justify-center border-2 border-white">
+          6
+        </span>
+</div>
+<!-- Quick Search -->
+<button class="w-9 h-9 rounded-lg text-slate-500 hover:text-brand-600 hover:bg-brand-50 flex items-center justify-center transition">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</div>
+<!-- Bottom User Quick Profile -->
+<div class="flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-emerald-100 border border-emerald-300 text-emerald-800 font-semibold text-xs flex items-center justify-center">
+        PR
+      </div>
+</div>
+</aside>
+<!-- END: UtilityRail -->
+<!-- BEGIN: MainSidebar -->
+<aside class="w-64 flex-shrink-0 bg-slate-50/70 border-r border-slate-200 flex flex-col justify-between p-4 overflow-y-auto" data-purpose="workspace-navigation">
+<div class="space-y-6">
+<!-- Workspace Selector Card -->
+<div>
+<div class="p-2.5 bg-white border border-slate-200/90 rounded-xl shadow-xs hover:border-brand-300 transition cursor-pointer flex items-center justify-between group">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center flex-shrink-0 text-white shadow-xs">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<rect height="7" rx="1.5" width="7" x="3" y="3"></rect>
+<rect height="7" rx="1.5" width="7" x="14" y="3"></rect>
+<rect height="7" rx="1.5" width="7" x="14" y="14"></rect>
+<rect height="7" rx="1.5" width="7" x="3" y="14"></rect>
+</svg>
+</div>
+<div class="truncate">
+<span class="block text-xs font-bold text-slate-900 tracking-wide uppercase">RELAY SYSTEMS</span>
+</div>
+</div>
+<svg class="w-4 h-4 text-slate-400 group-hover:text-brand-600 transition" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<!-- Plan Badges -->
+<div class="flex items-center gap-1.5 mt-2.5 px-0.5">
+</div>
+</div>
+<!-- TEAMS Section -->
+<div>
+<div class="px-2 mb-2 flex items-center justify-between"><div class="flex items-center gap-1.5"><h3 class="text-[10px] font-bold text-slate-400 tracking-wider uppercase">TEAMS</h3><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>3 online</span></div><div class="flex items-center -space-x-1.5"><div class="relative"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[9px] ring-2 ring-white border border-emerald-300" title="Priya Raman">PR</span><span class="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div class="relative"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-100 text-sky-700 font-bold text-[9px] ring-2 ring-white border border-sky-300" title="Aiko Tanaka">AT</span><span class="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div class="relative"><span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-bold text-[9px] ring-2 ring-white border border-purple-300" title="Cass Chen">CC</span><span class="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-500 rounded-full ring-1 ring-white"></span></div></div></div>
+<nav class="space-y-0.5 font-medium text-xs">
+</nav>
+</div>
+<!-- PROJECTS Section -->
+<div>
+<h3 class="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-2 mb-2">PROJECTS</h3>
+<div>
+<!-- Selected Project item with light purple accent -->
+<a class="flex items-center justify-between px-2.5 py-2 rounded-lg bg-brand-50 border border-brand-200/90 text-brand-900 font-medium text-xs shadow-xs" href="#">
+<span class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 rounded bg-brand-200/70 text-brand-800 text-[10px] font-bold font-mono tracking-wide">SIG</span>
+<span class="font-semibold text-slate-900">Signal</span>
+</span>
+<span class="text-[11px] font-semibold text-brand-700 bg-white/80 px-1.5 py-0.2 rounded border border-brand-200">1</span>
+</a>
+</div>
+</div>
+<!-- RUN THE TENANT Section -->
+<div>
+<h3 class="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-2 mb-2">RUN THE TENANT</h3>
+<nav class="space-y-0.5 font-medium text-xs text-slate-600">
+<a class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:text-slate-900 hover:bg-slate-100 transition" href="#">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
+</svg>
+            Usage
+          </a>
+<button class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition group" id="open-members-btn" onclick="document.getElementById('members-modal').classList.remove('hidden')"><span class="flex items-center gap-2.5"><svg class="w-4 h-4 text-slate-400 group-hover:text-brand-600 transition" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg><span class="font-medium text-xs text-slate-700 group-hover:text-slate-900">Members</span></span><span class="flex items-center gap-1.5"><span class="px-1.5 py-0.2 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold font-mono">5 on</span><span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 text-[10px] font-mono border border-slate-200">8</span><svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></span></button>
+<a class="flex items-center justify-between px-2.5 py-1.5 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition group" href="#"><div class="flex items-center gap-2.5"><svg class="w-4 h-4 text-slate-400 group-hover:text-brand-600 transition flex-shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="text-xs font-medium text-slate-700 group-hover:text-slate-900">Flow</span></div><span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-600 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live</span></a>
+</nav>
+</div>
+</div>
+</aside>
+<!-- END: MainSidebar -->
+<!-- BEGIN: CenterAndRightContent -->
+<div class="flex-1 flex flex-col min-w-0 bg-white">
+<!-- BEGIN: TopBar -->
+<header class="h-14 border-b border-slate-200 px-5 flex items-center justify-between bg-white flex-shrink-0" data-purpose="top-navigation">
+<!-- Breadcrumb / Title -->
+<div class="flex items-center gap-3 min-w-0">
+<h1 class="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2.5">
+<span class="">Signal</span>
+</h1>
+<div class="flex items-center gap-2 text-xs font-mono text-slate-500">
+<span class="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded font-semibold text-slate-700">SIG</span>
+<span class="text-slate-400">/</span>
+<span class="text-slate-600 font-sans font-normal">Edge device fleet API</span>
+<span class="inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full text-[11px] font-sans font-medium bg-rose-50 text-rose-700 border border-rose-200">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+            At risk
+          </span>
+</div>
+</div>
+<!-- Right Header Actions -->
+<div class="flex items-center gap-3">
+<!-- Search Bar -->
+<div class="relative w-64 md:w-72">
+<svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<input class="w-full text-xs pl-9 pr-10 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition" placeholder="Search tasks, comments, people..." type="text"/>
+<kbd class="absolute right-2.5 top-2 text-[10px] font-mono px-1.5 py-0.5 bg-white border border-slate-200 rounded text-slate-400 shadow-2xs">⌘K</kbd>
+</div>
+<!-- Notification Bell -->
+<button class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-semibold shadow-xs transition cursor-pointer"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="">New task</span></button><button class="relative p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+<span class="absolute top-1 right-1 w-2 h-2 bg-brand-600 rounded-full"></span>
+</button>
+<!-- User Profile Pill -->
+<div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+<div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center border border-emerald-300">
+            PR
+          </div>
+</div>
+</div>
+</header>
+<!-- END: TopBar -->
+<!-- Board Area + Live Flow Container -->
+<div class="flex-1 flex overflow-hidden">
+<!-- BEGIN: KanbanBoardMain -->
+<main class="flex-1 overflow-x-auto overflow-y-hidden bg-slate-50/40 p-5" data-purpose="kanban-board"><div class="h-full flex gap-4 items-start w-full min-w-0"><section class="flex-1 min-w-0 flex flex-col max-h-full bg-brand-50/50 border border-brand-200/60 rounded-xl p-3.5 shadow-xs transition-colors duration-150 column-container" data-purpose="column-backlog"><div class="flex items-center justify-between px-1 py-1 mb-3.5"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-slate-400"></span><h2 class="text-sm font-semibold text-slate-800">Backlog</h2><span class="column-count px-2 py-0.5 text-xs font-semibold rounded-full bg-white text-brand-600 shadow-2xs border border-brand-100">4</span></div><button class="text-slate-400 hover:text-slate-700 transition p-1 hover:bg-white/60 rounded"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div><div class="flex-1 overflow-y-auto space-y-3 pr-0.5 column-dropzone rounded-lg p-0.5"><div class="empty-placeholder hidden h-24 rounded-xl border border-dashed border-brand-200 bg-white/40 flex items-center justify-center text-xs font-medium text-slate-400 transition-colors">Drop tasks here</div><article class="task-card p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-brand-300 transition group cursor-pointer" draggable="true"><div class="flex items-center justify-between mb-2.5 pointer-events-none"><span class="px-2 py-0.5 rounded bg-brand-50 border border-brand-200 text-brand-600 text-[11px] font-bold font-mono">R1</span><span class="text-[11px] font-mono text-slate-500 font-medium">R1-01A0</span></div><h3 class="text-sm font-semibold text-slate-900 leading-snug mb-3 pointer-events-none">fr</h3><div class="pt-2.5 border-t border-slate-100 flex items-center justify-between pointer-events-none"><span class="px-2 py-0.5 text-[10px] font-bold rounded bg-sky-50 text-sky-700 border border-sky-200">MEDIUM</span></div></article><article class="task-card p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-brand-300 transition group cursor-pointer" draggable="true"><div class="flex items-center justify-between mb-2.5 pointer-events-none"><span class="px-2 py-0.5 rounded bg-brand-50 border border-brand-200 text-brand-600 text-[11px] font-bold font-mono">R1</span><span class="text-[11px] font-mono text-slate-500 font-medium">R1-01A0</span></div><h3 class="text-sm font-semibold text-slate-900 leading-snug mb-3 pointer-events-none">fr</h3><div class="pt-2.5 border-t border-slate-100 flex items-center justify-between pointer-events-none"><span class="px-2 py-0.5 text-[10px] font-bold rounded bg-sky-50 text-sky-700 border border-sky-200">MEDIUM</span></div></article><article class="task-card p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-brand-300 transition group cursor-pointer" draggable="true"><div class="flex items-center justify-between mb-2.5 pointer-events-none"><span class="px-2 py-0.5 rounded bg-brand-50 border border-brand-200 text-brand-600 text-[11px] font-bold font-mono">R1</span><span class="text-[11px] font-mono text-slate-500 font-medium">R1-01A1</span></div><h3 class="text-sm font-semibold text-slate-900 leading-snug mb-3 pointer-events-none">Rate-limit 429 response contract</h3><div class="pt-2.5 border-t border-slate-100 flex items-center justify-between pointer-events-none"><span class="px-2 py-0.5 text-[10px] font-bold rounded bg-sky-50 text-sky-700 border border-sky-200">MEDIUM</span><span class="text-[11px] font-mono text-slate-400">SIG-104</span></div></article><article class="task-card p-3.5 bg-white rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs hover:border-brand-300 transition group cursor-pointer" draggable="true"><div class="flex items-center justify-between mb-2.5 pointer-events-none"><span class="px-2 py-0.5 rounded bg-brand-50 border border-brand-200 text-brand-600 text-[11px] font-bold font-mono">R1</span><span class="text-[11px] font-mono text-slate-500 font-medium">R1-01A2</span></div><h3 class="text-sm font-semibold text-slate-900 leading-snug mb-3 pointer-events-none">OTLP exporter for fleet events</h3><div class="pt-2.5 border-t border-slate-100 flex items-center justify-between pointer-events-none"><span class="px-2 py-0.5 text-[10px] font-bold rounded bg-slate-100 text-slate-600 border border-slate-200">LOW</span><span class="text-[11px] font-mono text-slate-400">SIG-129</span></div></article><button class="add-task-btn w-full py-2.5 rounded-xl border border-dashed border-brand-200 bg-white text-xs font-semibold text-slate-600 hover:text-brand-600 hover:border-brand-400 transition flex items-center justify-center gap-1.5 shadow-2xs mt-3"><span class="">+</span> Add Task</button></div></section><section class="flex-1 min-w-0 flex flex-col max-h-full bg-brand-50/50 border border-brand-200/60 rounded-xl p-3.5 shadow-xs transition-colors duration-150 column-container" data-purpose="column-to-do"><div class="flex items-center justify-between px-1 py-1 mb-3.5"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-600"></span><h2 class="text-sm font-semibold text-slate-800">To do</h2><span class="column-count px-2 py-0.5 text-xs font-semibold rounded-full bg-white text-brand-600 shadow-2xs border border-brand-100">0</span></div><button class="text-slate-400 hover:text-slate-700 transition p-1 hover:bg-white/60 rounded"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div><div class="flex-1 overflow-y-auto space-y-3 pr-0.5 column-dropzone rounded-lg p-0.5"><div class="empty-placeholder h-24 rounded-xl border border-dashed border-brand-200 bg-white/40 flex items-center justify-center text-xs font-medium text-slate-400 transition-colors">Drop tasks here</div><button class="add-task-btn w-full py-2.5 rounded-xl border border-dashed border-brand-200 bg-white text-xs font-semibold text-slate-600 hover:text-brand-600 hover:border-brand-400 transition flex items-center justify-center gap-1.5 shadow-2xs"><span class="">+</span> Add Task</button></div></section><section class="flex-1 min-w-0 flex flex-col max-h-full bg-brand-50/50 border border-brand-200/60 rounded-xl p-3.5 shadow-xs transition-colors duration-150 column-container" data-purpose="column-in-progress"><div class="flex items-center justify-between px-1 py-1 mb-3.5"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-brand-600"></span><h2 class="text-sm font-semibold text-slate-800">In progress</h2><span class="column-count px-2 py-0.5 text-xs font-semibold rounded-full bg-white text-brand-600 shadow-2xs border border-brand-100">0</span></div><button class="text-slate-400 hover:text-slate-700 transition p-1 hover:bg-white/60 rounded"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div><div class="flex-1 overflow-y-auto space-y-3 pr-0.5 column-dropzone rounded-lg p-0.5"><div class="empty-placeholder h-24 rounded-xl border border-dashed border-brand-200 bg-white/40 flex items-center justify-center text-xs font-medium text-slate-400 transition-colors">Drop tasks here</div><button class="add-task-btn w-full py-2.5 rounded-xl border border-dashed border-brand-200 bg-white text-xs font-semibold text-slate-600 hover:text-brand-600 hover:border-brand-400 transition flex items-center justify-center gap-1.5 shadow-2xs"><span class="">+</span> Add Task</button></div></section></div></main>
+<!-- END: KanbanBoardMain -->
+<!-- BEGIN: LiveActivitySidebar (Right Rail) -->
+<aside class="w-80 flex-shrink-0 bg-white border-l border-slate-200 flex flex-col justify-between" data-purpose="activity-feed" id="chat-sidebar"><!-- Feed Header & Scrollable Messages -->
+<div class="p-5 flex-1 overflow-y-auto">
+<div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><h3 class="text-xs font-bold tracking-wider text-slate-900 uppercase">CHAT</h3></div><div class="flex items-center gap-1.5"><span class="inline-flex items-center gap-1 text-[11px] font-mono font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Live · team</span><button class="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition cursor-pointer" id="collapse-chat-btn" onclick="document.getElementById('chat-sidebar').classList.add('hidden'); document.getElementById('expand-chat-btn').classList.remove('hidden');" title="Collapse chat"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div></div>
+<p class="text-[11px] text-slate-500 leading-relaxed mb-4">Direct and channel discussion for Signal project tasks and handoffs.</p>
+<div class="space-y-3 font-sans text-xs">
+<div class="flex items-start gap-2.5">
+<div class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] flex items-center justify-center border border-emerald-300 flex-shrink-0 mt-0.5">PR</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-1.5">
+<span class="font-semibold text-slate-900 text-xs">Priya</span>
+<span class="text-[10px] text-slate-400 font-mono">→</span>
+<span class="px-1.5 py-0.2 rounded bg-brand-50 text-brand-700 text-[10px] font-semibold border border-brand-200">@Aiko</span>
+</div>
+<span class="text-[10px] font-mono text-slate-400">10:02</span>
+</div>
+<div class="p-2.5 rounded-xl rounded-tl-none bg-brand-50 border border-brand-200 text-slate-800 leading-relaxed shadow-2xs">
+<p class="">Can you take over <span class="font-mono font-semibold text-brand-700">SIG-118</span>? Reassigned to your queue for review.</p>
+</div>
+</div>
+</div>
+<div class="flex items-start gap-2.5">
+<div class="w-7 h-7 rounded-full bg-purple-100 text-purple-700 font-bold text-[10px] flex items-center justify-center border border-purple-300 flex-shrink-0 mt-0.5">CC</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-1.5">
+<span class="font-semibold text-slate-900 text-xs">Cass</span>
+<span class="text-[10px] text-slate-400 font-mono">→</span>
+<span class="px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 text-[10px] font-semibold border border-slate-200">@Team</span>
+</div>
+<span class="text-[10px] font-mono text-slate-400">09:55</span>
+</div>
+<div class="p-2.5 rounded-xl rounded-tl-none bg-slate-50 border border-slate-200 text-slate-800 leading-relaxed">
+<p class="">Added notes on <span class="font-mono font-semibold text-brand-700">SIG-104</span> rate limit 429 contract. Feedback welcome.</p>
+</div>
+</div>
+</div>
+<div class="flex items-start gap-2.5">
+<div class="w-7 h-7 rounded-full bg-sky-100 text-sky-700 font-bold text-[10px] flex items-center justify-center border border-sky-300 flex-shrink-0 mt-0.5">AT</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-1.5">
+<span class="font-semibold text-slate-900 text-xs">Aiko</span>
+<span class="text-[10px] text-slate-400 font-mono">→</span>
+<span class="px-1.5 py-0.2 rounded bg-brand-50 text-brand-700 text-[10px] font-semibold border border-brand-200">@Priya</span>
+</div>
+<span class="text-[10px] font-mono text-slate-400">09:40</span>
+</div>
+<div class="p-2.5 rounded-xl rounded-tl-none bg-brand-50 border border-brand-200 text-slate-800 leading-relaxed shadow-2xs">
+<p class="">Got it! Fleet-read key is active. Testing response times now.</p>
+</div>
+</div>
+</div>
+<div class="flex items-start gap-2.5">
+<div class="w-7 h-7 rounded-full bg-slate-100 text-slate-700 font-bold text-[10px] flex items-center justify-center border border-slate-300 flex-shrink-0 mt-0.5">BC</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1">
+<div class="flex items-center gap-1.5">
+<span class="font-semibold text-slate-900 text-xs">Ben</span>
+<span class="text-[10px] text-slate-400 font-mono">→</span>
+<span class="px-1.5 py-0.2 rounded bg-brand-50 text-brand-700 text-[10px] font-semibold border border-brand-200">@Priya</span>
+</div>
+<span class="text-[10px] font-mono text-slate-400">09:22</span>
+</div>
+<div class="p-2.5 rounded-xl rounded-tl-none bg-slate-50 border border-slate-200 text-slate-800 leading-relaxed">
+<p class=""><span class="font-mono font-semibold text-brand-700">SIG-097</span> verified and merged to Done. Telemetry looks clean.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Pinned Bottom Chat Input Bar -->
+<div class="p-4 border-t border-slate-200 bg-white flex-shrink-0">
+<div class="relative flex items-center">
+<input class="w-full pl-3 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition" placeholder="Send a message..." type="text"/>
+<button class="absolute right-1 w-7 h-7 bg-brand-600 hover:bg-brand-700 text-white rounded-md flex items-center justify-center transition shadow-2xs cursor-pointer" title="Send message">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M5 12h14M12 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</div></aside><button class="hidden fixed right-3 bottom-4 z-20 flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl shadow-sm text-xs font-semibold transition cursor-pointer" id="expand-chat-btn" onclick="document.getElementById('chat-sidebar').classList.remove('hidden'); this.classList.add('hidden');" title="Expand chat"><svg class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><span class="">Chat</span><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span></button>
+<!-- END: LiveActivitySidebar -->
+</div>
+</div>
+<!-- END: CenterAndRightContent -->
+<div class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4" id="members-modal"><div class="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95"><div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/50"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-brand-50 border border-brand-200 flex items-center justify-center text-brand-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path></svg></div><div><div class="flex items-center gap-2"><h2 class="text-base font-bold text-slate-900">Tenant Members &amp; Team Directory</h2><span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200">8 Total</span><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>5 active now</span></div><p class="text-xs text-slate-500 mt-0.5">Manage team access, permissions, seats, and workspace security roles.</p></div></div><div class="flex items-center gap-2"><button class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition cursor-pointer" onclick="document.getElementById('members-modal').classList.add('hidden')" title="Close modal"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg></button></div></div><div class="p-4 border-b border-slate-200 flex items-center justify-between gap-4 bg-white"><div class="relative flex-1 max-w-sm"><svg class="w-4 h-4 text-slate-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg><input class="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition" placeholder="Search members by name, role or email..." type="text"/></div><div class="flex items-center gap-2.5"><button class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg shadow-xs transition cursor-pointer"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="">Invite Member</span></button></div></div><div class="flex-1 overflow-y-auto p-4"><table class="w-full text-left text-xs"><thead class="text-[11px] font-semibold text-slate-400 border-b border-slate-200 uppercase tracking-wider"><tr><th class="pb-3 pl-3 font-semibold">User</th><th class="pb-3 font-semibold">Role</th><th class="pb-3 font-semibold">Status</th><th class="pb-3 font-semibold">Assigned Tasks</th><th class="pb-3 pr-3 text-right font-semibold">Actions</th></tr></thead><tbody class="divide-y divide-slate-100 text-slate-700"><tr class="hover:bg-slate-50/70 transition"><td class="py-3 pl-3"><div class="flex items-center gap-3"><div class="relative flex-shrink-0"><span class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center border border-emerald-300">PR</span><span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div><p class="font-semibold text-slate-900 leading-tight">Priya Raman</p><p class="text-[11px] text-slate-500 font-mono">priya@relaysystems.internal</p></div></div></td><td class=""><span class="px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 border border-purple-300 font-semibold text-[11px]">Admin</span></td><td class=""><span class="inline-flex items-center gap-1.5 text-emerald-600 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Online</span></td><td class=""><span class="font-mono text-slate-600">6 active</span></td><td class="pr-3 text-right"><button class="text-brand-600 hover:text-brand-800 font-semibold text-xs transition">Edit</button></td></tr><tr class="hover:bg-slate-50/70 transition"><td class="py-3 pl-3"><div class="flex items-center gap-3"><div class="relative flex-shrink-0"><span class="w-8 h-8 rounded-full bg-sky-100 text-sky-700 font-bold text-xs flex items-center justify-center border border-sky-300">AT</span><span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div><p class="font-semibold text-slate-900 leading-tight">Aiko Tanaka</p><p class="text-[11px] text-slate-500 font-mono">aiko@relaysystems.internal</p></div></div></td><td class=""><span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium text-[11px]">Staff Eng</span></td><td class=""><span class="inline-flex items-center gap-1.5 text-emerald-600 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Online</span></td><td class=""><span class="font-mono text-slate-600">4 active</span></td><td class="pr-3 text-right"><button class="text-brand-600 hover:text-brand-800 font-semibold text-xs transition">Edit</button></td></tr><tr class="hover:bg-slate-50/70 transition"><td class="py-3 pl-3"><div class="flex items-center gap-3"><div class="relative flex-shrink-0"><span class="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold text-xs flex items-center justify-center border border-purple-300">CC</span><span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div><p class="font-semibold text-slate-900 leading-tight">Cassian Drake</p><p class="text-[11px] text-slate-500 font-mono">cassian@relaysystems.internal</p></div></div></td><td class=""><span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium text-[11px]">Tech Lead</span></td><td class=""><span class="inline-flex items-center gap-1.5 text-emerald-600 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Online</span></td><td class=""><span class="font-mono text-slate-600">2 active</span></td><td class="pr-3 text-right"><button class="text-brand-600 hover:text-brand-800 font-semibold text-xs transition">Edit</button></td></tr><tr class="hover:bg-slate-50/70 transition"><td class="py-3 pl-3"><div class="flex items-center gap-3"><div class="relative flex-shrink-0"><span class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 font-bold text-xs flex items-center justify-center border border-slate-200">BC</span><span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-slate-400 rounded-full ring-1 ring-white"></span></div><div><p class="font-semibold text-slate-700 leading-tight">Benjamin Cole</p><p class="text-[11px] text-slate-400 font-mono">ben@relaysystems.internal</p></div></div></td><td class=""><span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium text-[11px]">DevOps</span></td><td class=""><span class="inline-flex items-center gap-1.5 text-slate-400 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span>Offline</span></td><td class=""><span class="font-mono text-slate-600">1 active</span></td><td class="pr-3 text-right"><button class="text-brand-600 hover:text-brand-800 font-semibold text-xs transition">Edit</button></td></tr><tr class="hover:bg-slate-50/70 transition"><td class="py-3 pl-3"><div class="flex items-center gap-3"><div class="relative flex-shrink-0"><span class="w-8 h-8 rounded-full bg-rose-100 text-rose-700 font-bold text-xs flex items-center justify-center border border-rose-300">SC</span><span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-white"></span></div><div><p class="font-semibold text-slate-900 leading-tight">Sophia Chen</p><p class="text-[11px] text-slate-500 font-mono">sophia@relaysystems.internal</p></div></div></td><td class=""><span class="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium text-[11px]">Product Designer</span></td><td class=""><span class="inline-flex items-center gap-1.5 text-emerald-600 font-medium"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Online</span></td><td class=""><span class="font-mono text-slate-600">3 active</span></td><td class="pr-3 text-right"><button class="text-brand-600 hover:text-brand-800 font-semibold text-xs transition">Edit</button></td></tr></tbody></table></div><div class="px-6 py-3 border-t border-slate-200 bg-slate-50/70 flex items-center justify-between text-xs text-slate-500"><span class="">Showing 5 active • 8 tenant members</span><button class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 font-medium transition cursor-pointer" onclick="document.getElementById('members-modal').classList.add('hidden')">Close Directory</button></div></div></div>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    let draggedItem = null;
+
+    function updateColumnStates() {
+      document.querySelectorAll('.column-container').forEach(col => {
+        const dropzone = col.querySelector('.column-dropzone');
+        const cards = dropzone.querySelectorAll('.task-card');
+        const placeholder = dropzone.querySelector('.empty-placeholder');
+        const countBadge = col.querySelector('.column-count');
+        const addBtn = dropzone.querySelector('.add-task-btn');
+
+        if (countBadge) {
+          countBadge.textContent = cards.length;
+        }
+
+        if (cards.length === 0) {
+          if (placeholder) placeholder.classList.remove('hidden');
+          if (addBtn) addBtn.classList.remove('mt-3');
+        } else {
+          if (placeholder) placeholder.classList.add('hidden');
+          if (addBtn) addBtn.classList.add('mt-3');
+        }
+      });
+    }
+
+    function initDraggableCard(card) {
+      card.addEventListener('dragstart', (e) => {
+        draggedItem = card;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', '');
+      });
+
+      card.addEventListener('dragend', () => {
+        if (draggedItem) {
+          draggedItem.classList.remove('dragging');
+        }
+        draggedItem = null;
+        document.querySelectorAll('.column-dropzone').forEach(z => z.classList.remove('drag-over'));
+        document.querySelectorAll('.empty-placeholder').forEach(p => p.classList.remove('drag-over-target'));
+        updateColumnStates();
+      });
+    }
+
+    document.querySelectorAll('.task-card').forEach(initDraggableCard);
+
+    document.querySelectorAll('.column-dropzone').forEach(dropzone => {
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        dropzone.classList.add('drag-over');
+
+        const placeholder = dropzone.querySelector('.empty-placeholder');
+        if (placeholder && !placeholder.classList.contains('hidden')) {
+          placeholder.classList.add('drag-over-target');
+        }
+
+        const afterElement = getDragAfterElement(dropzone, e.clientY);
+        const addBtn = dropzone.querySelector('.add-task-btn');
+
+        if (!draggedItem) return;
+
+        if (afterElement == null) {
+          if (addBtn) {
+            dropzone.insertBefore(draggedItem, addBtn);
+          } else {
+            dropzone.appendChild(draggedItem);
+          }
+        } else {
+          dropzone.insertBefore(draggedItem, afterElement);
+        }
+      });
+
+      dropzone.addEventListener('dragleave', (e) => {
+        if (!dropzone.contains(e.relatedTarget)) {
+          dropzone.classList.remove('drag-over');
+          const placeholder = dropzone.querySelector('.empty-placeholder');
+          if (placeholder) placeholder.classList.remove('drag-over-target');
+        }
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        const placeholder = dropzone.querySelector('.empty-placeholder');
+        if (placeholder) placeholder.classList.remove('drag-over-target');
+        updateColumnStates();
+      });
+    });
+
+    function getDragAfterElement(container, y) {
+      const draggableElements = [...container.querySelectorAll('.task-card:not(.dragging)')];
+
+      return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+          return { offset: offset, element: child };
+        } else {
+          return closest;
+        }
+      }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    updateColumnStates();
+  });
+</script>
+</body></html>

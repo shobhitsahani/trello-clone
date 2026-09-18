@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, memo, useState, startTransitio
 import { AppShell } from "@/components/app-shell";
 import { useTenant } from "@/components/store";
 import { Dropdown, MenuItem } from "@/components/overlay";
-import { IconSearch, IconFilter, IconPulse, IconFile, IconMessageSquare, IconUsers, IconFolder, IconChevronRight } from "@/components/icons";
+import { IconSearch, IconFilter, IconPulse, IconFile, IconMessageSquare, IconUsers, IconLayers, IconChevronRight } from "@/components/icons";
 import { api, getCurrentTenantId, type ActivityEvent } from "@/lib/api";
 import { useSWR } from "@/lib/swr";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cx, timeAgo, hueFrom } from "@/lib/utils";
 
 // Hoist static JSX outside component (rendering-hoist-jsx)
@@ -14,7 +15,7 @@ const ACTIVITY_TYPES = [
   { value: "all", label: "All activity", icon: IconPulse },
   { value: "task", label: "Tasks", icon: IconFile },
   { value: "comment", label: "Comments", icon: IconMessageSquare },
-  { value: "project", label: "Projects", icon: IconFolder },
+  { value: "project", label: "Projects", icon: IconLayers },
   { value: "team", label: "Teams", icon: IconUsers },
 ] as const;
 
@@ -32,9 +33,11 @@ const ACTION_LABELS: Record<string, string> = {
 const ActivityItem = memo(function ActivityItem({
   event,
   actorName,
+  actorLoading,
 }: {
   event: ActivityEvent;
   actorName: string | null;
+  actorLoading?: boolean;
 }) {
   const action = ACTION_LABELS[event.action] ?? event.action;
   const tint = event.actorId ? hueFrom(event.actorId) : 0;
@@ -42,7 +45,9 @@ const ActivityItem = memo(function ActivityItem({
   return (
     <div className="activity-item">
       <div className="activity-avatar">
-        {actorName ? (
+        {actorLoading ? (
+          <Skeleton aria-hidden className="size-8 shrink-0 rounded-full" />
+        ) : actorName ? (
           <span style={{ background: `hsl(${tint} 60% 50%)` }}>{actorName.slice(0, 1)}</span>
         ) : (
           <IconPulse size={16} className="dim" />
@@ -226,9 +231,21 @@ export default function ActivityPage() {
           </div>
         </div>
 
-        <div className="activity-feed">
+          <div className="activity-feed">
           {loading && activities.length === 0 ? (
-            <div className="loading">Loading activity…</div>
+            <div role="status" aria-label="Loading activity" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="activity-item" aria-hidden>
+                  <div className="activity-avatar">
+                    <Skeleton className="size-8 shrink-0 rounded-full" />
+                  </div>
+                  <div className="activity-content" style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                    <Skeleton className="h-3.5 w-2/3 rounded" />
+                    <Skeleton className="h-3 w-1/3 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : loadError && activities.length === 0 ? (
             <div className="empty-state">
               <IconPulse size={48} className="dim" />
@@ -251,6 +268,9 @@ export default function ActivityPage() {
                   key={event.id}
                   event={event}
                   actorName={event.actorId ? actorNames.get(event.actorId) ?? null : null}
+                  actorLoading={
+                    membersQ.isLoading && !!event.actorId && !actorNames.get(event.actorId)
+                  }
                 />
               ))}
               {hasMore && !loading ? (

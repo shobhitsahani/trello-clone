@@ -1,0 +1,17 @@
+$ next dev --port 4000 --port "3000"
+▲ Next.js 16.3.2 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://172.28.240.1:3000
+✓ Ready in 1065ms
+✓ Running next.config.js took 50ms
+⨯ Another next dev server is already running.
+
+- Local:        http://localhost:4000
+- PID:          29448
+- Dir:          C:\projects\taskChecker\taskChecker\apps\frontend
+- Log:          .next\dev\logs\next-development.log
+
+You can access the existing server at http://localhost:4000,
+or run taskkill /PID 29448 /F to stop it and start a new one.
+[?25h
+error: script "dev" exited with code 1

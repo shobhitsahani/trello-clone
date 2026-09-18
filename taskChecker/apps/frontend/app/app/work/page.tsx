@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTenant } from "@/components/store";
 import { useToast } from "@/components/overlay";
 import { AppShell } from "@/components/app-shell";
-import { IconCheck, IconFile, IconClock, IconUser, IconPulse, IconSearch, IconPlus } from "@/components/icons";
+import { IconFile, IconClock, IconUser, IconPulse, IconSearch, IconPlus } from "@/components/icons";
 import { api, getCurrentTenantId, type Task, type Project } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSWR } from "@/lib/swr";
@@ -29,11 +29,13 @@ const PRIORITY_COLORS: Record<string, string> = {
 type TaskWithProject = { task: Task; project: Project | null };
 
 /**
- * rerender-memo: Memoize TaskCard to prevent unnecessary re-renders
+ * Trello-style task card for Work page
  */
 const TaskCard = memo(function TaskCard({ item }: { item: TaskWithProject }) {
   const { task, project } = item;
   const hue = project ? hueFrom(project.key || project.id) : 0;
+  const overdue = isOverdue(task.dueAt, task.status);
+
   return (
     <motion.div
       layout
@@ -43,32 +45,34 @@ const TaskCard = memo(function TaskCard({ item }: { item: TaskWithProject }) {
       transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
       whileHover={{ y: -2 }}
     >
-      <Link href={`/app/tasks/${task.id}`} className="task-card" style={{ display: "block" }}>
-      <div className="task-header">
-        <span className="task-key">{task.id.slice(0, 8)}</span>
-        <span className="task-status" style={{ background: STATUS_COLORS[task.status] }}>
-          {task.status.replace("_", " ")}
-        </span>
-      </div>
-      <h3 className="task-title">{task.title}</h3>
-      <div className="task-meta">
-        {project ? (
-          <span className="task-project" style={{ borderColor: `hsl(${hue} 80% 70%)` }}>
-            {project.key}
-          </span>
-        ) : null}
-        {task.dueAt ? (
-          <span
-            className="task-due"
-            style={isOverdue(task.dueAt, task.status) ? { color: "hsl(0 75% 45%)", fontWeight: 700 } : undefined}
-            title={isOverdue(task.dueAt, task.status) ? "Overdue — moves back to Backlog automatically" : undefined}
-          >
-            <IconClock size={12} />
-            {new Date(task.dueAt).toLocaleDateString()}
-            {isOverdue(task.dueAt, task.status) ? " · OVERDUE" : null}
-          </span>
-        ) : null}
-      </div>
+      <Link href={`/app/tasks/${task.id}`} className="task-card trello-card" style={{ display: "block" }}>
+        <div className="trello-card-labels">
+          {task.priority !== "none" && (
+            <span
+              className="trello-label"
+              style={{ background: PRIORITY_COLORS[task.priority] }}
+              title={`Priority: ${task.priority}`}
+            />
+          )}
+        </div>
+        <h3 className="trello-card-title">{task.title}</h3>
+        <div className="trello-card-badges">
+          {task.dueAt ? (
+            <span
+              className={cx("trello-due", overdue && "is-overdue", task.status === "done" && "is-done")}
+              title={overdue ? "Overdue" : undefined}
+            >
+              <IconClock size={12} />
+              {new Date(task.dueAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              {overdue ? " · Overdue" : null}
+            </span>
+          ) : null}
+          {project && (
+            <span className="trello-key" style={{ borderColor: `hsl(${hue} 80% 70%)` }}>
+              {project.key}
+            </span>
+          )}
+        </div>
       </Link>
     </motion.div>
   );

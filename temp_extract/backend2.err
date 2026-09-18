@@ -1,0 +1,1 @@
+[teamflow-api] port 4002 already in use — is another dev server running? Kill it (lsof -i :4002 or netstat -ano | findstr :4002) or set PORT env var.

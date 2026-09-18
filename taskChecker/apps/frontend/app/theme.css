@@ -1,0 +1,1090 @@
+/* ================================================================
+   Theme — dark mode (class-based).
+   The light theme lives in globals.css (:root) + trello.css.
+   This file loads LAST so `.dark` rules win on conflicts.
+   Toggled by <ThemeToggle /> (Switch + Label) via ThemeProvider,
+   which flips `.dark` on <html> and persists to localStorage.
+   ================================================================ */
+
+.dark {
+  color-scheme: dark;
+
+  /* ---- surfaces: Trello dark neutrals ---- */
+  --bg: #1d2125;
+  --bg-soft: #161a1d;
+  --sidebar-bg: #22272b;
+  --col-bg: #22272b;
+  --card-bg: #22272b;
+  --surface-card-hover: #2c333a;
+  --border-subtle: #3d474f;
+  --border-strong: #596773;
+
+  /* ---- text: inverted ink scale ---- */
+  --slate-900: #b6c2cf;
+  --slate-800: #9fadbc;
+  --slate-700: #9fadbc;
+  --slate-600: #8c9bab;
+  --slate-500: #758494;
+  --slate-400: #6b7a89;
+  --slate-300: #596773;
+  --slate-200: #3d474f;
+  --slate-100: #2c333a;
+  --slate-50: #22272b;
+
+  /* ---- brand tints become dark chips (light-blue text) ---- */
+  --brand-50: #122840;
+  --brand-100: #09326c;
+  --brand-200: #1f5aa8;
+  --brand-700: #85b8ff;
+  --brand-800: #cce0ff;
+  --brand-900: #e9f2ff;
+
+  /* ---- shadows read as black-on-dark ---- */
+  --shadow-xs: 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-1: 0 2px 4px rgb(0 0 0 / 0.4);
+  --shadow-2: 0 12px 24px -4px rgb(0 0 0 / 0.55);
+  --shadow-ticket: 0 1px 2px rgb(0 0 0 / 0.45);
+}
+
+/* ============ base ============ */
+.dark body {
+  background: var(--bg);
+  color: var(--slate-900);
+}
+.dark ::selection {
+  background: var(--brand-100);
+}
+.dark .app-shell {
+  background: var(--bg);
+  color: var(--slate-900);
+}
+.dark :focus-visible {
+  outline-color: var(--brand-300);
+}
+
+/* ============ primitives: buttons / inputs / chips ============ */
+.dark .btn {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+  color: var(--slate-800);
+}
+.dark .btn:hover {
+  background: var(--surface-card-hover);
+  border-color: var(--border-strong);
+  color: var(--slate-900);
+}
+.dark .btn-primary {
+  background: var(--brand-600);
+  border-color: transparent;
+  color: #fff;
+}
+.dark .btn-primary:hover {
+  background: var(--brand-700);
+  border-color: transparent;
+  color: #101204;
+}
+.dark .btn-ghost:hover {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--slate-900);
+}
+.dark .btn-ink {
+  background: var(--slate-100);
+}
+.dark .btn-ink:hover {
+  background: var(--slate-200);
+}
+.dark .btn-danger {
+  background: rgb(241 91 80 / 0.12);
+  border-color: rgb(241 91 80 / 0.35);
+  color: #f15b50;
+}
+.dark .btn-danger:hover {
+  background: rgb(241 91 80 / 0.2);
+  border-color: rgb(241 91 80 / 0.5);
+}
+.dark .select,
+.dark select {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+  color: var(--slate-800);
+}
+.dark .kbd {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+  color: var(--slate-500);
+  box-shadow: none;
+}
+.dark .chip {
+  background: var(--slate-100);
+  border-color: var(--border-subtle);
+  color: var(--slate-600);
+}
+.dark .meter {
+  background: var(--slate-100);
+}
+.dark .avatar-stack .avatar {
+  border-color: var(--sidebar-bg);
+}
+
+/* success / danger tinted pills (light green/red boxes glow on dark) */
+.dark .st-team-pill,
+.dark .st-live-pill,
+.dark .dir-badge-active {
+  background: rgb(75 206 151 / 0.12);
+  color: #4bce97;
+  border-color: rgb(75 206 151 / 0.3);
+}
+.dark .st-count-em {
+  background: rgb(75 206 151 / 0.12);
+  border-color: rgb(75 206 151 / 0.3);
+  color: #4bce97;
+}
+.dark .auth-success {
+  background: rgb(75 206 151 / 0.08);
+  border-color: rgb(75 206 151 / 0.3);
+  color: #4bce97;
+}
+.dark .auth-error {
+  background: rgb(241 91 80 / 0.08);
+  border-color: rgb(241 91 80 / 0.35);
+  color: #f15b50;
+}
+
+/* ============ shell chrome: rail / sidebar / topbar ============ */
+.dark .st-rail,
+.dark .rail {
+  background: #101204;
+  border-right: 1px solid #000;
+}
+.dark .st-rail-btn,
+.dark .rail-btn {
+  color: rgb(255 255 255 / 0.65);
+}
+.dark .st-rail-btn:hover,
+.dark .rail-btn:hover {
+  color: #fff;
+  background: rgb(255 255 255 / 0.08);
+}
+.dark .st-rail-btn.is-on,
+.dark .rail-btn.is-on {
+  color: #fff;
+  background: rgb(255 255 255 / 0.12);
+}
+.dark .st-rail-badge,
+.dark .rail-badge {
+  border-color: #101204;
+}
+.dark .rail-dot {
+  border-color: #101204;
+}
+
+.dark .st-side,
+.dark .ctx {
+  background: var(--sidebar-bg);
+  border-right-color: var(--border-subtle);
+}
+.dark .st-ws-card,
+.dark .ctx-org {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+  box-shadow: none;
+}
+.dark .st-ws-card:hover,
+.dark .ctx-org:hover {
+  border-color: var(--brand-400);
+  background: var(--surface-card-hover);
+}
+.dark .st-nav-item,
+.dark .ctx-row,
+.dark .ctx-item {
+  color: var(--slate-600);
+}
+.dark .st-nav-item:hover,
+.dark .ctx-row:hover,
+.dark .ctx-item:hover {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--slate-900);
+}
+.dark .st-nav-item.is-active,
+.dark .ctx-row.is-active,
+.dark .ctx-item-active,
+.dark .ctx-item.active {
+  background: var(--brand-100);
+  color: var(--brand-800);
+  border-color: var(--brand-200);
+}
+.dark .ctx-key {
+  background: var(--brand-100);
+  color: var(--brand-800);
+}
+.dark .ctx-count {
+  background: transparent;
+  color: var(--brand-700);
+  border-color: var(--brand-200);
+}
+
+.dark .st-topbar,
+.dark .topbar,
+.dark .scope {
+  background: var(--sidebar-bg);
+  border-bottom-color: var(--border-subtle);
+}
+/* Trello blue topbar becomes a dark bar */
+.dark .st-topbar.trello-topbar,
+.dark .topbar.trello-topbar {
+  background: #1d2125;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.dark .trello-topbar .st-title h1,
+.dark .trello-topbar .topbar-title h1 {
+  color: var(--slate-900);
+}
+.dark .trello-topbar .st-desc,
+.dark .trello-topbar .scope-stamp {
+  color: var(--slate-500) !important;
+}
+.dark .trello-topbar .topbar-bell {
+  color: var(--slate-600);
+}
+.dark .trello-topbar .topbar-bell:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--slate-900);
+}
+.dark .trello-topbar .bell-badge {
+  background: var(--brand-300);
+  color: #101204;
+}
+.dark .trello-topbar .topbar-me {
+  border-left-color: var(--border-subtle);
+}
+.dark .trello-create-btn {
+  background: #579dff !important;
+  color: #101204 !important;
+  border: none !important;
+}
+.dark .trello-create-btn:hover {
+  background: #85b8ff !important;
+  color: #101204 !important;
+}
+.dark .st-topbar {
+  background: var(--sidebar-bg);
+}
+.dark .st-search,
+.dark .search,
+.dark .scope-search,
+.dark .search-box {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+}
+.dark .st-search input,
+.dark .search input,
+.dark .scope-search input,
+.dark .search-box input {
+  color: var(--slate-800);
+}
+.dark .st-search:focus-within,
+.dark .search:focus-within,
+.dark .search-box:focus-within {
+  border-color: var(--brand-400);
+  background: var(--card-bg);
+  box-shadow: 0 0 0 3px rgb(88 157 255 / 0.18);
+}
+.dark .st-search .kbd {
+  background: var(--slate-100);
+  border-color: var(--border-subtle);
+  color: var(--slate-500);
+}
+.dark .bell-badge {
+  background: var(--brand-400);
+  color: #101204;
+}
+
+/* ============ board canvas + lists + cards ============ */
+.dark .st-board {
+  background-color: #0a2f4f;
+  background-image: linear-gradient(180deg, #0a3556 0%, #071c30 100%);
+}
+.dark .st-board .st-col,
+.dark .st-board .board-column,
+.dark .st-board .bcol {
+  background: #101204;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.5);
+}
+.dark .st-board .st-col.is-lit,
+.dark .st-board .st-col.in_progress,
+.dark .st-board .board-column.bcol-lit,
+.dark .st-board .bcol-lit {
+  background: #101204;
+  box-shadow: 0 0 0 2px #388bff, 0 1px 1px rgb(0 0 0 / 0.5);
+}
+.dark .st-board .bcol-name,
+.dark .st-board .board-column-title {
+  color: var(--slate-900);
+}
+.dark .st-board .st-col-count,
+.dark .st-board .board-column-count,
+.dark .st-board .column-count {
+  color: var(--slate-500);
+}
+.dark .st-board .st-col-add {
+  color: var(--slate-500);
+}
+.dark .st-board .st-col-add:hover {
+  color: var(--slate-900);
+  background: rgb(255 255 255 / 0.08);
+}
+.dark .st-board .st-drop.drag-over,
+.dark .st-board .column-dropzone.drag-over {
+  background: rgb(88 157 255 / 0.08);
+  border-color: var(--brand-400);
+}
+.dark .st-board .st-empty,
+.dark .st-board .empty-placeholder {
+  border-color: var(--border-strong);
+  color: var(--slate-500);
+}
+.dark .st-board .st-empty.drag-over-target,
+.dark .st-board .empty-placeholder.drag-over-target {
+  border-color: var(--brand-400);
+  background: var(--brand-100);
+  color: var(--brand-700);
+}
+.dark .st-board .st-card,
+.dark .st-board .board-card,
+.dark .st-board .task-card,
+.dark .st-board .ticket,
+.dark .trello-composer {
+  background: var(--card-bg);
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.5);
+}
+.dark .st-board .st-card:hover,
+.dark .st-board .board-card:hover,
+.dark .st-board .task-card:hover,
+.dark .st-board .ticket:hover {
+  background: var(--surface-card-hover);
+  box-shadow: 0 4px 8px -2px rgb(0 0 0 / 0.55);
+}
+.dark .st-board .st-card.dragging {
+  box-shadow: 0 8px 16px -4px rgb(0 0 0 / 0.6);
+}
+.dark .st-board .st-card-title,
+.dark .st-board .board-card-title,
+.dark .st-board .task-title,
+.dark .st-board .ticket-title,
+.dark .trello-composer textarea {
+  color: var(--slate-900);
+}
+.dark .st-board .st-card-key,
+.dark .st-board .board-card-key,
+.dark .st-board .task-key,
+.dark .st-board .ticket-id,
+.dark .trello-key {
+  color: var(--slate-500);
+}
+.dark .trello-composer textarea::placeholder {
+  color: var(--slate-400);
+}
+.dark .st-board .board-card-due,
+.dark .st-board .task-due,
+.dark .trello-due {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--slate-600);
+}
+.dark button.trello-due:hover,
+.dark .st-board .board-card-due.is-empty:hover {
+  background: rgb(255 255 255 / 0.12);
+  color: var(--slate-900);
+}
+.dark .st-board .board-card-due-edit {
+  background: var(--slate-50);
+}
+.dark .trello-due.is-overdue {
+  background: rgb(241 91 80 / 0.14);
+  color: #f15b50;
+}
+.dark .trello-due.is-done {
+  background: rgb(75 206 151 / 0.12);
+  color: #4bce97;
+}
+.dark .st-board .st-add,
+.dark .st-board .add-task-btn {
+  color: var(--slate-500);
+}
+.dark .st-board .st-add:hover,
+.dark .st-board .add-task-btn:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--slate-900);
+}
+/* search on the dark-blue board bar keeps white-on-blue */
+.dark .st-board .st-search:focus-within {
+  background: #fff;
+}
+.dark .st-board .st-search:focus-within input {
+  color: #172b4d;
+}
+.dark .st-board .st-search:focus-within input::placeholder {
+  color: #8590a2;
+}
+.dark .st-board .st-search:focus-within svg {
+  color: #44546f;
+}
+
+/* generic (non-board) columns + cards */
+.dark .st-col,
+.dark .board-column,
+.dark .bcol {
+  background: var(--col-bg);
+  border-color: var(--border-subtle);
+}
+.dark .st-card,
+.dark .board-card,
+.dark .task-card,
+.dark .ticket {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .st-card:hover,
+.dark .board-card:hover,
+.dark .task-card:hover,
+.dark .ticket:hover {
+  border-color: var(--brand-400);
+  background: var(--surface-card-hover);
+}
+.dark .st-add,
+.dark .add-task-btn {
+  border-color: var(--brand-200);
+  color: var(--slate-500);
+}
+.dark .st-add:hover,
+.dark .add-task-btn:hover {
+  border-color: var(--brand-400);
+  background: var(--surface-card-hover);
+  color: var(--slate-900);
+}
+
+/* ============ chat rail ============ */
+.dark .st-chat,
+.dark .flow {
+  background: var(--sidebar-bg);
+  box-shadow: -8px 0 16px -12px rgb(0 0 0 / 0.6);
+}
+.dark .st-chat-resize:hover::after,
+.dark .st-chat-resize:focus-visible::after {
+  background: var(--brand-400);
+}
+.dark .st-chat-resize.is-dragging::after {
+  background: var(--brand-300);
+}
+.dark .st-bubble-slate {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+  color: var(--slate-800);
+}
+.dark .st-bubble-brand {
+  background: var(--brand-100);
+  border-color: var(--brand-200);
+  color: var(--brand-800);
+}
+.dark .st-mention-inline {
+  background: var(--brand-100);
+  color: var(--brand-700);
+  border-color: var(--brand-200);
+}
+.dark .st-mention-list {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .st-mention-item:hover {
+  background: var(--surface-card-hover);
+}
+.dark .st-mention-item.is-active {
+  background: var(--brand-100);
+  border-color: var(--brand-200);
+}
+.dark .st-mention-item-name {
+  color: var(--slate-800);
+}
+.dark .st-chat-input input {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+  color: var(--slate-800);
+}
+.dark .st-chat-input input:focus {
+  background: var(--card-bg);
+  border-color: var(--brand-400);
+  box-shadow: 0 0 0 3px rgb(88 157 255 / 0.15);
+}
+.dark .st-chat-foot {
+  background: var(--sidebar-bg);
+  border-top-color: var(--border-subtle);
+}
+.dark .st-chat-expand {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+  color: var(--slate-700);
+}
+.dark .st-chat-expand:hover {
+  background: var(--surface-card-hover);
+}
+.dark .flow-row {
+  border-bottom-color: var(--border-subtle);
+}
+.dark .flow-row.is-new {
+  background: var(--brand-100);
+}
+
+/* ============ overlays: modal / menu / toast / cmdk / sheet ============ */
+.dark .modal,
+.dark .pop {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .modal-head,
+.dark .modal-header {
+  background: var(--slate-50);
+  border-bottom-color: var(--border-subtle);
+}
+.dark .modal-foot,
+.dark .modal-footer {
+  border-top-color: var(--border-subtle);
+}
+.dark .menu,
+.dark .dropdown-menu {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .menu-item:hover,
+.dark .dropdown-item:hover {
+  background: var(--surface-card-hover);
+}
+.dark .toast {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .cmdk,
+.dark .sheet {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+  box-shadow: 0 8px 24px -4px rgb(0 0 0 / 0.6);
+}
+.dark .sheet-head {
+  border-bottom-color: var(--border-subtle);
+}
+.dark .sheet-foot {
+  border-top-color: var(--border-subtle);
+}
+.dark .invite-success {
+  background: var(--brand-100);
+  border-color: var(--brand-200);
+  color: var(--slate-800);
+}
+.dark .invite-preview {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+  color: var(--slate-700);
+}
+
+/* ============ pages: projects / teams / tasks / settings ============ */
+.dark .project-card,
+.dark .team-card,
+.dark .usage-card,
+.dark .settings-card,
+.dark .panel,
+.dark .meter-cell {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .project-card.trello-tile:hover {
+  box-shadow: 0 8px 16px -6px rgb(0 0 0 / 0.6);
+}
+.dark .filter-tabs,
+.dark .tenant-tabs,
+.dark .settings-nav,
+.dark .view-toggle {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+}
+.dark .filter-tab.active,
+.dark .tenant-tab.is-on,
+.dark .settings-nav-item.active,
+.dark .view-toggle .btn.active {
+  background: var(--surface-card-hover);
+  color: var(--slate-900);
+}
+.dark .task-main,
+.dark .task-section {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .detail-item {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+}
+.dark .comment-content {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+}
+.dark .task-detail-page {
+  background: var(--bg-soft);
+}
+.dark .trello-detail-title,
+.dark .trello-section-head {
+  color: var(--slate-900);
+}
+.dark .trello-detail-sub {
+  color: var(--slate-500);
+}
+.dark .trello-section-head svg {
+  color: var(--slate-500);
+}
+.dark .trello-side-btn {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--slate-800);
+}
+.dark .trello-side-btn:hover {
+  background: rgb(255 255 255 / 0.12);
+  color: var(--slate-900);
+}
+.dark .trello-side-btn.danger:hover {
+  background: rgb(241 91 80 / 0.14);
+  color: #f15b50;
+}
+.dark .trello-comment-box {
+  background: var(--card-bg);
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.5);
+}
+.dark .activity-feed,
+.dark .search-result,
+.dark .result-task,
+.dark .result-comment-body {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .search-result:hover {
+  border-color: var(--brand-400);
+}
+.dark .activity-item:hover {
+  background: var(--surface-card-hover);
+}
+.dark .meta-tag,
+.dark .event-tag,
+.dark .scope-tag {
+  background: var(--slate-100);
+  border-color: var(--border-subtle);
+  color: var(--slate-600);
+}
+.dark .tier {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+
+/* ================================================================
+   SIDEBAR / CONTEXT BAR — Dark mode
+   ================================================================ */
+.dark .st-side {
+  background: var(--sidebar-bg);
+  border-right-color: var(--border-subtle);
+}
+.dark .st-ws-card {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-xs);
+}
+.dark .st-ws-card:hover {
+  border-color: var(--brand-400);
+  background: var(--surface-card-hover);
+  box-shadow: var(--shadow-1);
+}
+.dark .st-ws-logo {
+  box-shadow: var(--shadow-xs);
+}
+.dark .st-sec-label {
+  color: var(--slate-400);
+}
+.dark .st-nav-item {
+  color: var(--slate-600);
+  border-color: transparent;
+}
+.dark .st-nav-item:hover {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--slate-900);
+  border-color: var(--border-subtle);
+}
+.dark .st-nav-item.is-active {
+  background: var(--brand-100);
+  color: var(--brand-800);
+  border-color: var(--brand-200);
+}
+.dark .st-nav-item .ctx-key {
+  background: var(--brand-100);
+  color: var(--brand-800);
+}
+.dark .st-col-add {
+  color: var(--slate-500);
+}
+.dark .st-col-add:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--slate-900);
+}
+.dark .ctx-foot {
+  border-top-color: var(--border-subtle);
+}
+.dark .ctx-user:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+.dark .ctx-user-name {
+  color: var(--slate-900);
+}
+.dark .ctx-user-email {
+  color: var(--slate-500);
+}
+
+/* Menu / Dropdown polish — dark */
+.dark .menu {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-2);
+}
+.dark .menu-label {
+  color: var(--slate-400);
+}
+.dark .menu-item {
+  color: var(--slate-700);
+}
+.dark .menu-item:hover {
+  background: var(--surface-card-hover);
+  color: var(--slate-900);
+}
+
+/* ================================================================
+   TOPBAR — Dark mode
+   ================================================================ */
+.dark .st-topbar,
+.dark .topbar,
+.dark .scope {
+  background: var(--sidebar-bg);
+  border-bottom-color: var(--border-subtle);
+}
+.dark .trello-brand {
+  color: var(--slate-900);
+}
+.dark .trello-logo-tile {
+  box-shadow: var(--shadow-xs);
+}
+.dark .trello-word {
+  color: var(--slate-900);
+}
+.dark .st-title h1,
+.dark .topbar-title h1,
+.dark .page-title {
+  color: var(--slate-900);
+}
+.dark .st-key-chip {
+  background: var(--brand-100);
+  border-color: var(--brand-200);
+  color: var(--brand-800);
+}
+.dark .st-desc {
+  color: var(--slate-500);
+}
+
+/* Search — dark */
+.dark .st-search {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+  color: var(--slate-500);
+}
+.dark .st-search svg {
+  color: var(--slate-500);
+}
+.dark .st-search input {
+  color: var(--slate-800);
+}
+.dark .st-search input::placeholder {
+  color: var(--slate-400);
+}
+.dark .st-search:focus-within {
+  border-color: var(--brand-400);
+  background: var(--card-bg);
+  box-shadow: 0 0 0 3px rgb(88 157 255 / 0.18);
+}
+.dark .st-search:focus-within svg {
+  color: var(--brand-400);
+}
+.dark .st-search .kbd {
+  background: var(--slate-100);
+  border-color: var(--border-subtle);
+  color: var(--slate-500);
+}
+
+/* Create button — dark */
+.dark .trello-create-btn,
+.dark .topbar-create {
+  background: var(--brand-600);
+  color: #101204;
+}
+.dark .trello-create-btn:hover,
+.dark .topbar-create:hover {
+  background: var(--brand-700);
+  color: #101204;
+}
+
+/* Notification bell — dark */
+.dark .topbar-bell,
+.dark .scope-btn {
+  color: var(--slate-500);
+}
+.dark .topbar-bell:hover,
+.dark .scope-btn:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--slate-900);
+}
+.dark .bell-badge {
+  background: var(--brand-400);
+  color: #101204;
+  border-color: var(--sidebar-bg);
+}
+
+/* User menu — dark */
+.dark .topbar-me {
+  border-left-color: var(--border-subtle);
+}
+.dark .topbar-me-name {
+  color: var(--slate-800);
+}
+
+/* ================================================================
+   BOARD CARDS — Dark mode hover actions
+   ================================================================ */
+.dark .trello-card-quick-actions button {
+  color: var(--slate-500);
+}
+.dark .trello-card-quick-actions button:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--slate-900);
+}
+.dark .trello-card-done-btn {
+  border-top-color: var(--border-subtle);
+}
+.dark .trello-done-btn {
+  color: var(--slate-500);
+}
+.dark .trello-done-btn:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--slate-900);
+}
+
+/* ================================================================
+   BOARD LIST HEADERS — Dark mode
+   ================================================================ */
+.dark .trello-list-title {
+  color: var(--slate-900);
+}
+.dark .trello-list-editor {
+  color: var(--slate-900);
+}
+
+/* ================================================================
+   PROJECT TILES — Dark mode
+   ================================================================ */
+.dark .project-card.trello-tile {
+  background: var(--card-bg);
+  box-shadow: 0 1px 1px rgb(0 0 0 / 0.5);
+}
+.dark .project-card.trello-tile:hover {
+  box-shadow: 0 8px 16px -6px rgb(0 0 0 / 0.6);
+}
+.dark .trello-tile-cover {
+  /* gradient covers remain the same */
+}
+.dark .trello-tile-body h3 {
+  color: var(--slate-900);
+}
+.dark .progress-bar {
+  background: var(--slate-100);
+}
+.dark .progress-text {
+  color: var(--slate-500);
+}
+.dark .project-meta {
+  border-top-color: var(--border-subtle);
+}
+.dark .project-team,
+.dark .project-stats {
+  color: var(--slate-500);
+}
+.dark .project-team svg,
+.dark .project-stats svg {
+  color: var(--slate-400);
+}
+
+/* ================================================================
+   WORK PAGE / ACTIVITY — Dark mode
+   ================================================================ */
+.dark .task-card {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .task-card:hover {
+  background: var(--surface-card-hover);
+  border-color: var(--brand-400);
+}
+.dark .activity-feed {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .activity-item:hover {
+  background: var(--surface-card-hover);
+}
+.dark .search-input-large {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .search-input-large input {
+  color: var(--slate-800);
+}
+.dark mark {
+  background: var(--brand-100);
+  color: var(--brand-800);
+}
+
+/* member directory */
+.dark .dir-card {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .dir-head {
+  background: var(--slate-50);
+  border-bottom-color: var(--border-subtle);
+}
+.dark .dir-toolbar {
+  background: var(--card-bg);
+  border-bottom-color: var(--border-subtle);
+}
+.dark .dir-search input {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+  color: var(--slate-800);
+}
+.dark .dir-search input:focus {
+  background: var(--card-bg);
+  border-color: var(--brand-400);
+}
+.dark .dir-row {
+  border-bottom-color: var(--border-subtle);
+}
+.dark .dir-row:hover {
+  background: var(--surface-card-hover);
+}
+.dark .dir-foot {
+  background: var(--slate-50);
+  border-top-color: var(--border-subtle);
+}
+
+/* ============ forms + auth ============ */
+.dark .field input,
+.dark .field textarea,
+.dark .field select,
+.dark .form-field input,
+.dark .form-field textarea,
+.dark .form-field select {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+  color: var(--slate-900);
+}
+.dark .field input:focus,
+.dark .field textarea:focus,
+.dark .field select:focus,
+.dark .form-field input:focus,
+.dark .form-field textarea:focus {
+  border-color: var(--brand-400);
+  background: var(--card-bg);
+  box-shadow: 0 0 0 3px rgb(88 157 255 / 0.15);
+}
+.dark .auth-page {
+  background: linear-gradient(180deg, var(--brand-100), var(--bg) 60%);
+}
+.dark .auth-container,
+.dark .auth-card {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .comment-form textarea {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+  color: var(--slate-800);
+}
+.dark .due-custom-heroui,
+.dark .due-custom-heroui--compact,
+.dark .board-card-due-edit--heroui {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+}
+.dark .due-custom-heroui .due-custom-input {
+  background: var(--slate-50);
+  border-color: var(--border-subtle);
+  color: var(--slate-800);
+}
+.dark .due-custom-heroui .due-custom-input:focus {
+  border-color: var(--brand-400);
+  background: var(--card-bg);
+}
+.dark .empty,
+.dark .empty-state,
+.dark .loading,
+.dark .page-skeleton {
+  color: var(--slate-500);
+}
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--slate-50) 25%,
+    var(--slate-100) 50%,
+    var(--slate-50) 75%
+  );
+  background-size: 200% 100%;
+}
+.dark .spinner {
+  border-color: var(--slate-200);
+  border-top-color: var(--brand-400);
+}
+
+/* ================================================================
+   SETTINGS — Dark mode
+   ================================================================ */
+.dark .settings-nav {
+  background: transparent;
+  border: 0;
+}
+.dark .settings-nav-item {
+  color: var(--slate-600);
+  border-color: transparent;
+}
+.dark .settings-nav-item:hover {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--slate-900);
+}
+.dark .settings-nav-item.active {
+  background: var(--brand-100);
+  color: var(--brand-800);
+  border-color: var(--brand-200);
+}
+
+.dark .settings-card {
+  background: var(--card-bg);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-xs);
+}
+.dark .settings-card:hover {
+  box-shadow: 0 4px 8px -2px rgb(0 0 0 / 0.55);
+  border-color: var(--brand-400);
+}
+.dark .settings-card-icon {
+  box-shadow: var(--shadow-xs);
+}
+.dark .settings-card-content h3 {
+  color: var(--slate-900);
+}
+.dark .settings-card-content p {
+  color: var(--slate-500);
+}

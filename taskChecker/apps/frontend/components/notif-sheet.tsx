@@ -22,6 +22,7 @@ import { Badge } from "./ui/badge";
 import { Empty, EmptyDescription, EmptyTitle } from "./ui/empty";
 import { Separator } from "./ui/separator";
 import { cn } from "@/lib/utils";
+import { motion } from "@/components/motion";
 
 function notifTitle(n: Notification): string {
   const t = String((n.payload as { title?: string })?.title ?? "");
@@ -75,7 +76,13 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <SheetTitle>Notifications</SheetTitle>
             {unread > 0 ? (
-              <Badge variant="default">{unread} new</Badge>
+              <motion.span
+                key={unread}
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+              >
+                <Badge variant="default">{unread} new</Badge>
+              </motion.span>
             ) : null}
           </div>
           <Button variant="ghost" size="xs" onClick={markAllRead}>
@@ -90,11 +97,21 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
               <EmptyDescription>You are all caught up.</EmptyDescription>
             </Empty>
           ) : (
-            <div className="flex flex-col">
+            <motion.div
+              className="flex flex-col"
+              initial="hidden"
+              animate="show"
+              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}
+            >
               {notifications.map((n) => (
-                <button
+                <motion.button
                   key={n.id}
                   type="button"
+                  variants={{
+                    hidden: { opacity: 0, x: 12 },
+                    show: { opacity: 1, x: 0, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } },
+                  }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     markRead(n.id);
                     onClose();
@@ -125,9 +142,9 @@ export function NotifSheet({ open, onClose }: { open: boolean; onClose: () => vo
                   {!n.readAt ? (
                     <span className="mt-1.5 size-2 flex-none rounded-full bg-primary" aria-label="Unread" />
                   ) : null}
-                </button>
+                </motion.button>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
 

@@ -1,0 +1,7 @@
+STATUS_CODES[400] = Bad Request
+STATUS_CODES[503] = Service Unavailable
+keys: [ "100", "101", "102", "103", "200" ]
+[repro] listening on 4005
+[repro] upgrade event /
+[repro] connection established! ws readyState = 1
+[repro] handleUpgrade returned OK

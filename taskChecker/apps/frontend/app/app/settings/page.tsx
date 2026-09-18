@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useTenant } from "@/components/store";
 import { AppShell } from "@/components/app-shell";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { IconUsers, IconCreditCard, IconWebhook, IconFileText, IconShield, IconSettings, IconChevronRight } from "@/components/icons";
 import { cx } from "@/lib/utils";
 import { memo } from "react";
@@ -68,6 +69,16 @@ export default function SettingsPage() {
           </nav>
 
           <div className="settings-content">
+            <div className="settings-card" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div className="settings-card-icon">
+                <IconSettings size={20} />
+              </div>
+              <div className="settings-card-content" style={{ flex: 1, minWidth: 0 }}>
+                <h3>Appearance</h3>
+                <p>Switch between light and dark theme</p>
+              </div>
+              <ThemeToggle id="settings-theme-mode" />
+            </div>
             <div className="settings-grid">
               {SETTINGS_SECTIONS.map(section => (
                 <SectionCard key={section.href} section={section} />

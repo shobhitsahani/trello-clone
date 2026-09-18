@@ -10,6 +10,7 @@ import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
 import { IconCheck, IconFile, IconFlowMark, IconSearch, IconX } from "./icons";
 import { cx, timeAgo } from "../lib/utils";
+import { motion, backdropFade, popIn } from "@/components/motion";
 
 type CmdItem = {
   id: string;
@@ -170,18 +171,27 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   let lastGroup = "";
 
   return (
-    <div
+    <motion.div
       className="modal-backdrop"
-      style={{ alignItems: "flex-start", background: "transparent", backdropFilter: "none" }}
+      style={{ alignItems: "flex-start", background: "rgba(15,23,42,0.35)", backdropFilter: "blur(2px)" }}
+      variants={backdropFade}
+      initial="hidden"
+      animate="show"
+      exit="exit"
       onClick={onClose}
       role="presentation"
     >
-      <div
+      <motion.div
         className="cmdk"
         role="dialog"
         aria-modal
         aria-label="Command palette"
         onClick={(e) => e.stopPropagation()}
+        variants={popIn}
+        initial="hidden"
+        animate="show"
+        exit="exit"
+        style={{ marginTop: "10vh" }}
       >
         <div className="cmdk-input">
           <IconSearch size={16} className="dim" />
@@ -212,12 +222,16 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
               return (
                 <div key={item.id}>
                   {showGroup ? <div className="cmdk-group">{item.group}</div> : null}
-                  <div
+                  <motion.div
                     role="option"
                     aria-selected={idx === sel}
                     className={cx("cmdk-item", idx === sel && "cmdk-item-selected")}
                     onMouseEnter={() => setSel(idx)}
                     onClick={() => runAt(idx)}
+                    initial={{ opacity: 0, x: -4 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.15 }}
+                    layout
                   >
                     <IconFile size={13} className="dim" />
                     <span
@@ -227,7 +241,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                       {item.label}
                     </span>
                     {item.hint ? <span className="cmdk-hint">{item.hint}</span> : null}
-                  </div>
+                  </motion.div>
                 </div>
               );
             })
@@ -241,7 +255,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             <span>esc close</span>
           </span>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

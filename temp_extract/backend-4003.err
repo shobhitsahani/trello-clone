@@ -1,0 +1,14 @@
+666 | function abortHandshake(response, code, message, headers = {}) {
+667 |   message = message || lazyHttp().STATUS_CODES[code], headers = {
+668 |     Connection: "close",
+669 |     "Content-Type": "text/html",
+670 |     "Content-Length": @Buffer.byteLength(message),
+671 |   }, response.writeHead(code, headers), response.write(message), response.end();
+                   ^
+TypeError: undefined is not an object (evaluating 'message')
+      at abortHandshake (ws:671:14)
+      at completeUpgrade (ws:1018:21)
+      at handleUpgrade (ws:1069:25)
+      at <anonymous> (C:\projects\taskChecker\taskChecker\node_modules\.bun\@hono+node-ws@1.3.1+f70968ef37649e1c\node_modules\@hono\node-ws\dist\index.js:79:9)
+
+Bun v1.4.0 (Windows x64)

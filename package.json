@@ -1,0 +1,11 @@
+{
+  "name": "task-checker-root",
+  "private": true,
+  "scripts": {
+    "dev": "bun --cwd taskChecker dev",
+    "build": "bun --cwd taskChecker build",
+    "lint": "bun --cwd taskChecker lint",
+    "format": "bun --cwd taskChecker format",
+    "check-types": "bun --cwd taskChecker check-types"
+  }
+}
