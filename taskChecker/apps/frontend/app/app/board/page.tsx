@@ -91,6 +91,7 @@ const TaskCard = memo(function TaskCard({
   const [editingDue, setEditingDue] = useState(false);
   const [customDueDays, setCustomDueDays] = useState("");
   const overdue = isOverdue(task.dueAt, task.status);
+  const toast = useToast();
 
   const openDueEditor = (e: React.SyntheticEvent) => {
     e.stopPropagation();
@@ -301,7 +302,12 @@ const TaskCard = memo(function TaskCard({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
-              navigator.clipboard.writeText(task.title);
+              void navigator.clipboard
+                ?.writeText(task.title)
+                .then(
+                  () => toast({ title: "Copied", msg: "Task title copied to clipboard." }),
+                  () => toast({ title: "Copy failed", msg: "Clipboard is not available.", kind: "err" }),
+                );
             }}
           >
             <IconCopy size={12} />

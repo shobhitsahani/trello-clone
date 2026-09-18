@@ -644,6 +644,28 @@ button.trello-due.is-empty:hover {
   padding-top: 8px;
   border-top: 1px solid #f1f2f4;
 }
+/* Trello keeps the card face clean: the done row only appears on hover /
+   keyboard focus (touch devices have no hover, so it stays visible there). */
+@media (hover: hover) {
+  .trello-card-done-btn {
+    display: none;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+  }
+  .st-board .st-card:hover .trello-card-done-btn,
+  .st-board .st-card:focus-within .trello-card-done-btn {
+    display: block;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f1f2f4;
+    animation: trello-fade-in 150ms ease-out;
+  }
+}
+@keyframes trello-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 .trello-done-btn {
   width: 100%;
   justify-content: center;

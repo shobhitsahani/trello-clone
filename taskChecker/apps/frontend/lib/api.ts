@@ -2,7 +2,7 @@
 
 import type { TaskStatus, Priority, Role } from "./utils";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:4002/v1";
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/v1";
 
 export interface User {
   id: string;
@@ -342,10 +342,23 @@ async function request<T>(
     (headers as Record<string, string>)["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    // Browser reports unreachable servers / blocked requests as a bare
+    // TypeError ("Failed to fetch") — translate it into something actionable.
+    if (err instanceof TypeError) {
+      throw new Error(
+        `Cannot reach the API server at ${API_BASE}. Is the backend running?`,
+        { cause: err },
+      );
+    }
+    throw err;
+  }
 
   if (res.status === 401 && retry && !isPublicAuth && getRefreshToken()) {
     const newToken = await refreshAccessToken();
@@ -662,7 +675,7 @@ function normalizePage<T>(raw: unknown, legacyKey: string): PaginatedResponse<T>
 }
 export function getWsUrl(): string {
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
-  const base = process.env.NEXT_PUBLIC_API_BASE ?? "http://localhost:4002/v1";
+  const base = process.env.NEXT_PUBLIC_API_BASE ?? "/v1";
   const wsBase = base.replace(/^http/, "ws");
   return wsBase.endsWith("/ws") ? wsBase : `${wsBase.replace(/\/v1$/, "")}/v1/ws`;
 }
