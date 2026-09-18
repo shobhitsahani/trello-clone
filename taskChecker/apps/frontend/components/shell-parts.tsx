@@ -29,7 +29,6 @@ import {
 import {
   BadgeCheckIcon,
   BellIcon,
-  CreditCardIcon,
   LogOutIcon,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
@@ -715,7 +714,7 @@ export function ContextBar() {
         </div>
 
         <div>
-          <h3 className="st-sec-label">Run the tenant</h3>
+          <h3 className="st-sec-label">Workspace</h3>
           <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {/* <Link href="/app/settings/usage" className="st-nav-item"> // usage commented out
               <IconZap size={16} className="dim" />
@@ -778,17 +777,10 @@ export function ScopeStrip({
   onOpenPalette: () => void;
   onOpenNotifs: () => void;
 }) {
-  const { org, unread } = useTenant();
+  const { unread } = useTenant();
   const { user, logout, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const toast = useToast();
-  const orgId = getCurrentTenantId();
-
-  const projectsQ = useSWR<{ projects: ApiProject[] }>(
-    orgId ? `top-projects-${orgId}` : null,
-    () => api.projects.list(orgId!),
-  );
-  const project = projectsQ.data?.projects[0] ?? null;
 
   return (
     <motion.header
@@ -804,21 +796,6 @@ export function ScopeStrip({
         </span>
         <span className="trello-word">Trello</span>
       </Link>
-      <div className="st-title">
-        <h1>{project?.name ?? org?.name ?? "Board"}</h1>
-        {project ? (
-          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, fontFamily: "var(--stack-mono)" }}>
-            <span className="st-key-chip">{project.key}</span>
-            <span style={{ color: "var(--slate-400)" }}>/</span>
-            <span className="st-desc">{project.teamId ? "Team project" : "Workspace board"}</span>
-          </span>
-        ) : (
-          <span className="scope-stamp">
-            <span className="sync-dot" />
-            {org ? `${org.slug} · live` : "no tenant"}
-          </span>
-        )}
-      </div>
 
       <PaletteSearchTrigger onOpen={onOpenPalette} />
 
@@ -882,10 +859,6 @@ export function ScopeStrip({
                 <DropdownMenuItem closeOnClick onClick={() => router.push("/app/settings")}>
                   <BadgeCheckIcon />
                   Account
-                </DropdownMenuItem>
-                <DropdownMenuItem closeOnClick onClick={() => router.push("/app/settings/usage")}>
-                  <CreditCardIcon />
-                  Billing
                 </DropdownMenuItem>
                 <DropdownMenuItem closeOnClick onClick={onOpenNotifs}>
                   <BellIcon />

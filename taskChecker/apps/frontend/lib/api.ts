@@ -342,10 +342,23 @@ async function request<T>(
     (headers as Record<string, string>)["Authorization"] = `Bearer ${accessToken}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    // Browser reports unreachable servers / blocked requests as a bare
+    // TypeError ("Failed to fetch") — translate it into something actionable.
+    if (err instanceof TypeError) {
+      throw new Error(
+        `Cannot reach the API server at ${API_BASE}. Is the backend running?`,
+        { cause: err },
+      );
+    }
+    throw err;
+  }
 
   if (res.status === 401 && retry && !isPublicAuth && getRefreshToken()) {
     const newToken = await refreshAccessToken();
