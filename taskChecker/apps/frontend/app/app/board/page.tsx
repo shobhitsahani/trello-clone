@@ -819,24 +819,6 @@ function BoardPage() {
               aria-label="Filter tasks"
             />
           </InputGroup>
-          <Select
-            value={selectedProjectId}
-            onValueChange={(v) => {
-              router.push(`/app/board?project=${v}`);
-            }}
-          >
-            <SelectTrigger aria-label="Select project" className="w-52">
-              <SelectValue placeholder="Select project" />
-            </SelectTrigger>
-            <SelectContent>
-              {projects.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name} ({p.key})
-                </SelectItem>
-              ))}
-              {projects.length === 0 ? <SelectItem value="none" disabled>No projects yet</SelectItem> : null}
-            </SelectContent>
-          </Select>
           <span className="faint mono" style={{ fontSize: 11 }}>
             {projectTasks.length} tasks · drag cards between columns
           </span>
