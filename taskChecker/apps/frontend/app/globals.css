@@ -445,9 +445,46 @@ select, textarea, input[type="text"], input[type="email"], input[type="password"
 .input-with-icon .btn { position: absolute; right: 6px; }
 
 /* Auth surfaces keep the card footer integrated with the page instead of using the app shell's utility background. */
+.auth-page {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+.auth-page::before,
+.auth-page::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(2px);
+}
+.auth-page::before {
+  width: 420px;
+  height: 420px;
+  top: -180px;
+  right: -140px;
+  background: rgb(12 102 228 / 0.1);
+}
+.auth-page::after {
+  width: 320px;
+  height: 320px;
+  bottom: -160px;
+  left: -120px;
+  background: rgb(87 157 255 / 0.1);
+}
 .auth-page .auth-card > [data-slot="card-footer"] {
   background: transparent;
   border-color: var(--slate-200);
+}
+.auth-page .auth-card [data-slot="card-header"] {
+  padding-bottom: 1.25rem;
+}
+.auth-page .auth-card [data-slot="card-title"] {
+  letter-spacing: -0.025em;
+}
+.auth-page .auth-card [data-slot="card-content"] {
+  padding-top: 0;
 }
 .auth-page .auth-card input {
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
