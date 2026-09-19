@@ -444,6 +444,21 @@ select, textarea, input[type="text"], input[type="email"], input[type="password"
 .input-with-icon input { padding-left: 36px !important; width: 100%; }
 .input-with-icon .btn { position: absolute; right: 6px; }
 
+/* Auth surfaces keep the card footer integrated with the page instead of using the app shell's utility background. */
+.auth-page .auth-card > [data-slot="card-footer"] {
+  background: transparent;
+  border-color: var(--slate-200);
+}
+.auth-page .auth-card input {
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.auth-page .auth-card input:hover:not(:disabled) {
+  border-color: var(--slate-300);
+}
+.auth-page .auth-card input:focus {
+  box-shadow: 0 0 0 3px rgb(12 102 228 / 0.12);
+}
+
 /* ================================================================
    STITCH APP SHELL — utility rail + sidebar + main + chat
    ================================================================ */

@@ -52,14 +52,14 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-primary/5 to-background p-6">
+    <div className="auth-page flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/[0.08] via-background to-muted/70 p-4 sm:p-6">
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="w-full max-w-md"
       >
-      <Card className="w-full max-w-md p-2">
+      <Card className="auth-card w-full max-w-md overflow-hidden border-border/70 bg-card/95 p-2 shadow-xl shadow-primary/5 backdrop-blur-sm">
         <CardHeader className="items-center text-center">
           <span className="grid size-11 place-items-center rounded-xl bg-primary text-primary-foreground">
             <IconFlowMark size={22} />
