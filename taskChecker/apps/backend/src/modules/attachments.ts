@@ -18,7 +18,7 @@ import { memGet, memPut, presignUrl, uploadBackend } from "../lib/blobs.js";
 export const attachmentRoutes = new Hono();
 
 // POST /v1/attachments/presign { fileName, contentType, size, taskId? } — member+
-attachmentRoutes.post("/presign", async (c) => {
+attachmentRoutes.post("/attachments/presign", async (c) => {
   const p = c.get("principal");
   const parsed = z
     .object({
@@ -72,7 +72,7 @@ attachmentRoutes.post("/presign", async (c) => {
 });
 
 // PUT /v1/attachments/upload/{id} — memory backend only: app receives bytes.
-attachmentRoutes.put("/upload/:id", async (c) => {
+attachmentRoutes.put("/attachments/upload/:id", async (c) => {
   const p = c.get("principal");
   const id = c.req.param("id");
   const objectKey = c.req.header("x-object-key");
