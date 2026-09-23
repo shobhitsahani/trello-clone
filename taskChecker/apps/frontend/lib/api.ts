@@ -87,12 +87,35 @@ export interface Comment {
   deletedAt: string | null;
 }
 
+export interface ChatAttachment {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+export interface ChatReactionGroup {
+  emoji: string;
+  count: number;
+  userIds: string[];
+  reactedByMe: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   tenantId?: string;
   authorId: string;
   body: string;
+  attachments?: ChatAttachment[];
+  mentions?: string[];
+  reactions?: ChatReactionGroup[];
   createdAt: string;
+}
+
+export interface ChatSendPayload {
+  body: string;
+  attachments?: ChatAttachment[];
+  mentions?: string[];
 }
 
 export interface Attachment {
@@ -641,11 +664,35 @@ export const api = {
       return request<PaginatedResponse<ChatMessage>>(`/chat/messages?${searchParams}`);
     },
 
-    send: (body: string) =>
-      request<{ message: ChatMessage }>(`/chat/messages`, { method: "POST", body: JSON.stringify({ body }) }),
+    send: (bodyOrPayload: string | ChatSendPayload) => {
+      const payload: ChatSendPayload =
+        typeof bodyOrPayload === "string" ? { body: bodyOrPayload } : bodyOrPayload;
+      return request<{ message: ChatMessage }>(`/chat/messages`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    },
 
     remove: (messageId: string) =>
       request<{ ok: boolean }>(`/chat/messages/${messageId}`, { method: "DELETE" }),
+
+    react: (messageId: string, emoji: string) =>
+      request<{ ok: boolean; reactions: ChatReactionGroup[] }>(`/chat/messages/${messageId}/reactions`, {
+        method: "POST",
+        body: JSON.stringify({ emoji }),
+      }),
+
+    unreact: (messageId: string, emoji: string) =>
+      request<{ ok: boolean; reactions: ChatReactionGroup[] }>(
+        `/chat/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`,
+        { method: "DELETE" },
+      ),
+
+    typing: (displayName?: string) =>
+      request<{ ok: boolean }>(`/chat/typing`, {
+        method: "POST",
+        body: JSON.stringify(displayName ? { displayName } : {}),
+      }).catch(() => ({ ok: false as const })),
   },
 
   attachments: {
@@ -657,9 +704,14 @@ export const api = {
       }>("/attachments/presign", { method: "POST", body: JSON.stringify(data) }),
 
     upload: (attachmentId: string, file: Blob, objectKey: string, contentType: string) => {
+      // Raw fetch (not request()) because the body is binary — but the session
+      // token is still required: the backend authenticates every /v1 route.
+      const headers: Record<string, string> = { "Content-Type": contentType, "X-Object-Key": objectKey };
+      const token = getAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
       return fetch(`${API_BASE}/attachments/upload/${attachmentId}`, {
         method: "PUT",
-        headers: { "Content-Type": contentType, "X-Object-Key": objectKey },
+        headers,
         body: file,
       }).then((res) => {
         if (!res.ok) throw new Error("Upload failed");
@@ -667,8 +719,15 @@ export const api = {
       });
     },
 
-    download: (attachmentId: string) =>
-      request<never>(`/attachments/${attachmentId}/download`, { method: "GET" }),
+    download: async (attachmentId: string): Promise<Blob> => {
+      // Binary payload — fetch as blob, not JSON (request() would res.json()).
+      const token = getAccessToken();
+      const res = await fetch(`${API_BASE}/attachments/${attachmentId}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Download failed");
+      return res.blob();
+    },
   },
 
   activity: {

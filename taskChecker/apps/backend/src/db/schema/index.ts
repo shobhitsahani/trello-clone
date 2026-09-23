@@ -15,7 +15,7 @@ import { tenants, users, refreshTokens } from "./auth.js";
 import { memberships, invites } from "./orgs.js";
 import { teams, projects } from "./core.js";
 import { tasks, comments, attachments } from "./tasks.js";
-import { chatMessages } from "./chat.js";
+import { chatMessages, chatReactions } from "./chat.js";
 import { activityEvents, notifications } from "./activity.js";
 import { webhooks, deliveries, apiKeys, usageMeter, auditLogs, idempotency } from "./governance.js";
 
@@ -44,6 +44,7 @@ export const schema = {
   comments,
   attachments,
   chatMessages,
+  chatReactions,
   activityEvents,
   notifications,
   invites,
