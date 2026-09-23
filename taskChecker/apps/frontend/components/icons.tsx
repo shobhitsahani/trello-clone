@@ -1,17 +1,19 @@
 /* Hand-drawn icon set — stroke-based, 24px grid, currentColor. */
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 type IconProps = {
   size?: number;
   className?: string;
   title?: string;
+  style?: CSSProperties;
 };
 
 function Ico({
   size = 16,
   className,
   title,
+  style,
   children,
 }: IconProps & { children: ReactNode }) {
   return (
@@ -25,6 +27,7 @@ function Ico({
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
+      style={style}
       aria-hidden={!title}
     >
       {title ? <title>{title}</title> : null}
@@ -558,6 +561,60 @@ export function IconStar({ size = 16, className }: IconProps) {
   return (
     <Ico {...{ size, className }}>
       <path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8L3.5 9.7l5.9-.9L12 3.5Z" />
+    </Ico>
+  );
+}
+
+export function IconMenu(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Ico>
+  );
+}
+
+export function IconSliders(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="M5 7h14M5 17h14" />
+      <circle cx="12" cy="7" r="2.2" />
+      <circle cx="12" cy="17" r="2.2" />
+    </Ico>
+  );
+}
+
+export function IconColumns(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M12 4v16" />
+    </Ico>
+  );
+}
+
+export function IconCalendar(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
+    </Ico>
+  );
+}
+
+export function IconList(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="M4 6h.5M4 12h.5M4 18h.5" />
+    </Ico>
+  );
+}
+
+export function IconListTodo(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="m4 6 1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2" />
+      <path d="M10 6h10M10 12h10M10 18h10" />
     </Ico>
   );
 }

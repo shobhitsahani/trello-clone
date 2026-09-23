@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Hanken_Grotesk, Inter, JetBrains_Mono } from "next/font/google";
+import { Hanken_Grotesk, Inter, JetBrains_Mono, Manrope, Sora } from "next/font/google";
 import "./globals.css";
 import "./trello.css";
 import "./theme.css";
+import "./lagoon.css";
 import { Providers } from "./providers";
 import { Toaster } from "@/components/ui/toast";
 
@@ -27,6 +28,21 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+/* Lagoon joyful theme fonts (ported from treloo-joyful-design). */
+const lagoonDisplay = Sora({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  variable: "--font-lagoon-display",
+  display: "swap",
+});
+
+const lagoonBody = Manrope({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-lagoon-body",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Signal Board · TeamFlow",
   description:
@@ -42,7 +58,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${sans.variable} ${display.variable} ${mono.variable}`}
+      className={`${sans.variable} ${display.variable} ${mono.variable} ${lagoonDisplay.variable} ${lagoonBody.variable}`}
     >
       <head>
         {/* Set .dark pre-paint to avoid a light flash (matches ThemeProvider key). */}

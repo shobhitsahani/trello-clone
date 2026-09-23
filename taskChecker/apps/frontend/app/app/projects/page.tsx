@@ -1,414 +1,241 @@
+/* Lagoon boards dashboard — joyful overview ported from
+   treloo-joyful-design's dashboard route, computed from the real
+   projects/tasks API: per-board progress, due dates, workspace stats. */
+
 "use client";
 
-import { useMemo, memo, useState, useEffect, startTransition } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { LagoonShell, useLagoonChrome } from "@/components/lagoon/LagoonShell";
+import { IconCheck, IconClock, IconLayers, IconPlus, IconSearch } from "@/components/icons";
+import { api, getCurrentTenantId, type Project, type Task, type Team } from "@/lib/api";
 import { useTenant } from "@/components/store";
-import { useToast, Modal } from "@/components/overlay";
-import { Button } from "@/components/ui/button";
-import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import { Input } from "@/components/ui/input";
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
-import { AppShell } from "@/components/app-shell";
-import { IconPlus, IconSearch, IconLayers, IconUsers, IconFile, IconTrash, IconEdit } from "@/components/icons";
-import { api, getCurrentTenantId, type Project, type Team, type Task } from "@/lib/api";
 import { useSWR } from "@/lib/swr";
-import { cx, hueFrom } from "@/lib/utils";
+import { toYmd, todayYmd } from "@/components/lagoon/lagoon-utils";
 
-/**
- * rerender-memo: Memoize ProjectCard — only re-renders when project data changes
- */
-const ProjectCard = memo(function ProjectCard({
-  project,
-  team,
-  tasks,
-  onContextMenu,
-}: {
-  project: Project;
-  team: Team | null;
-  tasks: Task[];
-  onContextMenu: (e: React.MouseEvent) => void;
-}) {
-  const hue = hueFrom(project.key || project.id);
-  const openCount = tasks.filter((t) => t.status !== "done").length;
-  const doneCount = tasks.length - openCount;
-  const totalCount = tasks.length;
-  const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+const BOARD_TONES = ["teal", "coral", "ocean"] as const;
 
-  return (
-    <Link
-      href={`/app/board?project=${project.id}`}
-      className="project-card trello-tile"
-      onContextMenu={onContextMenu}
-      title={`${project.name} — right-click for options`}
-    >
-      <div
-        className="trello-tile-cover"
-        style={{ background: `linear-gradient(135deg, hsl(${hue} 65% 52%), hsl(${(hue + 45) % 360} 60% 36%))` }}
-      >
-        <span className="trello-tile-key">{project.key}</span>
-      </div>
-      <div className="trello-tile-body">
-        <h3>{project.name}</h3>
-        <div className="project-progress">
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${progress}%`, background: `hsl(${hue} 75% 45%)` }} />
-          </div>
-          <span className="progress-text">{doneCount}/{totalCount} tasks · {progress}% complete</span>
-        </div>
-        <div className="project-meta">
-          {team ? (
-            <span className="project-team">
-              <IconUsers size={13} /> {team.name}
-            </span>
-          ) : null}
-          <span className="project-stats">
-            <IconFile size={13} /> {openCount} open
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
-});
+function greeting(now = new Date()): string {
+  const h = now.getHours();
+  if (h < 12) return "Good morning, team.";
+  if (h < 18) return "Good afternoon, team.";
+  return "Good evening, team.";
+}
 
-export default function ProjectsPage() {
+function LagoonDashboard() {
+  const router = useRouter();
   const { org } = useTenant();
-  const toast = useToast();
-  const [search, setSearch] = useState("");
-  const [view, setView] = useState<"grid" | "list">("grid");
-  const [showNew, setShowNew] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newKey, setNewKey] = useState("");
-  const [projMenu, setProjMenu] = useState<{ x: number; y: number; project: Project } | null>(null);
-  const [deletingProj, setDeletingProj] = useState<Project | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [renamingProj, setRenamingProj] = useState<Project | null>(null);
-  const [renameName, setRenameName] = useState("");
-  const [renaming, setRenaming] = useState(false);
-
+  const { openNewBoard } = useLagoonChrome();
   const orgId = getCurrentTenantId();
+  const [search, setSearch] = useState("");
+
   const projectsQ = useSWR<{ projects: Project[] }>(
-    orgId ? `projects-projects-${orgId}` : null,
+    orgId ? `dash-projects-${orgId}` : null,
     () => api.projects.list(orgId!),
   );
   const teamsQ = useSWR<{ teams: Team[] }>(
-    orgId ? `projects-teams-${orgId}` : null,
+    orgId ? `dash-teams-${orgId}` : null,
     () => api.teams.list(orgId!),
   );
   const projects = projectsQ.data?.projects ?? [];
   const teams = teamsQ.data?.teams ?? [];
+  const teamName = useMemo(() => {
+    const map = new Map(teams.map((t) => [t.id, t.name]));
+    return (id: string | null) => (id ? (map.get(id) ?? null) : null);
+  }, [teams]);
 
-  // Task counts per project — parallel fetches, keyed by project count+ids.
+  // Task counts per board — parallel fetches, keyed by project ids.
   const taskPagesQ = useSWR<Task[][]>(
-    orgId && projects.length > 0 ? `projects-tasks-${orgId}-${projects.map((p) => p.id).join(",")}` : null,
+    orgId && projects.length > 0 ? `dash-tasks-${orgId}-${projects.map((p) => p.id).join(",")}` : null,
     async () => {
       const pages = await Promise.all(projects.map((p) => api.tasks.list(orgId!, p.id, { limit: 100 })));
       return pages.map((page) => page.data);
     },
   );
 
-  const handleCreate = async () => {
-    if (!newName.trim() || !newKey.trim() || !orgId) return;
-    try {
-      await api.projects.create({ name: newName.trim(), key: newKey.trim().toUpperCase() });
-      setShowNew(false);
-      setNewName("");
-      setNewKey("");
-      await projectsQ.mutate();
-      toast({ title: "Project created", msg: `${newName} is ready.` });
-    } catch (err) {
-      toast({ title: "Create failed", msg: err instanceof Error ? err.message : "Try again." });
-    }
-  };
+  const today = todayYmd();
 
-  const openProjMenu = (e: React.MouseEvent, project: Project) => {
-    e.preventDefault();
-    setProjMenu({
-      x: Math.min(e.clientX, window.innerWidth - 230),
-      y: Math.min(e.clientY, window.innerHeight - 120),
-      project,
-    });
-  };
+  const boards = useMemo(
+    () =>
+      projects.map((p, i) => {
+        const tasks = taskPagesQ.data?.[i] ?? [];
+        const active = tasks.filter((t) => t.status !== "done").length;
+        const done = tasks.length - active;
+        const progress = tasks.length > 0 ? Math.round((done / tasks.length) * 100) : 0;
+        const upcoming = tasks
+          .filter((t) => t.status !== "done" && (toYmd(t.dueAt) ?? "") >= today)
+          .map((t) => toYmd(t.dueAt) as string)
+          .sort()[0];
+        const dueLabel = upcoming
+          ? new Date(`${upcoming}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+          : "No due";
+        return {
+          project: p,
+          tasks: tasks.length,
+          active,
+          progress,
+          dueLabel,
+          team: teamName(p.teamId),
+          tone: BOARD_TONES[i % BOARD_TONES.length] ?? "teal",
+        };
+      }),
+    [projects, taskPagesQ.data, teamName, today],
+  );
 
-  const handleDelete = async () => {
-    if (!deletingProj || deleting) return;
-    setDeleting(true);
-    try {
-      await api.projects.delete(deletingProj.id);
-      setDeletingProj(null);
-      setProjMenu(null);
-      await projectsQ.mutate();
-      toast({ title: "Project deleted", msg: `${deletingProj.name} was removed.` });
-    } catch (err) {
-      toast({ title: "Delete failed", msg: err instanceof Error ? err.message : "Try again." });
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const openRename = (project: Project) => {
-    setRenamingProj(project);
-    setRenameName(project.name);
-    setProjMenu(null);
-  };
-
-  const handleRename = async () => {
-    const name = renameName.trim();
-    if (!renamingProj || !name || renaming) return;
-    if (name === renamingProj.name) {
-      setRenamingProj(null);
-      return;
-    }
-    setRenaming(true);
-    try {
-      await api.projects.update(renamingProj.id, { name });
-      setRenamingProj(null);
-      await projectsQ.mutate();
-      toast({ title: "Project renamed", msg: `Renamed to ${name}.` });
-    } catch (err) {
-      toast({ title: "Rename failed", msg: err instanceof Error ? err.message : "Try again." });
-    } finally {
-      setRenaming(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!projMenu) return;
-    const close = () => setProjMenu(null);
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setProjMenu(null);
-    };
-    window.addEventListener("click", close);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("click", close);
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [projMenu]);
-
-  // Memoize filtered projects to avoid re-filtering on every render
-  const filteredProjects = useMemo(() => {
-    const q = search.toLowerCase();
-    if (!q) return projects;
-    return projects.filter((p) =>
-      p.name.toLowerCase().includes(q) ||
-      p.key.toLowerCase().includes(q)
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return boards;
+    return boards.filter(
+      (b) =>
+        b.project.name.toLowerCase().includes(q) ||
+        b.project.key.toLowerCase().includes(q) ||
+        (b.team ?? "").toLowerCase().includes(q),
     );
-  }, [projects, search]);
+  }, [boards, search]);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    startTransition(() => {
-      setSearch(e.target.value);
-    });
-  };
-
-  const handleViewChange = (v: "grid" | "list") => {
-    startTransition(() => {
-      setView(v);
-    });
-  };
+  const totalTasks = boards.reduce((sum, b) => sum + b.tasks, 0);
+  const activeTasks = boards.reduce((sum, b) => sum + b.active, 0);
 
   return (
-    <AppShell>
-      <div className="page">
-        <header className="page-header">
-          <div>
-            <h1 className="page-title">Projects</h1>
-            <p className="page-subtitle">All projects in {org?.name ?? "your organization"}</p>
+    <LagoonShell
+      projects={projects}
+      activeProjectId=""
+      onSelectProject={(id) => router.push(`/app/board?project=${id}`)}
+      onProjectsChanged={() => projectsQ.mutate()}
+    >
+      <div className="lagoon-dash" style={{ overflowY: "auto" }}>
+        <div className="lagoon-dash-inner">
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 24,
+              borderBottom: "1px solid var(--lagoon-border)",
+              paddingBottom: 32,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, fontSize: 12, fontWeight: 600, textTransform: "uppercase", color: "var(--lagoon-teal)" }}>
+                  <IconLayers size={14} /> {org?.name ?? "Workspace"}
+                </div>
+                <h1 className="lagoon-display" style={{ fontSize: 30, fontWeight: 600, letterSpacing: "-0.01em" }}>
+                  {greeting()}
+                </h1>
+                <p style={{ marginTop: 8, maxWidth: 560, fontSize: 14, color: "var(--lagoon-muted-fg)" }}>
+                  Your boards are moving along. Pick a workspace to keep the next important thing moving.
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <Link href="/app/board" style={{ fontSize: 12, fontWeight: 600, color: "var(--lagoon-muted-fg)" }}>
+                  Open workspace
+                </Link>
+                <button className="lagoon-create-btn" onClick={openNewBoard}>
+                  <IconPlus size={14} /> New board
+                </button>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 20, fontSize: 12, color: "var(--lagoon-muted-fg)", flexWrap: "wrap" }}>
+              <div className="lagoon-search" style={{ width: 280 }}>
+                <IconSearch size={14} />
+                <input
+                  aria-label="Search boards"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search boards…"
+                />
+              </div>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <IconLayers size={16} /> {boards.length} boards
+              </span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <IconClock size={16} /> {activeTasks} active tasks
+              </span>
+            </div>
           </div>
-          <div className="page-actions">
-            <button className="btn btn-primary" onClick={() => setShowNew(true)}>
-              <IconPlus size={14} /> New project
-            </button>
-          </div>
-        </header>
 
-        <div className="projects-toolbar">
-          <div className="search-box">
-            <IconSearch size={16} />
-            <input
-              type="text"
-              value={search}
-              onChange={handleSearchChange}
-              placeholder="Search projects…"
-            />
-          </div>
-          <div className="view-toggle" role="group">
-            <button className={cx("btn btn-ghost btn-sm", view === "grid" ? "active" : "")} onClick={() => handleViewChange("grid")} aria-label="Grid view">
-              <IconLayers size={14} />
-            </button>
-            <button className={cx("btn btn-ghost btn-sm", view === "list" ? "active" : "")} onClick={() => handleViewChange("list")} aria-label="List view">
-              <IconFile size={14} />
-            </button>
-          </div>
-        </div>
-
-        <div className={cx("projects-grid", view === "list" ? "list-view" : "")}>
           {projectsQ.isLoading ? (
-            <div className="loading">Loading…</div>
-          ) : filteredProjects.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <IconLayers />
-                </EmptyMedia>
-                <EmptyTitle>No projects found</EmptyTitle>
-                <EmptyDescription>
-                  {search ? "Try a different search term" : "Create your first project to get started"}
-                </EmptyDescription>
-              </EmptyHeader>
-              <EmptyContent>
-                <Button onClick={() => setShowNew(true)}>
-                  <IconPlus size={14} /> New project
-                </Button>
-              </EmptyContent>
-            </Empty>
+            <p style={{ paddingTop: 32, fontSize: 13, color: "var(--lagoon-muted-fg)" }}>Loading boards…</p>
+          ) : filtered.length === 0 ? (
+            <div className="lagoon-empty" style={{ marginTop: 32 }}>
+              <h3 className="lagoon-display" style={{ fontSize: 16, fontWeight: 600 }}>
+                {search ? "No boards match" : "No boards yet"}
+              </h3>
+              <p style={{ marginTop: 8, fontSize: 13, color: "var(--lagoon-muted-fg)" }}>
+                {search ? "Try a different search term." : "Create your first board to get started."}
+              </p>
+              {!search ? (
+                <button className="lagoon-create-btn" style={{ marginTop: 16 }} onClick={openNewBoard}>
+                  <IconPlus size={14} /> New board
+                </button>
+              ) : null}
+            </div>
           ) : (
-            filteredProjects.map((project, i) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                team={teams.find((t) => t.id === project.teamId) ?? null}
-                tasks={taskPagesQ.data?.[i] ?? []}
-                onContextMenu={(e) => openProjMenu(e, project)}
-              />
-            ))
+            <>
+              <section aria-label="All boards" style={{ display: "grid", gap: 16, paddingTop: 32, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>
+                {filtered.map((b) => (
+                  <Link
+                    key={b.project.id}
+                    href={`/app/board?project=${b.project.id}`}
+                    className="lagoon-board-card"
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+                      <span style={{ width: 12, height: 12, borderRadius: 9999, background: `var(--lagoon-${b.tone})` }} />
+                      <span style={{ fontSize: 11, color: "var(--lagoon-muted-fg)" }}>
+                        {b.team ?? b.project.key}
+                      </span>
+                    </div>
+                    <h2 className="lagoon-display" style={{ marginTop: 32, fontSize: 20, fontWeight: 600 }}>{b.project.name}</h2>
+                    <p style={{ marginTop: 8, minHeight: 40, fontSize: 12, lineHeight: 1.6, color: "var(--lagoon-muted-fg)" }}>
+                      {b.team ? `${b.team} · ` : ""}{b.project.key} board — {b.active} open, {b.tasks - b.active} done.
+                    </p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 20, fontSize: 11, color: "var(--lagoon-muted-fg)" }}>
+                      <span>{b.tasks} tasks</span>
+                      <span>{b.active} active</span>
+                      <span>Due {b.dueLabel}</span>
+                    </div>
+                    <div className="lagoon-progress" style={{ marginTop: 16 }}>
+                      <div style={{ height: "100%", borderRadius: 9999, background: `var(--lagoon-${b.tone})`, width: `${b.progress}%` }} />
+                    </div>
+                    <span style={{ marginTop: "auto", paddingTop: 16, fontSize: 12, fontWeight: 600, color: "var(--lagoon-ocean)" }}>
+                      Open board →
+                    </span>
+                  </Link>
+                ))}
+              </section>
+
+              <section aria-label="Workspace summary" style={{ display: "grid", gap: 16, marginTop: 32, gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+                <div className="lagoon-stat">
+                  <p style={{ fontSize: 12, color: "var(--lagoon-muted-fg)" }}>All tasks</p>
+                  <p className="lagoon-display" style={{ marginTop: 8, fontSize: 30, fontWeight: 600 }}>{totalTasks}</p>
+                  <p style={{ marginTop: 4, fontSize: 11, color: "var(--lagoon-success)" }}>Across every board</p>
+                </div>
+                <div className="lagoon-stat">
+                  <p style={{ fontSize: 12, color: "var(--lagoon-muted-fg)" }}>In motion</p>
+                  <p className="lagoon-display" style={{ marginTop: 8, fontSize: 30, fontWeight: 600 }}>{activeTasks}</p>
+                  <p style={{ marginTop: 4, fontSize: 11, color: "var(--lagoon-teal)" }}>Keep the momentum</p>
+                </div>
+                <div className="lagoon-stat">
+                  <p style={{ fontSize: 12, color: "var(--lagoon-muted-fg)" }}>Completed</p>
+                  <p className="lagoon-display" style={{ marginTop: 8, fontSize: 30, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+                    <IconCheck size={24} style={{ color: "var(--lagoon-success)" }} /> {totalTasks - activeTasks}
+                  </p>
+                  <p style={{ marginTop: 4, fontSize: 11, color: "var(--lagoon-muted-fg)" }}>Ready to celebrate</p>
+                </div>
+              </section>
+            </>
           )}
         </div>
-
-        <Modal
-          open={showNew}
-          onClose={() => setShowNew(false)}
-          title="New project"
-          sub="Shown in the sidebar and on the board. Pick a short key for task cards."
-          footer={
-            <>
-              <Button variant="ghost" onClick={() => setShowNew(false)}>Cancel</Button>
-              <Button onClick={() => void handleCreate()} disabled={!newName.trim() || !newKey.trim()}>
-                <IconPlus size={14} /> Create project
-              </Button>
-            </>
-          }
-        >
-          <Field>
-            <FieldLabel htmlFor="proj-name">Name</FieldLabel>
-            <Input id="proj-name" type="text" value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Launch" autoFocus />
-          </Field>
-          <Field>
-            <FieldLabel htmlFor="proj-key">Key (short code)</FieldLabel>
-            <Input
-              id="proj-key"
-              type="text"
-              value={newKey}
-              onChange={(e) => setNewKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
-              placeholder="LAU"
-              maxLength={10}
-              className="mono"
-            />
-            <FieldDescription>Shown on task cards — 1-10 letters.</FieldDescription>
-          </Field>
-        </Modal>
-        {projMenu ? (
-          <div
-            className="menu"
-            role="menu"
-            aria-label={`Options for ${projMenu.project.name}`}
-            style={{ position: "fixed", top: projMenu.y, left: projMenu.x, width: 210, zIndex: 70 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="menu-label" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {projMenu.project.key} · {projMenu.project.name}
-            </div>
-            <button
-              className="menu-item"
-              role="menuitem"
-              onClick={() => openRename(projMenu.project)}
-            >
-              <IconEdit size={14} />
-              Rename project
-            </button>
-            <button
-              className="menu-item"
-              role="menuitem"
-              style={{ color: "#be123c", fontWeight: 600 }}
-              onClick={() => {
-                setDeletingProj(projMenu.project);
-                setProjMenu(null);
-              }}
-            >
-              <IconTrash size={14} />
-              Delete project
-            </button>
-          </div>
-        ) : null}
-
-        <Modal
-          open={renamingProj !== null}
-          onClose={() => (renaming ? null : setRenamingProj(null))}
-          title="Rename project"
-          sub="Shown in the sidebar, projects list, and on the board."
-          footer={
-            <>
-              <Button variant="ghost" onClick={() => setRenamingProj(null)} disabled={renaming}>
-                Cancel
-              </Button>
-              <Button
-                onClick={() => void handleRename()}
-                disabled={renaming || !renameName.trim() || renameName.trim() === renamingProj?.name}
-              >
-                <IconEdit size={14} /> {renaming ? "Renaming…" : "Rename project"}
-              </Button>
-            </>
-          }
-        >
-          <Field>
-            <FieldLabel htmlFor="proj-rename">Name</FieldLabel>
-            <Input
-              id="proj-rename"
-              type="text"
-              value={renameName}
-              onChange={(e) => setRenameName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void handleRename();
-              }}
-              placeholder="Project name"
-              maxLength={100}
-              autoFocus
-            />
-          </Field>
-        </Modal>
-
-        <Modal
-          open={deletingProj !== null}
-          onClose={() => (deleting ? null : setDeletingProj(null))}
-          title={`Delete ${deletingProj?.name ?? "project"}?`}
-          sub="This removes the project from the sidebar and board. Tasks inside it will no longer be listed. This can't be undone."
-          footer={
-            <>
-              <Button variant="ghost" onClick={() => setDeletingProj(null)} disabled={deleting}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={() => void handleDelete()} disabled={deleting}>
-                <IconTrash size={14} /> {deleting ? "Deleting…" : "Delete project"}
-              </Button>
-            </>
-          }
-        >
-          <p style={{ fontSize: 13, color: "var(--slate-600)" }}>
-            Project key <span className="mono" style={{ fontWeight: 700 }}>{deletingProj?.key}</span> will be
-            permanently removed from this workspace.
-          </p>
-        </Modal>
       </div>
-    </AppShell>
+    </LagoonShell>
   );
 }
 
+export default function ProjectsPageWrapper() {
+  return (
+    <Suspense fallback={<div className="lagoon" style={{ padding: 24, fontSize: 13 }}>Loading…</div>}>
+      <LagoonDashboard />
+    </Suspense>
+  );
+}
