@@ -151,7 +151,36 @@ export function enableDemoSession(): void {
   localStorage.setItem("tf_is_demo", "1");
 }
 
+export function clearDemoSession(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("tf_is_demo");
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(id: string | null | undefined): boolean {
+  return typeof id === "string" && UUID_RE.test(id);
+}
+
+/** Demo/legacy ids (demo-proj-1, task-*, proj-*) are not UUIDs and can never
+ *  exist in Postgres — they must always be served from local demo storage,
+ *  even when the session flag got lost (bookmarked ?project=demo-proj-1). */
+export function isDemoId(id: string | null | undefined): boolean {
+  if (!id) return false;
+  if (id === DEMO_ORG_ID) return true;
+  if (id.startsWith("demo-")) return true;
+  if (id.startsWith("task-")) return true;
+  if (id.startsWith("proj-")) return true;
+  return !isUuid(id);
+}
+
 export function isDemoSession(): boolean {
   if (typeof window === "undefined") return false;
-  return localStorage.getItem("tf_is_demo") === "1";
+  if (localStorage.getItem("tf_is_demo") === "1") return true;
+  // Fallback: bookmarked demo URLs / stale flags — tenant tells the truth.
+  try {
+    return localStorage.getItem("tf_tenant_id") === DEMO_ORG_ID;
+  } catch {
+    return false;
+  }
 }
