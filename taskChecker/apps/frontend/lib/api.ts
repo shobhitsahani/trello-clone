@@ -1,18 +1,6 @@
 "use client";
 
 import type { TaskStatus, Priority, Role } from "./utils";
-import {
-  getDemoProjects,
-  getDemoTasks,
-  saveDemoTasks,
-  saveDemoProjects,
-  isDemoSession,
-  isDemoId,
-  clearDemoSession,
-  DEMO_USER,
-  DEMO_MEMBERSHIPS,
-  DEMO_ORG_ID,
-} from "./mock-storage";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/v1";
 
@@ -306,9 +294,6 @@ export function setAuthTokens(tokens: TokenBundle, tenantId: string): void {
     localStorage.setItem("tf_access_token", tokens.accessToken);
     localStorage.setItem("tf_refresh_token", tokens.refreshToken);
     localStorage.setItem("tf_tenant_id", tenantId);
-    // Real logins must leave demo mode — otherwise demo project ids leak
-    // into real sessions and every write fails backend uuid validation.
-    if (tenantId !== DEMO_ORG_ID) clearDemoSession();
   }
 }
 
@@ -319,7 +304,6 @@ export function clearAuthTokens(): void {
     localStorage.removeItem("tf_access_token");
     localStorage.removeItem("tf_refresh_token");
     localStorage.removeItem("tf_tenant_id");
-    clearDemoSession();
   }
 }
 
@@ -457,19 +441,8 @@ export const api = {
         body: JSON.stringify({ refreshToken }),
       }),
 
-    me: async () => {
-      if (isDemoSession()) {
-        return { user: DEMO_USER, memberships: DEMO_MEMBERSHIPS, activeTenantId: DEMO_ORG_ID };
-      }
-      try {
-        return await request<{ user: User; memberships: ActiveTenant[]; activeTenantId: string }>("/me");
-      } catch (err) {
-        if (isDemoSession()) {
-          return { user: DEMO_USER, memberships: DEMO_MEMBERSHIPS, activeTenantId: DEMO_ORG_ID };
-        }
-        throw err;
-      }
-    },
+    me: () =>
+      request<{ user: User; memberships: ActiveTenant[]; activeTenantId: string }>("/me"),
 
     switchOrg: (orgId: string) =>
       request<{ tenant: ActiveTenant; accessToken: string }>("/auth/switch-org", {
@@ -494,22 +467,8 @@ export const api = {
         body: JSON.stringify({ name }),
       }),
 
-    listMembers: async (orgId: string) => {
-      if (isDemoSession() || isDemoId(orgId)) {
-        return {
-          members: [
-            {
-              userId: DEMO_USER.id,
-              name: DEMO_USER.name,
-              email: DEMO_USER.email,
-              role: "owner" as const,
-              status: "active" as const,
-            },
-          ],
-        };
-      }
-      return request<{ members: Member[] }>(`/orgs/${orgId}/members`);
-    },
+    listMembers: (orgId: string) =>
+      request<{ members: Member[] }>(`/orgs/${orgId}/members`),
 
     invite: (orgId: string, data: { email: string; role: Role }) =>
       request<{
@@ -539,31 +498,11 @@ export const api = {
   },
 
   projects: {
-    list: async (orgId: string) => {
-      if (isDemoSession() || isDemoId(orgId)) return { projects: getDemoProjects() };
-      // No silent demo fallback here: returning fake demo projects for a real
-      // org is what caused "Validation failed: Invalid uuid" on card create
-      // (demo-proj-1 can never pass backend uuid validation).
-      return request<{ projects: Project[] }>(`/orgs/${orgId}/projects`);
-    },
+    list: (orgId: string) =>
+      request<{ projects: Project[] }>(`/orgs/${orgId}/projects`),
 
-    create: async (data: { teamId?: string; name: string; key: string }) => {
-      if (isDemoSession() || (data.teamId && isDemoId(data.teamId))) {
-        const projects = getDemoProjects();
-        const newProj: Project = {
-          tenantId: DEMO_ORG_ID,
-          id: `proj-${Date.now()}`,
-          teamId: data.teamId ?? null,
-          name: data.name,
-          key: data.key,
-          createdAt: new Date().toISOString(),
-          deletedAt: null,
-        };
-        saveDemoProjects([...projects, newProj]);
-        return { project: newProj };
-      }
-      return request<{ project: Project }>("/projects", { method: "POST", body: JSON.stringify(data) });
-    },
+    create: (data: { teamId?: string; name: string; key: string }) =>
+      request<{ project: Project }>("/projects", { method: "POST", body: JSON.stringify(data) }),
 
     update: (id: string, data: { name?: string; key?: string; teamId?: string | null }) =>
       request<{ ok: boolean }>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
@@ -571,14 +510,8 @@ export const api = {
     delete: (id: string) =>
       request<{ ok: boolean }>(`/projects/${id}`, { method: "DELETE" }),
 
-    lists: async (id: string) => {
-      if (isDemoSession() || isDemoId(id)) return { lists: [] };
-      try {
-        return await request<{ lists: ListLabel[] }>(`/projects/${id}/lists`);
-      } catch {
-        return { lists: [] };
-      }
-    },
+    lists: (id: string) =>
+      request<{ lists: ListLabel[] }>(`/projects/${id}/lists`),
 
     renameList: (id: string, status: TaskStatus, label: string) =>
       request<{ list: ListLabel }>(`/projects/${id}/lists`, {
@@ -588,12 +521,7 @@ export const api = {
   },
 
   tasks: {
-    list: async (orgId: string, projectId: string, params?: { status?: TaskStatus; limit?: number; cursor?: string }) => {
-      if (isDemoSession() || isDemoId(orgId) || isDemoId(projectId)) {
-        const tasks = getDemoTasks().filter((t) => t.projectId === projectId || isDemoId(t.projectId));
-        const filtered = params?.status ? tasks.filter((t) => t.status === params.status) : tasks;
-        return { data: filtered, nextCursor: null, hasMore: false };
-      }
+    list: (orgId: string, projectId: string, params?: { status?: TaskStatus; limit?: number; cursor?: string }) => {
       const searchParams = new URLSearchParams();
       if (params?.status) searchParams.set("status", params.status);
       if (params?.limit) searchParams.set("limit", String(params.limit));
@@ -601,36 +529,10 @@ export const api = {
       return request<PaginatedResponse<Task>>(`/orgs/${orgId}/projects/${projectId}/tasks?${searchParams}`);
     },
 
-    get: async (taskId: string) => {
-      if (isDemoSession() || isDemoId(taskId)) {
-        const task = getDemoTasks().find((t) => t.id === taskId);
-        if (!task) throw new Error("Task not found.");
-        return { task };
-      }
-      return request<{ task: Task }>(`/tasks/${taskId}`);
-    },
+    get: (taskId: string) =>
+      request<{ task: Task }>(`/tasks/${taskId}`),
 
-    create: async (data: { projectId: string; title: string; description?: string; status?: TaskStatus; priority?: Priority; assigneeId?: string; dueAt?: string }, idempotencyKey?: string) => {
-      if (isDemoSession() || isDemoId(data.projectId)) {
-        const tasks = getDemoTasks();
-        const newTask: Task = {
-          id: `task-${Date.now()}`,
-          tenantId: DEMO_ORG_ID,
-          projectId: data.projectId || "demo-proj-1",
-          title: data.title,
-          description: data.description ?? "",
-          status: data.status ?? "backlog",
-          priority: data.priority ?? "none",
-          assigneeId: data.assigneeId ?? null,
-          reporterId: null,
-          dueAt: data.dueAt ?? null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          deletedAt: null,
-        };
-        saveDemoTasks([...tasks, newTask]);
-        return { task: newTask, idempotentReplay: false };
-      }
+    create: (data: { projectId: string; title: string; description?: string; status?: TaskStatus; priority?: Priority; assigneeId?: string; dueAt?: string }, idempotencyKey?: string) => {
       const headers: Record<string, string> = {};
       if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
       return request<{ task: Task; idempotentReplay: boolean }>("/tasks", {
@@ -640,24 +542,11 @@ export const api = {
       });
     },
 
-    update: async (taskId: string, data: Partial<{ title: string; description: string; status: TaskStatus; priority: Priority; assigneeId: string | null; dueAt: string | null }>) => {
-      if (isDemoSession() || isDemoId(taskId)) {
-        const tasks = getDemoTasks();
-        const updated = tasks.map((t) => (t.id === taskId ? { ...t, ...data, updatedAt: new Date().toISOString() } : t));
-        saveDemoTasks(updated);
-        return { ok: true, action: "updated" };
-      }
-      return request<{ ok: boolean; action: string }>(`/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify(data) });
-    },
+    update: (taskId: string, data: Partial<{ title: string; description: string; status: TaskStatus; priority: Priority; assigneeId: string | null; dueAt: string | null }>) =>
+      request<{ ok: boolean; action: string }>(`/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify(data) }),
 
-    delete: async (taskId: string) => {
-      if (isDemoSession() || isDemoId(taskId)) {
-        const tasks = getDemoTasks();
-        saveDemoTasks(tasks.filter((t) => t.id !== taskId));
-        return { ok: true, deletedAt: new Date().toISOString() };
-      }
-      return request<{ ok: boolean; deletedAt: string }>(`/tasks/${taskId}`, { method: "DELETE" });
-    },
+    delete: (taskId: string) =>
+      request<{ ok: boolean; deletedAt: string }>(`/tasks/${taskId}`, { method: "DELETE" }),
   },
 
   comments: {

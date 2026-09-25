@@ -724,7 +724,47 @@ function LagoonBoard() {
 
   const openCard = useCallback((task: Task) => setSelectedTaskId(task.id), []);
 
-  if (!projectsQ.isLoading && projects.length === 0) {
+  if (projectsQ.isLoading) {
+    return (
+      <LagoonShell
+        projects={[]}
+        activeProjectId=""
+        onSelectProject={() => {}}
+        onProjectsChanged={() => projectsQ.mutate()}
+      >
+        <div className="lagoon-list-wrap" style={{ paddingTop: 32 }}>
+          <div className="lagoon-empty">
+            <p style={{ fontSize: 13, color: "var(--lagoon-muted-fg)" }}>Loading boards…</p>
+          </div>
+        </div>
+      </LagoonShell>
+    );
+  }
+
+  if (projectsQ.error) {
+    return (
+      <LagoonShell
+        projects={[]}
+        activeProjectId=""
+        onSelectProject={() => {}}
+        onProjectsChanged={() => projectsQ.mutate()}
+      >
+        <div className="lagoon-list-wrap" style={{ paddingTop: 32 }}>
+          <div className="lagoon-empty">
+            <h3 className="lagoon-display" style={{ fontSize: 16, fontWeight: 600 }}>Couldn&apos;t load boards</h3>
+            <p style={{ marginTop: 8, fontSize: 13, color: "var(--lagoon-muted-fg)" }}>
+              {projectsQ.error instanceof Error ? projectsQ.error.message : "Something went wrong."}
+            </p>
+            <button className="lagoon-create-btn" style={{ marginTop: 16 }} onClick={() => void projectsQ.mutate()}>
+              Try again
+            </button>
+          </div>
+        </div>
+      </LagoonShell>
+    );
+  }
+
+  if (projects.length === 0) {
     return (
       <LagoonShell
         projects={projects}
@@ -852,6 +892,21 @@ function LagoonBoard() {
           />
         </div>
       </div>
+
+      {tasksQ.error && selectedProjectId ? (
+        <div style={{ padding: "12px 20px 0" }} role="alert">
+          <p style={{ fontSize: 12, color: "var(--lagoon-coral)" }}>
+            Couldn&apos;t load cards: {tasksQ.error instanceof Error ? tasksQ.error.message : "Something went wrong."}{" "}
+            <button
+              type="button"
+              onClick={() => void tasksQ.mutate()}
+              style={{ textDecoration: "underline", fontWeight: 600 }}
+            >
+              Retry
+            </button>
+          </p>
+        </div>
+      ) : null}
 
       {view === "board" ? (
         <div className="lagoon-board-scroll">
