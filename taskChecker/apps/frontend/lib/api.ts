@@ -1,16 +1,6 @@
 "use client";
 
 import type { TaskStatus, Priority, Role } from "./utils";
-import {
-  getDemoProjects,
-  getDemoTasks,
-  saveDemoTasks,
-  saveDemoProjects,
-  isDemoSession,
-  DEMO_USER,
-  DEMO_MEMBERSHIPS,
-  DEMO_ORG_ID,
-} from "./mock-storage";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/v1";
 
@@ -87,12 +77,35 @@ export interface Comment {
   deletedAt: string | null;
 }
 
+export interface ChatAttachment {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+export interface ChatReactionGroup {
+  emoji: string;
+  count: number;
+  userIds: string[];
+  reactedByMe: boolean;
+}
+
 export interface ChatMessage {
   id: string;
   tenantId?: string;
   authorId: string;
   body: string;
+  attachments?: ChatAttachment[];
+  mentions?: string[];
+  reactions?: ChatReactionGroup[];
   createdAt: string;
+}
+
+export interface ChatSendPayload {
+  body: string;
+  attachments?: ChatAttachment[];
+  mentions?: string[];
 }
 
 export interface Attachment {
@@ -428,19 +441,8 @@ export const api = {
         body: JSON.stringify({ refreshToken }),
       }),
 
-    me: async () => {
-      if (isDemoSession()) {
-        return { user: DEMO_USER, memberships: DEMO_MEMBERSHIPS, activeTenantId: DEMO_ORG_ID };
-      }
-      try {
-        return await request<{ user: User; memberships: ActiveTenant[]; activeTenantId: string }>("/me");
-      } catch (err) {
-        if (isDemoSession()) {
-          return { user: DEMO_USER, memberships: DEMO_MEMBERSHIPS, activeTenantId: DEMO_ORG_ID };
-        }
-        throw err;
-      }
-    },
+    me: () =>
+      request<{ user: User; memberships: ActiveTenant[]; activeTenantId: string }>("/me"),
 
     switchOrg: (orgId: string) =>
       request<{ tenant: ActiveTenant; accessToken: string }>("/auth/switch-org", {
@@ -496,32 +498,11 @@ export const api = {
   },
 
   projects: {
-    list: async (orgId: string) => {
-      if (isDemoSession()) return { projects: getDemoProjects() };
-      try {
-        return await request<{ projects: Project[] }>(`/orgs/${orgId}/projects`);
-      } catch (err) {
-        return { projects: getDemoProjects() };
-      }
-    },
+    list: (orgId: string) =>
+      request<{ projects: Project[] }>(`/orgs/${orgId}/projects`),
 
-    create: async (data: { teamId?: string; name: string; key: string }) => {
-      if (isDemoSession()) {
-        const projects = getDemoProjects();
-        const newProj: Project = {
-          tenantId: DEMO_ORG_ID,
-          id: `proj-${Date.now()}`,
-          teamId: data.teamId ?? null,
-          name: data.name,
-          key: data.key,
-          createdAt: new Date().toISOString(),
-          deletedAt: null,
-        };
-        saveDemoProjects([...projects, newProj]);
-        return { project: newProj };
-      }
-      return request<{ project: Project }>("/projects", { method: "POST", body: JSON.stringify(data) });
-    },
+    create: (data: { teamId?: string; name: string; key: string }) =>
+      request<{ project: Project }>("/projects", { method: "POST", body: JSON.stringify(data) }),
 
     update: (id: string, data: { name?: string; key?: string; teamId?: string | null }) =>
       request<{ ok: boolean }>(`/projects/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
@@ -529,14 +510,8 @@ export const api = {
     delete: (id: string) =>
       request<{ ok: boolean }>(`/projects/${id}`, { method: "DELETE" }),
 
-    lists: async (id: string) => {
-      if (isDemoSession()) return { lists: [] };
-      try {
-        return await request<{ lists: ListLabel[] }>(`/projects/${id}/lists`);
-      } catch {
-        return { lists: [] };
-      }
-    },
+    lists: (id: string) =>
+      request<{ lists: ListLabel[] }>(`/projects/${id}/lists`),
 
     renameList: (id: string, status: TaskStatus, label: string) =>
       request<{ list: ListLabel }>(`/projects/${id}/lists`, {
@@ -546,49 +521,18 @@ export const api = {
   },
 
   tasks: {
-    list: async (orgId: string, projectId: string, params?: { status?: TaskStatus; limit?: number; cursor?: string }) => {
-      if (isDemoSession()) {
-        const tasks = getDemoTasks();
-        const filtered = params?.status ? tasks.filter((t) => t.status === params.status) : tasks;
-        return { data: filtered, nextCursor: null, hasMore: false };
-      }
-      try {
-        const searchParams = new URLSearchParams();
-        if (params?.status) searchParams.set("status", params.status);
-        if (params?.limit) searchParams.set("limit", String(params.limit));
-        if (params?.cursor) searchParams.set("cursor", params.cursor);
-        return await request<PaginatedResponse<Task>>(`/orgs/${orgId}/projects/${projectId}/tasks?${searchParams}`);
-      } catch {
-        const tasks = getDemoTasks();
-        const filtered = params?.status ? tasks.filter((t) => t.status === params.status) : tasks;
-        return { data: filtered, nextCursor: null, hasMore: false };
-      }
+    list: (orgId: string, projectId: string, params?: { status?: TaskStatus; limit?: number; cursor?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.set("status", params.status);
+      if (params?.limit) searchParams.set("limit", String(params.limit));
+      if (params?.cursor) searchParams.set("cursor", params.cursor);
+      return request<PaginatedResponse<Task>>(`/orgs/${orgId}/projects/${projectId}/tasks?${searchParams}`);
     },
 
     get: (taskId: string) =>
       request<{ task: Task }>(`/tasks/${taskId}`),
 
-    create: async (data: { projectId: string; title: string; description?: string; status?: TaskStatus; priority?: Priority; assigneeId?: string; dueAt?: string }, idempotencyKey?: string) => {
-      if (isDemoSession()) {
-        const tasks = getDemoTasks();
-        const newTask: Task = {
-          id: `task-${Date.now()}`,
-          tenantId: DEMO_ORG_ID,
-          projectId: data.projectId || "demo-proj-1",
-          title: data.title,
-          description: data.description ?? "",
-          status: data.status ?? "backlog",
-          priority: data.priority ?? "none",
-          assigneeId: data.assigneeId ?? null,
-          reporterId: null,
-          dueAt: data.dueAt ?? null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          deletedAt: null,
-        };
-        saveDemoTasks([...tasks, newTask]);
-        return { task: newTask, idempotentReplay: false };
-      }
+    create: (data: { projectId: string; title: string; description?: string; status?: TaskStatus; priority?: Priority; assigneeId?: string; dueAt?: string }, idempotencyKey?: string) => {
       const headers: Record<string, string> = {};
       if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
       return request<{ task: Task; idempotentReplay: boolean }>("/tasks", {
@@ -598,24 +542,11 @@ export const api = {
       });
     },
 
-    update: async (taskId: string, data: Partial<{ title: string; description: string; status: TaskStatus; priority: Priority; assigneeId: string | null; dueAt: string | null }>) => {
-      if (isDemoSession()) {
-        const tasks = getDemoTasks();
-        const updated = tasks.map((t) => (t.id === taskId ? { ...t, ...data, updatedAt: new Date().toISOString() } : t));
-        saveDemoTasks(updated);
-        return { ok: true, action: "updated" };
-      }
-      return request<{ ok: boolean; action: string }>(`/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify(data) });
-    },
+    update: (taskId: string, data: Partial<{ title: string; description: string; status: TaskStatus; priority: Priority; assigneeId: string | null; dueAt: string | null }>) =>
+      request<{ ok: boolean; action: string }>(`/tasks/${taskId}`, { method: "PATCH", body: JSON.stringify(data) }),
 
-    delete: async (taskId: string) => {
-      if (isDemoSession()) {
-        const tasks = getDemoTasks();
-        saveDemoTasks(tasks.filter((t) => t.id !== taskId));
-        return { ok: true, deletedAt: new Date().toISOString() };
-      }
-      return request<{ ok: boolean; deletedAt: string }>(`/tasks/${taskId}`, { method: "DELETE" });
-    },
+    delete: (taskId: string) =>
+      request<{ ok: boolean; deletedAt: string }>(`/tasks/${taskId}`, { method: "DELETE" }),
   },
 
   comments: {
@@ -641,11 +572,35 @@ export const api = {
       return request<PaginatedResponse<ChatMessage>>(`/chat/messages?${searchParams}`);
     },
 
-    send: (body: string) =>
-      request<{ message: ChatMessage }>(`/chat/messages`, { method: "POST", body: JSON.stringify({ body }) }),
+    send: (bodyOrPayload: string | ChatSendPayload) => {
+      const payload: ChatSendPayload =
+        typeof bodyOrPayload === "string" ? { body: bodyOrPayload } : bodyOrPayload;
+      return request<{ message: ChatMessage }>(`/chat/messages`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+    },
 
     remove: (messageId: string) =>
       request<{ ok: boolean }>(`/chat/messages/${messageId}`, { method: "DELETE" }),
+
+    react: (messageId: string, emoji: string) =>
+      request<{ ok: boolean; reactions: ChatReactionGroup[] }>(`/chat/messages/${messageId}/reactions`, {
+        method: "POST",
+        body: JSON.stringify({ emoji }),
+      }),
+
+    unreact: (messageId: string, emoji: string) =>
+      request<{ ok: boolean; reactions: ChatReactionGroup[] }>(
+        `/chat/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`,
+        { method: "DELETE" },
+      ),
+
+    typing: (displayName?: string) =>
+      request<{ ok: boolean }>(`/chat/typing`, {
+        method: "POST",
+        body: JSON.stringify(displayName ? { displayName } : {}),
+      }).catch(() => ({ ok: false as const })),
   },
 
   attachments: {
@@ -657,9 +612,14 @@ export const api = {
       }>("/attachments/presign", { method: "POST", body: JSON.stringify(data) }),
 
     upload: (attachmentId: string, file: Blob, objectKey: string, contentType: string) => {
+      // Raw fetch (not request()) because the body is binary — but the session
+      // token is still required: the backend authenticates every /v1 route.
+      const headers: Record<string, string> = { "Content-Type": contentType, "X-Object-Key": objectKey };
+      const token = getAccessToken();
+      if (token) headers.Authorization = `Bearer ${token}`;
       return fetch(`${API_BASE}/attachments/upload/${attachmentId}`, {
         method: "PUT",
-        headers: { "Content-Type": contentType, "X-Object-Key": objectKey },
+        headers,
         body: file,
       }).then((res) => {
         if (!res.ok) throw new Error("Upload failed");
@@ -667,8 +627,15 @@ export const api = {
       });
     },
 
-    download: (attachmentId: string) =>
-      request<never>(`/attachments/${attachmentId}/download`, { method: "GET" }),
+    download: async (attachmentId: string): Promise<Blob> => {
+      // Binary payload — fetch as blob, not JSON (request() would res.json()).
+      const token = getAccessToken();
+      const res = await fetch(`${API_BASE}/attachments/${attachmentId}/download`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error("Download failed");
+      return res.blob();
+    },
   },
 
   activity: {

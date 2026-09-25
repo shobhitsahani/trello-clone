@@ -3,7 +3,7 @@
  *
  *   bun run db:seed
  */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, sql } from "./client.js";
 import { hashPassword } from "../lib/password.js";
 import { uuidv7 } from "../lib/ids.js";
@@ -60,57 +60,79 @@ async function seedOrg(opts: { slug: string; name: string; owner: SeedUser; memb
       }
     }
 
-    const teamId = uuidv7();
-    await tx.insert(teams).values({ tenantId, id: teamId, name: `${opts.name} Core` });
-
-    const projectId = uuidv7();
-    await tx.insert(projects).values({ tenantId, id: projectId, teamId, name: "Launch", key: "LAU" });
-
-    const t1 = uuidv7();
-    await tx.insert(tasks).values({
-      tenantId,
-      id: t1,
-      projectId,
-      title: "Design the onboarding flow",
-      description: "First-run experience for new orgs",
-      status: "in_progress",
-      priority: "high",
-      assigneeId: opts.members[0] ? undefined : ownerId,
-      reporterId: ownerId,
-    });
-    const t2 = uuidv7();
-    await tx.insert(tasks).values({
-      tenantId,
-      id: t2,
-      projectId,
-      title: "Set up webhooks for task events",
-      description: "Deliver task.created to subscribers",
-      status: "backlog",
-      priority: "medium",
-      assigneeId: ownerId,
-      reporterId: ownerId,
-    });
-
-    if (opts.members[0]) {
-      const memberId = await seedUser(opts.members[0]);
-      await tx.insert(comments).values({
-        tenantId,
-        id: uuidv7(),
-        taskId: t2,
-        authorId: memberId,
-        body: `Tracking this for ${opts.name} — looks great.`,
-      });
+    // Idempotent re-runs: reuse the demo team/project when they already exist
+    // (fresh uuids every run would violate the per-tenant key uniqueness).
+    const teamName = `${opts.name} Core`;
+    const existingTeam = await tx
+      .select({ id: teams.id })
+      .from(teams)
+      .where(and(eq(teams.tenantId, tenantId), eq(teams.name, teamName)))
+      .limit(1);
+    const teamId = existingTeam[0]?.id ?? uuidv7();
+    if (!existingTeam[0]) {
+      await tx.insert(teams).values({ tenantId, id: teamId, name: teamName });
     }
 
-    await tx.insert(activityEvents).values({
-      tenantId,
-      id: uuidv7(),
-      actorId: ownerId,
-      entityType: "task",
-      entityId: t1,
-      action: "created",
-      meta: { title: "Design the onboarding flow" },
-    });
+    const existingProject = await tx
+      .select({ id: projects.id })
+      .from(projects)
+      .where(and(eq(projects.tenantId, tenantId), eq(projects.key, "LAU")))
+      .limit(1);
+    // Demo tasks/comments/activity are seeded once alongside a fresh project —
+    // re-runs reuse the rows instead of duplicating them.
+    const freshProject = !existingProject[0];
+    const projectId = existingProject[0]?.id ?? uuidv7();
+    if (freshProject) {
+      await tx.insert(projects).values({ tenantId, id: projectId, teamId, name: "Launch", key: "LAU" });
+    }
+
+    if (freshProject) {
+      const t1 = uuidv7();
+      await tx.insert(tasks).values({
+        tenantId,
+        id: t1,
+        projectId,
+        title: "Design the onboarding flow",
+        description: "First-run experience for new orgs",
+        status: "in_progress",
+        priority: "high",
+        assigneeId: opts.members[0] ? undefined : ownerId,
+        reporterId: ownerId,
+      });
+      const t2 = uuidv7();
+      await tx.insert(tasks).values({
+        tenantId,
+        id: t2,
+        projectId,
+        title: "Set up webhooks for task events",
+        description: "Deliver task.created to subscribers",
+        status: "backlog",
+        priority: "medium",
+        assigneeId: ownerId,
+        reporterId: ownerId,
+      });
+
+      if (opts.members[0]) {
+        const memberId = await seedUser(opts.members[0]);
+        await tx.insert(comments).values({
+          tenantId,
+          id: uuidv7(),
+          taskId: t2,
+          authorId: memberId,
+          body: `Tracking this for ${opts.name} — looks great.`,
+        });
+      }
+
+      await tx.insert(activityEvents).values({
+        tenantId,
+        id: uuidv7(),
+        actorId: ownerId,
+        entityType: "task",
+        entityId: t1,
+        action: "created",
+        meta: { title: "Design the onboarding flow" },
+      });
+    }
   });
 
   console.log(`seeded org: ${opts.slug} (tenant_id=${tenantId})`);

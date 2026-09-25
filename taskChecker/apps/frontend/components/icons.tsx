@@ -1,17 +1,19 @@
 /* Hand-drawn icon set — stroke-based, 24px grid, currentColor. */
 
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 type IconProps = {
   size?: number;
   className?: string;
   title?: string;
+  style?: CSSProperties;
 };
 
 function Ico({
   size = 16,
   className,
   title,
+  style,
   children,
 }: IconProps & { children: ReactNode }) {
   return (
@@ -25,6 +27,7 @@ function Ico({
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
+      style={style}
       aria-hidden={!title}
     >
       {title ? <title>{title}</title> : null}
@@ -558,6 +561,114 @@ export function IconStar({ size = 16, className }: IconProps) {
   return (
     <Ico {...{ size, className }}>
       <path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8L3.5 9.7l5.9-.9L12 3.5Z" />
+    </Ico>
+  );
+}
+
+export function IconMenu(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </Ico>
+  );
+}
+
+export function IconSliders(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="M5 7h14M5 17h14" />
+      <circle cx="12" cy="7" r="2.2" />
+      <circle cx="12" cy="17" r="2.2" />
+    </Ico>
+  );
+}
+
+export function IconColumns(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M12 4v16" />
+    </Ico>
+  );
+}
+
+export function IconCalendar(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 10h18M8 3v4M16 3v4" />
+    </Ico>
+  );
+}
+
+export function IconList(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="M4 6h.5M4 12h.5M4 18h.5" />
+    </Ico>
+  );
+}
+
+export function IconListTodo(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="m4 6 1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2" />
+      <path d="M10 6h10M10 12h10M10 18h10" />
+    </Ico>
+  );
+}
+
+export function IconSmile(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8.5 14.5a4 4 0 0 0 7 0" />
+      <path d="M9 9.5h.1M15 9.5h.1" />
+    </Ico>
+  );
+}
+
+export function IconPin(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="M12 21s-6.5-5.4-6.5-10.5a6.5 6.5 0 0 1 13 0C18.5 15.6 12 21 12 21Z" />
+      <circle cx="12" cy="10.5" r="2.3" />
+    </Ico>
+  );
+}
+
+export function IconPhone(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="M5 4h4l2 5-2.5 1.5a12 12 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
+    </Ico>
+  );
+}
+
+export function IconVideo(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <rect x="3" y="7" width="12" height="10" rx="2.5" />
+      <path d="m15 10.5 6-3.5v10l-6-3.5" />
+    </Ico>
+  );
+}
+
+export function IconMic(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <rect x="9" y="3" width="6" height="11" rx="3" />
+      <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3" />
+    </Ico>
+  );
+}
+
+export function IconChecks(p: IconProps) {
+  return (
+    <Ico {...p}>
+      <path d="m2.5 12.5 3.5 3.5L11 9" />
+      <path d="m10 14 2.5 2.5L20.5 9" />
     </Ico>
   );
 }

@@ -6,7 +6,8 @@ import { useEffect, useState, Suspense, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useAuth } from "../lib/auth";
-import { ChatRail, ContextBar, Rail, ScopeStrip } from "./shell-parts";
+import { ContextBar, Rail, ScopeStrip } from "./shell-parts";
+import { ChatRail } from "./chat-rail";
 import { IconFlowMark } from "./icons";
 import { AnimatePresence, motion } from "@/components/motion";
 

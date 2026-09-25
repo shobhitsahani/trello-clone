@@ -14,6 +14,8 @@ interface UseRealtimeOptions {
   onNotification?: (notification: WSMessage) => void;
   onActivity?: (activity: WSMessage) => void;
   onChat?: (event: WSMessage) => void;
+  onChatUpdated?: (event: WSMessage) => void;
+  onChatTyping?: (event: WSMessage) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Event) => void;
@@ -81,6 +83,15 @@ export function useRealtime(options: UseRealtimeOptions = {}) {
           case "chat.deleted":
             // Real-time team-chat event (POST /v1/chat/messages fan-out)
             optionsRef.current.onChat?.(msg);
+            break;
+          case "chat.updated":
+            // Emoji-reaction change — patch in place, no full revalidate.
+            optionsRef.current.onChatUpdated?.(msg);
+            optionsRef.current.onChat?.(msg);
+            break;
+          case "chat.typing":
+            // Ephemeral typing presence.
+            optionsRef.current.onChatTyping?.(msg);
             break;
           case "error":
             break;

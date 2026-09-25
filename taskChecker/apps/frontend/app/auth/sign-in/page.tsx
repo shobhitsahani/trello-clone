@@ -21,17 +21,12 @@ function FieldIcon({ children }: { children: React.ReactNode }) {
 
 export default function SignInPage() {
   const router = useRouter();
-  const { login, loginAsDemo } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const handleDemoAccess = () => {
-    loginAsDemo();
-    router.push("/app/board");
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,14 +45,14 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-primary/5 to-background p-6">
+    <div className="auth-page flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/[0.08] via-background to-muted/70 p-4 sm:p-6">
       <motion.div
         initial={{ opacity: 0, y: 16, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
         className="w-full max-w-md"
       >
-      <Card className="w-full max-w-md p-2">
+      <Card className="auth-card w-full max-w-md overflow-hidden border-border/70 bg-card/95 p-2 shadow-xl shadow-primary/5 backdrop-blur-sm">
         <CardHeader className="items-center text-center">
           <span className="grid size-11 place-items-center rounded-xl bg-primary text-primary-foreground">
             <IconFlowMark size={22} />
@@ -133,24 +128,6 @@ export default function SignInPage() {
             <Button type="submit" className="mt-1 w-full" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
               <IconArrowRight size={16} />
-            </Button>
-
-            <div className="relative my-2">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">or preview</span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={handleDemoAccess}
-            >
-              Explore Demo Board (Instant Preview)
             </Button>
             </FieldGroup>
           </CardContent>

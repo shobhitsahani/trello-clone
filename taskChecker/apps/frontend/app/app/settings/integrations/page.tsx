@@ -290,12 +290,6 @@ export default function IntegrationsPage() {
               </button>
             </div>
             <div className="integration-list">
-              <div className="integration-list-header">
-                <span>Webhook</span>
-                <span>Events</span>
-                <span>Status</span>
-                <span />
-              </div>
               {webhooks.map((webhook) => (
                 <WebhookRow
                   key={webhook.id}
@@ -323,12 +317,6 @@ export default function IntegrationsPage() {
               </button>
             </div>
             <div className="integration-list">
-              <div className="integration-list-header">
-                <span>API Key</span>
-                <span>Scopes</span>
-                <span>Last used</span>
-                <span />
-              </div>
               {apiKeys.map((apiKey) => (
                 <ApiKeyRow
                   key={apiKey.id}

@@ -19,9 +19,7 @@ export const authRoutes = new Hono();
 
 const json = async (c: { req: { json: () => Promise<unknown> } }) => {
   try {
-    const body = await c.req.json();
-    console.log("[auth] Parsed body:", JSON.stringify(body));
-    return body;
+    return await c.req.json();
   } catch (e) {
     console.error("[auth] JSON parse error:", e);
     return null;
@@ -52,17 +50,14 @@ authRoutes.post("/auth/signup", async (c) => {
 
   const { email: rawEmail, password: pw, name, orgName } = parsed.data;
   const emailLower = rawEmail.toLowerCase();
+  const userId = uuidv7();
+  const tenantId = uuidv7();
+  const slugBase = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "org";
+  let slug = `${slugBase}-${tenantId.slice(-4)}${tenantId.slice(19, 23)}`;
 
   const existing = await db.select().from(users).where(eq(users.email, emailLower)).limit(1);
   if (existing[0]) throw badRequest("An account with this email already exists.");
 
-  const userId = uuidv7();
-  const tenantId = uuidv7();
-  const slugBase = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "org";
-  // uuidv7's first 8 hex chars are the ms timestamp — two orgs created in the
-  // same millisecond would collide. Use the random tail instead, and retry on
-  // the (theoretical) unique-violation anyway.
-  let slug = `${slugBase}-${tenantId.slice(-4)}${tenantId.slice(19, 23)}`;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       await db.transaction(async (tx) => {
@@ -71,6 +66,7 @@ authRoutes.post("/auth/signup", async (c) => {
       });
       break;
     } catch (err) {
+      if (err instanceof Error && err.name === "ApiError") throw err;
       if (attempt === 2 || !(err as { code?: string }).code?.startsWith("23")) throw err;
       slug = `${slugBase}-${randomToken(4).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || uuidv7().slice(-4)}`;
     }
@@ -93,16 +89,25 @@ authRoutes.post("/auth/signup", async (c) => {
 authRoutes.post("/auth/login", async (c) => {
   const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse(await json(c));
   if (!parsed.success) throw unauthorized("Invalid email or password.");
-  const user = await db.select().from(users).where(eq(users.email, parsed.data.email.toLowerCase())).limit(1);
+  const emailLower = parsed.data.email.toLowerCase();
+
+  const user = await db.select().from(users).where(eq(users.email, emailLower)).limit(1);
   if (!user[0] || !verifyPassword(parsed.data.password, user[0].passwordHash)) {
     throw unauthorized("Invalid email or password.");
   }
   const ms = await membershipsForUser(user[0].id);
-  const active = ms.find((m) => m.status === "active") ?? ms[0];
-  if (!active) throw unauthorized("No active organization memberships. Accept an invite first.");
-  const accessToken = await signAccessToken({ sub: user[0].id, tid: active.tenant_id, role: active.role });
+  const tenant = ms.find((m) => m.status === "active") ?? ms[0];
+  if (!tenant) throw unauthorized("No active organization membership.");
+
+  const accessToken = await signAccessToken({ sub: user[0].id, tid: tenant.tenant_id, role: tenant.role });
   const refreshToken = await issueRefreshToken(user[0].id);
-  return c.json({ user: publicUser(user[0]), memberships: ms, tenant: active, tokens: { accessToken, refreshToken } });
+
+  return c.json({
+    user: publicUser(user[0]),
+    memberships: ms,
+    tenant,
+    tokens: { accessToken, refreshToken },
+  });
 });
 
 // POST /v1/auth/refresh
@@ -112,11 +117,11 @@ authRoutes.post("/auth/refresh", async (c) => {
   const hash = hashSecret(parsed.data.refreshToken);
   const row = await db.select().from(refreshTokens).where(eq(refreshTokens.tokenHash, hash)).limit(1);
   if (!row[0] || row[0].revokedAt || row[0].expiresAt.getTime() < Date.now()) {
-    throw unauthorized("Refresh token expired or revoked.");
+    throw unauthorized("Invalid refresh token.");
   }
   const ms = await membershipsForUser(row[0].userId);
   const active = ms.find((m) => m.status === "active") ?? ms[0];
-  if (!active) throw unauthorized("No active organization memberships.");
+  if (!active) throw unauthorized("No active organization membership.");
   const accessToken = await signAccessToken({ sub: row[0].userId, tid: active.tenant_id, role: active.role });
   return c.json({ accessToken });
 });
@@ -125,7 +130,11 @@ authRoutes.post("/auth/refresh", async (c) => {
 authRoutes.post("/auth/logout", async (c) => {
   const parsed = z.object({ refreshToken: z.string().min(10) }).safeParse(await json(c));
   if (parsed.success) {
-    await db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.tokenHash, hashSecret(parsed.data.refreshToken)));
+    try {
+      await db.update(refreshTokens).set({ revokedAt: new Date() }).where(eq(refreshTokens.tokenHash, hashSecret(parsed.data.refreshToken)));
+    } catch {
+      /* ignore if db down */
+    }
   }
   return c.json({ ok: true });
 });
@@ -134,7 +143,7 @@ authRoutes.post("/auth/logout", async (c) => {
 authRoutes.get("/me", async (c) => {
   const p = c.get("principal");
   const user = await db.select().from(users).where(eq(users.id, p.userId)).limit(1);
-  if (!user[0]) throw unauthorized("Account not found.");
+  if (!user[0]) throw unauthorized("Session user not found.");
   const ms = await membershipsForUser(p.userId);
   return c.json({ user: publicUser(user[0]), memberships: ms, activeTenantId: p.tenantId });
 });
